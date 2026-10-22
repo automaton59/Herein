@@ -80,7 +80,10 @@
 | 蓝鱼 8 小时 | runtime PID 28488；monitor PID 21696；2026-10-22 23:05:22 北京时间开始，预计 10-23 07:05:22 结束 | 正在运行；此前 Shizuku 监测保留，不能互相替代或拼接 |
 | 连续表现负载 | `endurance.mjs` PID 11948，23:05:32 北京时间开始；约每分钟动作/表情轮换复位、每 15 轮固定静音发声与交替取消，沿用蓝鱼 soak deadline | 正在运行；单独报告次数、队列、fps、渲染错误和失败 |
 | Cubism 2 回归 | 新代码 + 原 Shizuku，CPU ASR/SAPI 静音临时实例；happy/tap/drag/neutral 命令 200，model loaded，renderErrors=0、约 58fps、嘴=0 | 可加载与基本命令通过；旧 flick_head 缺失保持如实记录 |
+| 动作连续帧 | 同 buildId 独立 CPU ASR/SAPI 静音截图实例：186 帧，185 对相邻帧有可测变化；眼开闭 0–1、呼吸 0.10–0.90、嘴 0–1；本机 `tmp/interaction-motion-capture-data/avatar-motion-demo.mp4` | renderer 内连续动作证据；不是 Windows 桌面录屏，模型资源与视频不提交 |
 
 截图和表情对照图只保留本机验收数据目录。页面截图能证明模型在 renderer 内绘制，Windows 桌面合成与热键/托盘的真人观察待用户明天验收。未自动触发需要用户操作/回复的请求，也没有让整机睡眠/重启。今夜不保存真人输入、不开启真人麦克风测试；合成音频为固定 fixture。
 
 旧的 Shizuku 资源审计发现未使用的 flick_head 动作引用缺失（`flickHead_00.mtn`）；不能把全部旧资产都标完整。蓝鱼本次 15 个引用资源审计通过。
+
+截至本次提交，蓝鱼最终版本短测完成、运行时源文件与构建 main.js 的 SHA-256 重算符合 live buildId；两个历史蓝鱼长测片段不计入最终结果。当前 8 小时仍在真实计时，不标完成。夜间蓝鱼 endurance 驱动身体与 TTS，真人麦克风关闭；ASR 十轮闭环来自单独的合成输入实例，8 小时主实例不作持续麦克风/ASR 请求负载通过证据。
