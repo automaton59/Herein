@@ -92,6 +92,7 @@
 - GPU：RTX 4060 Laptop 8GB；CPU：Ryzen 7 7435H 8C/16T；RAM 16GB。
 - TTS 实测：0.6B **4.87s/句、RTF 3.28**；1.7B **4.8s/句、RTF 3.70**；当前是 batch，不是实时。
 - Live2D：Cubism2 + Shizuku 测试模型；正式蓝鱼模型尚未提供。
+- 正式模型未到之前，先用现有 Shizuku 验证模型跑通链路；正式模型到了再替换，接入必须可替换。
 - 模型文件在 `private/`，不进 git；不要打包分发。
 - Core/TTS/tunnel 可能正在运行；不要直接停掉用户的服务。
 
