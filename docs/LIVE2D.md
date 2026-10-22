@@ -60,6 +60,6 @@ http://127.0.0.1:4173/?live2d=1   # npm run preview
 ## 已知限制
 
 - 当前只验证了 Shizuku（Cubism 2）；Cubism 4 需要 `live2dcubismcore.min.js`。
-- 没有口型同步（TTS RMS/viseme 还没接）。
+- 手机端朗读已用 Web Audio RMS 驱动 `PARAM_MOUTH_OPEN_Y`；桌面 CallWindow 尚未接口型，真机未验证。
 - `?live2d=1` 是演示页；正式角色形象还要换模型/贴图/动作。
 - `/assets/*` 公开；不要在这里放凭据或私密聊天素材。

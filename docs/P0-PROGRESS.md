@@ -47,10 +47,11 @@
 | P0-07 | 角色包 | `packages/core/src/character.ts`：`CharacterPackManifest` + `validateCharacterPack`；3 个测试；私有 `private/characters/haishixiang/character.json` |
 | P0-09 | Avatar 契约 | `packages/core/src/avatar.ts`：`AvatarRenderer` / `AvatarLoadOptions` / 工厂类型 |
 | P0-09 | Live2D 渲染 | Pixi 7 + Cubism 2 `Live2DStage`；Core `/assets`；`?live2d=1` 演示页；实际加载 Shizuku 成功（canvas 1，模型 624×672）；`docs/LIVE2D.md` |
-| P2 | Live2D 接入 | `CallWindow` 已接 `Live2DStage`（Core assets + presentation entry）；APP 右上角“形象”打开全屏 Live2D；口型/正式蓝蓝模型/通话实机未验证 |
+| P2 | Live2D 接入 | `CallWindow` 已接 `Live2DStage`（Core assets + presentation entry）；APP 右上角“形象”打开全屏 Live2D；手机朗读 RMS 驱动口型已接，桌面口型/正式蓝蓝模型/通话实机未验证 |
 | P0-08 | TTS 横评脚本 | `scripts/benchmark_tts.mjs` + `npm run bench:tts`：延迟/音频时长/RTF，支持自定义 endpoint/text |
 | P0-08 | TTS 实测 | `D:\AI\tools\qwen_tts\venv`（torch 2.11+cu128/CUDA）+ CustomVoice 1.7B：平均 **4.8s/句，RTF 3.70**；0.6B：**4.87s/句，RTF 3.28**；能出声，未实时。详见 `docs/TTS.md` |
 | P0-08/P2 | 手机朗读 | Core `POST /v1/tts` 代理；移动端助手消息“▶ 朗读”；本地 38KB/5.1s，远端 `/herein/v1/tts` 30KB/3.9s |
+| P0-08/P2 | 手机口型 | 手机朗读时 Web Audio RMS → `PARAM_MOUTH_OPEN_Y`；tsc 通过，真机未验证 |
 
 ## 验证
 
@@ -75,7 +76,7 @@
 | P0-03 | 队列/调度 | Core HTTP + 模型网关已有；队列、主动行为调度、桌面 UI 接 Core 还没做 |
 | P0-05 | 混合召回 | FTS/LIKE + importance 已做；embedding/触发词/recency 混合排序待做 |
 | P0-08 | TTS 实时化 | 1.7B batch RTF 3.70 已实测；还缺 0.6B/流式/C 引擎对比，未接语音通话 |
-| P2 | 实时语音/Live2D | Live2D 渲染已通；口型同步、正式模型、TTS 实时化未做 |
+| P2 | 实时语音/Live2D | Live2D 渲染已通；手机朗读口型已接；桌面口型、正式模型、TTS 实时化未做 |
 | P0-10 | 真机验证 | APK 已出；还没装到手机/平板实测 |
 | P0-11 | QQ listener | 配置/连接/心跳/归一化/落库/被动回复接线已做；语音、频控、审核、默认回复策略待做，等 `qqbot.json` |
 | P1a | Core 双端一致性 | 桌面/手机都走 Core，但桌面本地记忆更新仍走 IPC；跨端实时同步未做 |
