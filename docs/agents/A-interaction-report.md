@@ -184,6 +184,6 @@ thinkEnd 一次结束后回 idle，2.2 秒后仍 idle；happy 保留。模拟隐
 
 完整候选buildId `a46ecc9bc3cc331f86825bbbecdc5424c9c9abc4b34d4b0d7905753a67be76cc`；数据 `tmp/interaction-sapi-progress-runtime-data`，同冻结renderer、透明30fps、CPU ASR、SAPI、silentOutput=true/autoListen=false。145/500字输出37.69/130.40秒PCM，软件首声205.9/133.4ms、RTF0.91/0.97、欠供0；长文取消/替换通过，末态buffer0/idle/嘴0/轨0/错误0。临时runtime PID21848及10子进程归属核查后回收。最初误用冻结入口的未执行测试实例PID26772也已回收，不作为候选证据。
 
-补丁在当前CRLF源码下 `git apply --check` 通过，但尚未应用到交付源码。原两条GGUF long soak仍旧build/PID连续运行，当前约1.6/1.1小时、失败0；不是8小时结论。必须在原长测结束审阅并保留后应用修复、记录新build并完成必要复验，不能将旧GGUF长测或候选短测称为最终新版全天候证明。
+补丁收紧为92行实际修改上下文，在当前LF源码/Windows Git自动换行配置下 `git apply --check --ignore-space-change` 和 `git -c core.autocrlf=false apply --check` 通过，但尚未应用到交付源码。原两条GGUF long soak仍旧build/PID连续运行，当前约1.6/1.1小时、失败0；不是8小时结论。必须在原长测结束审阅并保留后应用修复、记录新build并完成必要复验，不能将旧GGUF长测或候选短测称为最终新版全天候证明。
 
 “持续进展超过总时限”回归在冻结源码实测失败、候选通过，确认能检测缺陷。清理后旧临时PID26772被Windows新svchost进程复用（新创建01:10:08，原测试endpoint01:04:37），未对复用后的系统进程操作；候选PID21848已不存在。停止判断以完整命令行/创建时间归属为准，不只看编号。

@@ -13,11 +13,11 @@
 在 A 的两条冻结长测完成、审阅并保留原证据后，将它应用到实际源码；不要覆盖仍在运行的 bundle：
 
 ```powershell
-git apply --check apps/interaction/pending/sapi-progress/workers.patch
-git apply apps/interaction/pending/sapi-progress/workers.patch
+git apply --check --ignore-space-change apps/interaction/pending/sapi-progress/workers.patch
+git apply --ignore-space-change apps/interaction/pending/sapi-progress/workers.patch
 $env:HEREIN_INTERACTION_SAPI_CANDIDATE = (Resolve-Path apps/interaction/workers.cjs).Path
 node --test apps/interaction/pending/sapi-progress/regression.mjs
 node --test apps/interaction/tests/workers.test.mjs
 ```
 
-当前 worktree 的 CRLF 源码下 `git apply --check` 实测通过。其他换行配置可先检查 `git apply --check --ignore-space-change`，检查成功后再用对应选项应用；不要强行覆盖源码。修复会改变 buildId，后续验收必须记录新版本，并完成 SAPI 实际长播放/取消和相应稳定性验证。若后续选择保持原 GGUF 冻结版演示，SAPI 降级的长语音缺陷仍属于未完成项，不能把补丁存在当作发布已修复。
+补丁只含92行实际修改上下文，未引入整文件换行重写。在当前LF源码/Windows Git自动换行配置下，以上检查实测通过；`git -c core.autocrlf=false apply --check` 同样通过。先检查成功再应用，不要强行覆盖源码。修复会改变 buildId，后续验收必须记录新版本，并完成 SAPI 实际长播放/取消和相应稳定性验证。若后续选择保持原 GGUF 冻结版演示，SAPI 降级的长语音缺陷仍属于未完成项，不能把补丁存在当作发布已修复。
