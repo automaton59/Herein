@@ -187,3 +187,7 @@ thinkEnd 一次结束后回 idle，2.2 秒后仍 idle；happy 保留。模拟隐
 补丁收紧为92行实际修改上下文，在当前LF源码/Windows Git自动换行配置下 `git apply --check --ignore-space-change` 和 `git -c core.autocrlf=false apply --check` 通过，但尚未应用到交付源码。原两条GGUF long soak仍旧build/PID连续运行，当前约1.6/1.1小时、失败0；不是8小时结论。必须在原长测结束审阅并保留后应用修复、记录新build并完成必要复验，不能将旧GGUF长测或候选短测称为最终新版全天候证明。
 
 “持续进展超过总时限”回归在冻结源码实测失败、候选通过，确认能检测缺陷。清理后旧临时PID26772被Windows新svchost进程复用（新创建01:10:08，原测试endpoint01:04:37），未对复用后的系统进程操作；候选PID21848已不存在。停止判断以完整命令行/创建时间归属为准，不只看编号。
+
+修复候选独立8小时长测于**2026-10-23 01:16:13北京时间**启动，截止**09:16:13**；数据 `tmp/interaction-sapi-progress-soak-data`，runtime25784、soak17656、endurance29420、process sampler6360，session分别83505/32531/97255/70576。同候选build、透明30fps、Whisper CPU int8（4线程）、SAPI、循环合成输入/静音输出；补充全树采样从01:16:33启动，fullSoakCoverage=true。最初约29.3fps、单轨/单上下文，soak/endurance失败0；只是阶段观察。
+
+启动后空闲物理内存约2.44GiB，原GGUF两实例仍约58fps、采样检查无问题；这个快照不代表长期资源稳定。SAPI固定取消使worker主动关闭，主线程恢复会记录worker.recovery。严格通用审计因此列出runtime_error_or_recovery_event/worker_process_tree_changed，需要到实际截止按取消负载时序、进程创建时间和全树资源审阅每次重建；不能自动视作无异常或忽略。候选长测不改原冻结源码，不替代旧GGUF两个独立长测，也不证明真人设备。

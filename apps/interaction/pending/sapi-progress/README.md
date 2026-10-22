@@ -10,6 +10,8 @@
 
 完整 Electron 候选 `a46ecc9bc3cc331f86825bbbecdc5424c9c9abc4b34d4b0d7905753a67be76cc`，同冻结 renderer、透明30fps、CPU ASR、麦克风关闭、silentOutput=true：固定145/500字输出37.69/130.40秒 PCM，软件首声205.9/133.4ms、RTF0.91/0.97、欠供0，结束身体复位，长文取消/替换通过。原始报告 `tmp/interaction-sapi-progress-runtime-data/long-speech-verification.local.json`。末态再查 buffer0/idle/嘴0/音轨0/错误0；runtime PID21848及10个子进程按候选目录和完整命令行确认后回收。此短测不证明候选全天候，也不验证物理声音/逐字准确度。
 
+候选另开独立8小时：`tmp/interaction-sapi-progress-soak-data`，01:16:13–09:16:13（2026-10-23北京时间），同候选build、30fps/透明/CPU ASR/SAPI、循环合成输入、静音输出。runtime PID25784、soak17656、endurance29420、process sampler6360；采样器距起点约21秒，fullSoakCoverage=true。尚在运行。SAPI取消会关闭/重建worker；严格GGUF通用审计已列出worker变化/recovery复查项，必须结合固定负载取消与全树创建时间逐项审阅，不能自动豁免或标无失败通过。原GGUF长测独立保留、不拼接。
+
 在 A 的两条冻结长测完成、审阅并保留原证据后，将它应用到实际源码；不要覆盖仍在运行的 bundle：
 
 ```powershell
