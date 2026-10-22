@@ -22,7 +22,20 @@ if (
 }
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
-const child = spawn(require("electron"), [root, ...process.argv.slice(2)], {
+const runtimeArgs = process.argv.slice(2);
+// Chromium can launch GPU/network children while main's config read awaits IO.
+// Set their profile through the command line before Electron starts.
+const runtimeDataDir = path.resolve(
+  runtimeArgs.find(arg => arg.startsWith("--data-dir="))?.slice(11) ||
+  process.env.HEREIN_INTERACTION_DATA_DIR || path.join(root, "../../tmp/interaction-data"),
+);
+const profileArg = runtimeArgs.find(arg => arg.startsWith("--user-data-dir="));
+if (profileArg && path.resolve(profileArg.slice(16)).toLowerCase() !== runtimeDataDir.toLowerCase()) {
+  console.error("The Chromium profile must match the interaction data directory.");
+  process.exit(1);
+}
+if (!profileArg) runtimeArgs.push(`--user-data-dir=${runtimeDataDir}`);
+const child = spawn(require("electron"), [root, ...runtimeArgs], {
   env,
   stdio: "inherit",
   windowsHide: true,

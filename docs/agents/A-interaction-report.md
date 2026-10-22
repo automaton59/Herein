@@ -230,3 +230,17 @@ SAPI恢复复查增加 `--live` 只读全机CIM身份核对：根树中旧身份
 此时两条原GGUF长测仍分别约2.625/2.125小时，samples310/251，严格问题列表均空。透明实例ASR PID22096（原创建16:03:30.492048Z）后1小时私有内存斜率16.33MiB/h新触发复查；独立一分钟采样同进程斜率5.63MiB/h。私有内存重复在1790.18–1918.46MiB间回落，小时0/1峰值都1918.46；工作集约633–637MiB、小时1/2句柄386、线程30–31。早期非透明ASR的历史正斜率复查也保留。短窗/采样相位影响尚不能证明无泄漏，等待完整八小时对比后段与峰值。
 
 GGUF ASR小时0/1/2中位延迟：非透明345/343/348ms（计数511/514/324）、透明330/346/378ms（514/511/67，小时2仍部分窗口）。后段少量样本与三实例并发CPU负载不等于全天候恶化或通过；TTS首声与完整趋势在真实deadline后独立审阅。候选SAPI严格审计的恢复/worker变更标记继续保留，已观察两次取消重建关联和四个退休身份全机消失，不自动豁免。
+
+## 2026-10-23 02:40：便携部署与profile隔离
+
+新增 `package-portable.mjs` 和 `verify-portable.mjs`，使用明确源码白名单、JS/CSS/HTML renderer、Electron发行文件与许可、外部配置模板；不打包模型、Cubism Core、Python、真实配置、node_modules、音频或聊天。初版171文件，372,092,803bytes，目录 `tmp/interaction-portable-complete`；同冻结buildId。逐文件SHA256/未列文件检测/runtime build重算通过。渲染依赖notice共记录安装版本；Cubism Web Framework与colord缺失notice按npm gitHead/子模块SHA读取上游原文，保留来源。Core与模型仍为独立本机资源，未复制入包。
+
+包复制至 `C:/Users/wzy_8/AppData/Local/Temp/herein-portable-verification-20261023`，本进程无需仓库或Node，仍使用外部本地Python/模型。初期包测试十句SAPI静音PCM首声120–226ms、取消通过、欠供/错误0；补齐notice后的最终包逐文件校验再次通过，单句PCM/取消/sad+thinking通过，原始 `tmp/interaction-portable-complete-data/portable-smoke.local.json`，不证明真实声卡或Windows合成。最终进程PID13772（18:38:49.979637Z）全树6个Electron均含指定外部临时profile、无默认profile路径，随后按原创建身份与包/data路径核对回收11个身份。
+
+初期部署发现冻结main在异步文件读取后才app.setPath，GPU/网络子进程可能已用默认 `AppData/Roaming/Herein Interaction`。`launch.cjs` 与便携Start-Interaction.ps1已在进程启动时加同目录的 `--user-data-dir`，launch临时实例PID7740/便携实例PID23256分别全树0个profile路径不符。没有修改或删除默认profile文件，原长测继续计时且带这个历史缺口，不能作完整profile隔离通过证据。
+
+直接Electron/登录绕过launch仍需修复，因此新增待应用 `pending/profile-isolation/main.patch`：首次await前同步userData/sessionData与commandLine。隔离源码候选 `tmp/interaction-profile-candidate` buildId `df6cb5cd9671efe3d1d6575863c64acffc59fbd41d8c02467d2177f21124bf3d`（SAPI仍原冻结），直接入口PID29020不传user-data-dir时6个Electron均指定data；环境变量入口PID28872用带空格 `tmp/interaction profile env data`，5个Electron子进程都指定data。主原命令行只含入口，appendSwitch不会反写主命令行，最初将主命令行也要求带data的检查有1个假失败，原检查保留。两候选ASR/TTS/avatarReady=true、micActive=false、renderErrors0；创建身份核对后回收。候选不等于真实登录验证，补丁尚未应用冻结main。
+
+截止02:40，GGUF原进程两条约3.110/2.602小时、367/307样本，问题列表空，历史ASR周期私有内存增长标记继续留档；SAPI候选第3次取消→重建关联完整，已知退休身份全部全机消失，严格恢复/树变化标记未豁免。仍需真实八小时、手工资源趋势与真人关卡。原bundle与运行源码未改。SAPI和profile两个补丁 `git apply --check --ignore-space-change` 均通过，真实合并/新build/重新生成交付包仍待长测结束审阅。
+
+批量删除旧临时包目录的命令被自动审批策略拦截，未提供具体原因，未执行删除。后续使用新的输出目录保留所有旧产物，未改写长测bundle、外部用户服务或模型。

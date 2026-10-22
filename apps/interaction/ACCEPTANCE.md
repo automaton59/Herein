@@ -21,6 +21,7 @@
 | 长语音 | 145/500 字 30.00/104.32s、欠供 0；末句关键词识别到；取消/替换通过 | 音质、分段衔接、逐字完整度 |
 | 身体 | 9 次表情切换/复位、4 动作、视线、模拟点拖、200 次切换通过；说话中点拖反应恢复、20 次连触及动作中取消通过；4 表情各保持约 29s 跨两周期、隐藏/显示恢复；另6种映射说话组合562采样、PCM覆盖张嘴表情、反应中新表情保留、晚结束不复活；58/29.4fps | 实际点拖、可见大小/位置、Windows 透明合成 |
 | 模型可替换 | 同代码 Cubism 2 与 Cubism 4、manifest 索引/循环/参数/资源审计 | 后续正式模型视觉验收 |
+| 独立包 | 便携Electron与bundle从仓库外启动；171文件SHA256、配置/资源外置、10句静音PCM/取消通过 | SAPI与main待应用补丁后重新生成交付包；真人实际声音/显示 |
 | 常驻与恢复 | loopback、置顶状态、窗口位置保存、模拟隐藏/恢复/worker 故障/renderer 重载 | 真热键/托盘、多屏、设备拔插、休眠与真实登录 |
 | 全天候 | 完整 health/全进程树/ASR/TTS/渲染/音轨/队列监测进行中 | 必须等真实 8 小时并人工审阅内存斜率 |
 | SAPI 降级长文 | 发现冻结版30秒总超时；隔离补丁候选145/500字、取消/替换与4回归通过 | 原长测结束后应用补丁，记录新build与必要复验；当前源码未修复 |
@@ -46,6 +47,8 @@ node apps/interaction/audit-soak.mjs tmp/interaction-blue-transparent-data --req
 另比较 `hourlyPerformance` 的 ASR、软件首声、RTF、fps 是否在后段明显恶化，同时核查样本数。固定 TTS 负载不构成 ASR→回复闭环，端到端样本缺失保留 null；真人和物理输出延迟仍须单独验收。
 
 审阅并保留原长测后，处理 `pending/sapi-progress/README.md` 中已验证但未应用的 SAPI 长语音补丁。应用后 buildId 改变，新版本必须单独验收；当前 frozen build 的 GGUF 长测不能替代补丁或降级长测。
+
+同时处理 `pending/profile-isolation/main.patch`，让直接Electron/登录入口在首次await前设userData/sessionData。新launch和便携启动参数已经隔离；旧长测的GPU/网络子进程存在默认profile缺口，不把它们作为完整隔离证明。main候选直接入口与环境变量/带空格路径的子进程检查通过，仍需合并新源码后的验证。
 
 ## 用户主动开始真人验收后
 

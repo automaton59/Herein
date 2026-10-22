@@ -18,6 +18,12 @@ npm start
 
 也可 `npm start -- --config=<absolute-config-path>`。模型只从本机 manifest 指定的目录加载。构建产物在仓库 `tmp/interaction-dist`；不会打包或复制模型。配置模板没有真实模型或凭据。并行验证可用 `node apps/interaction/build.mjs --out-dir=tmp/<isolated-dist>`，在本地配置设置绝对 `rendererDir`，避免覆盖长测版本的静态资源。`silentOutput:true` 保持 PCM/口型链路运行但将最终输出 gain 设为 0；这种验证不证明扬声器发声。
 
+`launch.cjs` 会在 Electron 启动前把 Chromium 的 `--user-data-dir` 设为同一 interaction 数据目录，避免异步读取配置期间 GPU/网络子进程先使用默认共享 profile。直接调用冻结版 Electron 时也必须同时传 `--data-dir=<absolute>` 和 `--user-data-dir=<same-absolute>`；原冻结长测通过旧入口启动，profile 隔离缺口另记，不由旧长测证明修复。直接/登录入口的main修复候选在 `pending/profile-isolation`，源码补丁尚未应用；与SAPI补丁一样需原长测结束后处理并记录新版本。
+
+可在已有独立构建上生成便携目录：`node apps/interaction/package-portable.mjs --output=tmp/<new-portable-directory> --renderer=tmp/<saved-dist>`。输出只含白名单运行时源码、JS/CSS/HTML bundle、当前 Electron 发行版及原许可、配置/manifest 模板，不含 node_modules、模型、Cubism Core、Python、真实配置、录音或聊天。目录已存在会拒绝；生成失败保留部分目录，成功会写 `portable-manifest.json` 的逐文件SHA256和buildId。使用包内 `Start-Interaction.ps1 -ConfigPath <absolute-private-config> -DataDirectory <absolute-new-data-dir>` 启动；移除配置中的rendererDir以使用包内bundle。无需仓库/Node，仍需本机离线模型与Python推理环境。
+
+渲染依赖的LICENSE/COPYING/NOTICE、包名和版本收进 `licenses/`，缺失许可会停止打包。补充notice来源见 `licenses/README.md`。`node apps/interaction/verify-portable.mjs <package-directory>` 校验每个列出文件、拒绝未列出的文件、重算runtime buildId；它检查完整性，不验证签名、启动或物理硬件。原冻结包的SAPI长文30秒缺陷仍在，不能当作修复版交付；当前便携验证证明部署路线。
+
 首次点“开始监听”后会保存监听偏好；下一次运行自动监听。配置 `autoListen:true` 可用于无人值守验收。`Ctrl+Shift+Space` 显示/隐藏、`Ctrl+Shift+X` 打断、`Ctrl+Shift+M` 切换监听。关闭窗口隐藏到托盘，托盘“退出运行时”才退出。拖形象移动位置，点击触发 manifest 的 tap 动作。窗口会保存位置并在屏幕配置变化后收回可见区域。
 
 开机启动由托盘显式切换，使用本运行时的 Electron 入口和配置路径。当前未通过真实重启验收；路径移动后需重新配置。多屏与休眠恢复有实现，仍需要相应硬件与真实电源周期验收。
