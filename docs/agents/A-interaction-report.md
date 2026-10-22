@@ -4,6 +4,8 @@
 
 最新静音表演补验：六种表情映射与说话/点拖/取消组合562采样通过，最低29.52fps、队列峰值4、欠供0；保留表情淡入的首轮过早断言记录。原运行时源码/bundle未改，两条GGUF及SAPI候选8小时仍在计时。透明ASR曾新增斜率复查项，须结合完整窗口审阅，不能把后续下降自动视为无泄漏。
 
+最新便携部署补验：171文件SHA256与仓库外Electron启动通过，模型/Python/配置外置；启动器已设Chromium临时profile。直接/登录入口main隔离补丁候选已验证，**尚未应用冻结main**；与SAPI补丁一起待原长测审阅后应用并重新生成交付包。部署/表演补验提交 `71899ab`、`158eabb`。
+
 ## 当前交付状态
 
 蓝鱼已接入独立运行时，表情/动作/口型/打断/合成十轮闭环及模拟恢复已有证据；**完整8小时与真人/桌面硬件关卡尚未通过**。用户指定模型只用于技术验证，后续通过manifest替换。
@@ -15,6 +17,8 @@
 | GGUF默认透明长测 | `tmp/interaction-blue-transparent-data`，10-23 00:03:51–08:03:51 | 单独审阅，不与非透明片段拼接 |
 | SAPI长文修复候选 | buildId `a46ecc9bc3cc331f86825bbbecdc5424c9c9abc4b34d4b0d7905753a67be76cc`，145/500字、取消/替换及机制回归通过；**补丁尚未应用到交付源码** | 原长测结束保留证据后应用 `pending/sapi-progress/workers.patch`，新版本复验 |
 | 候选SAPI/CPU降级长测 | `tmp/interaction-sapi-progress-soak-data`，10-23 01:16:13–09:16:13 | 审阅预期取消重建与旧身份退出，严格审计标记不自动豁免 |
+| 便携部署路线 | `tmp/interaction-portable-complete`，171文件/372,092,803bytes；仓库外启动/静音PCM/表情/取消通过，仍是冻结build | 两项补丁应用后重新生成新版本；外部Python/模型是运行前提 |
+| Chromium profile隔离 | launch/便携脚本修正已验证；直接/登录main候选 `df6cb5cd...24bf3d` 通过，**main补丁未应用**；旧长测有默认profile缺口 | 应用 `pending/profile-isolation/main.patch`，重验新源码和真实登录 |
 | 真人与桌面硬件 | 待用户主动发送“开始真人验收”；夜间未录真人声音/外放/触发操作请求 | 十句/AEC/插话、真实显示/点拖/托盘/热键、设备/多屏/电源/登录 |
 
 运行/manifest/C接口见 `apps/interaction/README.md`；逐项验收见 `apps/interaction/ACCEPTANCE.md`；SAPI补丁和候选证据见 `apps/interaction/pending/sapi-progress/README.md`。下文早期蓝鱼和Shizuku表格为历史记录，旧运行状态、短片段和不同build不能代替当前版本验收。原始模型、配置、截图和固定音频仅留本机忽略目录。
