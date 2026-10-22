@@ -8,6 +8,58 @@ const STORAGE_KEY = 'herein-chat-history';
 const FILE_NAME = 'chat-history.json';
 export const CORE_URL_KEY = 'herein-core-url';
 export const CORE_TOKEN_KEY = 'herein-core-token';
+const CORE_SYNC_STATE_KEY = 'herein-core-sync-state';
+
+type CoreSyncState = Record<string, Record<string, string>>;
+
+function readCoreSyncState(): CoreSyncState {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CORE_SYNC_STATE_KEY) ?? '{}') as unknown;
+
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return parsed as CoreSyncState;
+  } catch {
+    return {};
+  }
+}
+
+function writeCoreSyncState(state: CoreSyncState) {
+  try {
+    localStorage.setItem(CORE_SYNC_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // Sync state is a cache; losing it only causes a full upsert next time.
+  }
+}
+
+function messageFingerprint(message: Message) {
+  return JSON.stringify([
+    message.role,
+    message.content,
+    message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
+    message.emotion ?? '',
+    message.voiceInstruct ?? '',
+    message.reasoning ?? '',
+    message.status ?? '',
+  ]);
+}
+
+export function diffMessagesForCoreSync(
+  messages: Message[],
+  previous: Record<string, string>,
+) {
+  const current: Record<string, string> = {};
+  const upserts = messages.filter(message => {
+    const fingerprint = messageFingerprint(message);
+    current[message.id] = fingerprint;
+    return previous[message.id] !== fingerprint;
+  });
+  const deletes = Object.keys(previous).filter(id => !(id in current));
+
+  return { current, upserts, deletes };
+}
 
 function getConfiguredCoreClient(): CoreClient | null {
   try {
@@ -190,23 +242,40 @@ export async function savePersistentChatHistory(conversations: Conversation[], a
       try {
         await core.health();
 
+        const syncState = readCoreSyncState();
+
         for (const conversation of conversations) {
           const timelineTitle = conversation.contactRemark?.trim()
             || conversation.customTitle?.trim()
             || characterNames.get(conversation.characterId)
             || '新聊天';
-
-          await core.syncMessages(
-            conversation.characterId,
-            conversation.messages.map(message => messageToTimelineMessage(message, 'pending')),
-            timelineTitle,
+          const previous = syncState[conversation.id] ?? {};
+          const { current, upserts, deletes } = diffMessagesForCoreSync(
+            conversation.messages,
+            previous,
           );
+
+          await core.applyTimeline(conversation.characterId, {
+            upserts: upserts.map(message => messageToTimelineMessage(message, 'pending')),
+            deletes,
+            title: timelineTitle,
+          });
+
+          syncState[conversation.id] = current;
         }
 
         const activeConversation = conversations.find(conversation => conversation.id === activeConversationId);
         if (activeConversation) {
           await client.settings.set('activeCharacterId', activeConversation.characterId);
         }
+
+        for (const conversationId of Object.keys(syncState)) {
+          if (!conversations.some(conversation => conversation.id === conversationId)) {
+            delete syncState[conversationId];
+          }
+        }
+
+        writeCoreSyncState(syncState);
         return;
       } catch (error) {
         console.warn('Core sync failed; falling back to IPC', error);

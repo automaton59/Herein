@@ -224,6 +224,24 @@ export class CoreClient {
     });
   }
 
+  applyTimeline(
+    characterId: string,
+    input: {
+      upserts: Array<Omit<CoreTimelineMessage, 'timelineId'> & { timelineId?: string }>;
+      deletes?: string[];
+      title?: string;
+    },
+  ): Promise<{ timeline: CoreTimeline; result: { inserted: number; updated: number; deleted: number } }> {
+    return this.request(`/v1/timeline/${encodeURIComponent(characterId)}/apply`, {
+      method: 'POST',
+      body: JSON.stringify({
+        upserts: input.upserts.map(message => ({ ...message, timelineId: message.timelineId ?? 'pending' })),
+        deletes: input.deletes ?? [],
+        title: input.title,
+      }),
+    });
+  }
+
   chat(
     characterId: string,
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,

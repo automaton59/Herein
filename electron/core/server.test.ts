@@ -154,6 +154,34 @@ describe('core server', () => {
     expect(pruned.body.result).toEqual({ inserted: 0, updated: 0, deleted: 1 });
   });
 
+  it('applies incremental upserts and explicit deletes without pruning other messages', async () => {
+    const handle = await start();
+    const before = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    const timeline = before.body.timeline;
+    const messages = [
+      { id: 'apply-1', timelineId: timeline.id, role: 'user', content: '一', timestamp: '2026-10-22T12:00:00.000Z' },
+      { id: 'apply-2', timelineId: timeline.id, role: 'assistant', content: '二', timestamp: '2026-10-22T12:00:01.000Z' },
+      { id: 'apply-3', timelineId: timeline.id, role: 'user', content: '三', timestamp: '2026-10-22T12:00:02.000Z' },
+    ];
+    await postJson(handle, '/v1/timeline/herein-default/sync', { messages });
+
+    const applied = await postJson(handle, '/v1/timeline/herein-default/apply', {
+      upserts: [{ ...messages[0], content: '一改' }],
+      deletes: ['apply-2'],
+      title: '增量',
+    });
+    expect(applied.status).toBe(200);
+    expect(applied.body.result).toEqual({ inserted: 0, updated: 1, deleted: 1 });
+
+    const after = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(after.body.messages.map((message: { id: string; content: string }) => [message.id, message.content]))
+      .toEqual([
+        ['apply-1', '一改'],
+        ['apply-3', '三'],
+      ]);
+    expect(after.body.timeline.title).toBe('增量');
+  });
+
   it('chats through the LLM gateway and persists the turn', async () => {
     const llmFetch = vi.fn(async () => new Response(JSON.stringify({
       model: 'fake-model',

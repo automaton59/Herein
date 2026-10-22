@@ -19,6 +19,7 @@
 | P0-13 | Android SSE | 监听 `core` 事件：`chat.completed`/`timeline.synced`/`assistant.proactive` 后重拉时间线 |
 | P1a | 已读状态 | schema v10 `timeline_read_state`；Core `GET/POST /v1/read-state/:characterId`；Android 刷新后标记最后一条已读 |
 | P1a | 离线发送 | schema v11 `chat_idempotency`；Core `/v1/chat` 支持 `clientMessageId` 去重；Android localStorage outbox + “待发送” + online/重开自动补发；详见 `docs/OFFLINE.md` |
+| P1a | 桌面增量同步 | Core `/v1/timeline/:id/apply`：`upserts` + 显式 `deletes`，不 prune 其他消息；桌面用 localStorage 指纹差量，只发变化和删除 |
 | P0-10 | 连接页 UX | “换地址”不再清 Token；保留地址/Token；粘贴 Token、显示/隐藏、清除记录（显式确认）；关闭自动大写/纠错 |
 | P1b | 移动聊天基础版 | 手机填 `http://192.168.1.3:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
 | P1a | 桌面 Core 路径 | `coreClient.ts` + 设置页 Core 地址/Token；聊天走 Core `/v1/chat`（含关系/记忆上下文），记录同步走 Core HTTP，失败回退本地 API；`parseAssistantMetadata` 提取 emotion/voice |
@@ -67,7 +68,7 @@
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **53 files / 208 tests passed**
+- `npx vitest run` → **54 files / 212 tests passed**
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
@@ -89,7 +90,7 @@
 | P2 | 实时语音/Live2D | Live2D 渲染已通；手机朗读口型已接；桌面口型、正式模型、TTS 实时化未做 |
 | P0-10 | 真机验证 | APK 已出；还没装到手机/平板实测 |
 | P0-11 | QQ listener | 配置/连接/心跳/归一化/落库/被动回复接线已做；语音、频控、审核、默认回复策略待做，等 `qqbot.json` |
-| P1a | Core 双端一致性 | 记忆/已读/离线幂等已进 Core；跨端实时 read/outbox 未做；桌面仍是全量快照 sync（Core 默认不 prune，删除传播未做） |
+| P1a | Core 双端一致性 | 记忆/已读/离线幂等/桌面增量 apply 已进 Core；跨端实时 read/outbox 未做；本地 IPC 仍写本地 DB，删除已能通过 apply 传播 |
 | P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；`AgentProvider` 契约已就绪，真实 DSH provider 等 B 交付 |
 | P0-13 | 状态完整性 | `/v1/status` 只覆盖 Core/DB/LLM/TTS/plugins；relay/隧道状态、Android 后台限制、跨端 outbox 还没接 |
 | P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE 已有；A 的 InteractionPort、ntfy/Android 通知、在场信号未接 |
@@ -128,6 +129,7 @@ npm run core:serve
 | POST | `/v1/chat` | 聊天；支持 `clientMessageId` 幂等重试 |
 | GET | `/v1/timeline/:characterId/messages?limit=100` | 主时间线消息 |
 | POST | `/v1/timeline/:characterId/sync` | 批量同步消息 `{title,messages}` |
+| POST | `/v1/timeline/:characterId/apply` | 增量 `{upserts,deletes,title}`，不 prune 其他消息 |
 | GET | `/v1/memory?characterId=&timelineId=&q=&limit=` | 记忆列表/搜索 |
 | GET/POST | `/v1/observations` | Observation 读写 |
 | GET | `/v1/experiences?limit=20` | Experience 列表 |

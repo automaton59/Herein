@@ -366,7 +366,7 @@ describe('chatHistory Phase 2 persistence', () => {
         return respond({ ok: true, version: '0.1.0' });
       }
 
-      if (url.includes('/v1/timeline/char-1/sync')) {
+      if (url.includes('/v1/timeline/char-1/apply')) {
         return respond({
           timeline: { id: 'timeline-1', characterId: 'char-1', title: 'AL-1S' },
           result: { inserted: 1, updated: 0, deleted: 0 },
@@ -396,14 +396,16 @@ describe('chatHistory Phase 2 persistence', () => {
     ], 'timeline-1');
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const syncCall = fetchMock.mock.calls.find(([input]) => String(input).includes('/sync'));
+    const syncCall = fetchMock.mock.calls.find(([input]) => String(input).includes('/apply'));
     expect(syncCall).toBeTruthy();
     const body = JSON.parse(String((syncCall?.[1] as RequestInit | undefined)?.body)) as {
       title: string;
-      messages: Array<{ content: string; timelineId: string }>;
+      upserts: Array<{ content: string; timelineId: string }>;
+      deletes: string[];
     };
     expect(body.title).toBe('AL-1S');
-    expect(body.messages[0]).toEqual(expect.objectContaining({
+    expect(body.deletes).toEqual([]);
+    expect(body.upserts[0]).toEqual(expect.objectContaining({
       content: '在吗',
       timelineId: 'pending',
     }));

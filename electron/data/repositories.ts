@@ -799,7 +799,7 @@ export function createPhase2Repositories(db: Phase2Database) {
         timelineId: string,
         messages: MessageRecord[],
         title?: string,
-        options: { prune?: boolean } = {},
+        options: { prune?: boolean; deleteIds?: string[] } = {},
       ): TimelineSyncResult {
         const run = db.transaction(() => {
           const existingRows = db
@@ -930,6 +930,17 @@ export function createPhase2Repositories(db: Phase2Database) {
                   .run(timelineId, target.timestamp, target.timestamp, target.created_at).changes;
               }
             }
+          }
+
+          if (options.deleteIds?.length) {
+            const unique = [...new Set(options.deleteIds)];
+            const placeholders = unique.map(() => '?').join(', ');
+            deleted += db
+              .prepare(`
+                delete from messages
+                where timeline_id = ? and id in (${placeholders})
+              `)
+              .run(timelineId, ...unique).changes;
           }
 
           return { inserted, updated, deleted };

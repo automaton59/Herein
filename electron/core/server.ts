@@ -1121,6 +1121,35 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           return;
         }
 
+        if (request.method === 'POST' && segments[3] === 'apply') {
+          const body = asRecord(await readJson(request));
+          const upserts = Array.isArray(body.upserts) ? body.upserts : [];
+          const deletes = Array.isArray(body.deletes)
+            ? [...new Set(body.deletes.filter((id): id is string => typeof id === 'string'))]
+            : [];
+          const title = typeof body.title === 'string' && body.title.trim() ? body.title : timeline.title;
+          const normalized = upserts.map(item => ({
+            ...(item as MessageRecord),
+            timelineId: timeline.id,
+          }));
+          const result = repos.messages.sync(timeline.id, normalized, title, {
+            prune: false,
+            deleteIds: deletes,
+          });
+          events.publish('timeline.synced', {
+            characterId,
+            timelineId: timeline.id,
+            result,
+            via: 'apply',
+          });
+          void memoryRunner.run({
+            characterId,
+            timelineId: timeline.id,
+          });
+          sendJson(response, 200, { timeline: { ...timeline, title }, result });
+          return;
+        }
+
         sendJson(response, 405, { error: 'method not allowed' });
         return;
       }
