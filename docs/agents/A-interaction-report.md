@@ -165,3 +165,11 @@
 审计回归 3/3：能区分 Add 0/Multiply 1 与有效的 Overwrite 0，检测错误表情名称/动作索引，保留可选元数据缺失的 unknown，并列出旧式随机动作组的全部选择。蓝鱼实际清单通过。两个 live `/health` 再查同 buildId，约 58.3/58.4fps、单轨/单上下文、欠供/渲染错误 0；这仍是未到截止的阶段性观察，不是 8 小时验收结论。
 
 长测审计另补每个进程的按小时 min/median/max、覆盖分钟、后半段斜率及补充采样起点/终点覆盖，便于完整长测后人工区分预热、周期波动与持续增长。补充采样缺口超过 90 秒列为问题；私有内存/句柄增长也进入 memoryAssessment，避免只有工作集增长才提醒复查。审计回归扩大到 7/7，包含工作集稳定但私有内存/句柄增长和补充采样中断的反例。实际两条 live 数据审计均仍 incomplete、problems=[]；运行时和原采样器未修改。
+
+## 2026-10-23 表情跨循环与隐藏恢复
+
+同一冻结 buildId 的隔离实例 `tmp/interaction-avatar-loops-data`，30fps、透明窗口、CPU ASR/SAPI、autoListen=false、silentOutput=true；只发身体/固定隐藏显示诊断命令，没有开启麦克风或发声。`verify-avatar-loops.mjs` 实测 happy/excited/puzzled/sad 各 28.7–28.8 秒、109 次模型取样，共 436 次，跨两个 12.717 秒动作周期；表情名称/动作索引持续正确，队列无积压，最低 29.38fps、renderErrors=0。happy 笑眼 >0.8、excited 嘴 >0.8、sad 角度Y <-20 在整个采样窗口保持；puzzled 在 thinking 动作中保持原表情应用，不声称任意帧都有强烈视觉区分。
+
+thinkEnd 一次结束后回 idle，2.2 秒后仍 idle；happy 保留。模拟隐藏后 9.96fps，保持 13 秒跨动作周期后表情仍在；显示后恢复 29fps。整个测试 Electron 进程集合未变，末态 neutral/idle/嘴0/音轨0。报告 `avatar-loop-verification.local.json`；表情对照与脸部裁图保留该本机目录，目视复查 excited 张嘴开眼、sad 低头闭眼。happy 和 puzzled 在当前基础动作的笑眼阶段视觉相近，是素材叠加限制。该证据仍不证明 Windows 合成或真实点拖。
+
+临时 runtime PID 26324 已经完整命令行和数据目录验证，连同 10 个子进程回收；再查进程不存在。两条原蓝鱼 runtime/soak/endurance/process sampler 仍保持原 PID/创建时间，未覆盖 bundle 或修改冻结 runtime。

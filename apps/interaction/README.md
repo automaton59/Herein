@@ -137,4 +137,6 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 
 `verify-replacement-burst.mjs` 在独立静音、autoListen=false 的实例中串行发出 5 轮、每轮 10 次立即替换与 1 个最终短句。按 generation 核查只有最终轮次产生软件首声，旧轮次不复活、无欠供、模型在实际动画帧后闭嘴回 idle。它会替换当前声音，不能对正在进行的长测或真人实例运行。
 
+`verify-avatar-loops.mjs <isolated-data-dir> <local-config>` 检查本次 dsh 验证模型的 happy/excited/puzzled/sad 各保持约 29 秒，跨两个 12.717 秒动作周期，确保循环不重置表情、队列不积压；另查 thinkEnd 单次结束、隐藏降帧和显示恢复。使用 diagnostics=true、autoListen=false、silentOutput=true 的独立实例，保存参数/计时与本机 renderer 截图，不开启监听或发声。表情和基础动作叠加可能在某些帧视觉相近，参数变化不代替主观表演评价。
+
 `verify-body-during-speech.mjs <isolated-silent-data-dir>` 在固定长句 PCM 播放期间模拟 tap/drag，检查一次性反应结束后回到 speaking、恢复原表情、口型继续变化；连续 20 次反应后在动作中取消，确认旧动作结束事件不再恢复说话。30fps 可用配置单独验证；该脚本需要 diagnostics，不能对正在长测的实例运行，也不证明真实鼠标点拖。
