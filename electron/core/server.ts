@@ -38,7 +38,7 @@ import {
   type NeteaseCandidateSource,
 } from '../services/neteaseCandidates';
 import { ProactiveShareScheduler } from '../services/proactiveShare';
-import { ntfyConfigFromEnv, publishNtfy } from '../services/ntfy';
+import { ntfyConfigFromEnv, publishNtfy, publishNtfyMessage } from '../services/ntfy';
 import { BILIBILI_MANIFEST, createBilibiliPlugin } from '../plugins/builtin/bilibili';
 import { NETEASE_MANIFEST, createNeteasePlugin } from '../plugins/builtin/netease';
 import { QQ_MANIFEST, createQQPlugin } from '../plugins/builtin/qq';
@@ -255,6 +255,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   await mkdir(dataDir, { recursive: true });
 
   const startedAt = Date.now();
+  const ntfyConfig = ntfyConfigFromEnv();
   const db: Phase2Database = openPhase2Database(dbPath);
   migratePhase1JsonData({ db, dataDir });
   const repos = createPhase2Repositories(db);
@@ -329,6 +330,13 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     llmConfigPath: options.llmConfigPath,
     fetchImpl: options.llmFetch,
     policy: options.initiative,
+    notify: ntfyConfig
+      ? message => publishNtfyMessage(ntfyConfig, {
+        title: '蓝蓝',
+        message,
+        tags: ['speech_balloon'],
+      }).then(() => undefined)
+      : undefined,
   });
 
   const initiativeAutoEnabled = options.initiativeAuto?.enabled
@@ -1279,7 +1287,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
     if (config) {
       const envInterval = Number.parseInt(process.env.HEREIN_PROACTIVE_INTERVAL_MS ?? '', 10);
-      const ntfy = ntfyConfigFromEnv();
+      const ntfy = ntfyConfig;
       proactiveScheduler = new ProactiveShareScheduler({
         repos,
         llmConfig: config,
