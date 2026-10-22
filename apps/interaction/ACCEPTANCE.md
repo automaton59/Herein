@@ -36,6 +36,8 @@ node apps/interaction/audit-soak.mjs tmp/interaction-blue-transparent-data --req
 
 先确认实际 runtime/监测进程的连续性及原始样本，再审阅 `soak-audit.local.json` 的采样缺口、processMemory、supplementaryProcesses、lateGrowthReviewPids 和错误事件。进程树采样从第 13 分钟开始，不能当作全程覆盖；原 soak 从起点记录 Electron 工作集和 ASR/TTS 全树私有内存。audit 返回 0 只代表采样关卡通过，不代替人工趋势判断或真实硬件验收。
 
+比较每个进程 `hourlyWindows` 的中位值和最大值、预热后后半段斜率与句柄趋势，并核查 `supplementaryCoverage`；默认透明长测的补充采样从起点约 20 秒后开始。增长超过复查阈值只能判为需要调查，不能从首末样本或单个正斜率直接判定泄漏/无泄漏。
+
 ## 用户主动开始真人验收后
 
 用户已约定发送“开始真人验收”；夜间不提示、不录真人声音。真人阶段只保存计时、计数、状态和简短观察结果，不保存音频、识别文字或聊天数据。

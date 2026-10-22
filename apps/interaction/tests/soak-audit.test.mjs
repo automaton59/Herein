@@ -69,3 +69,32 @@ test("audit rejects changed worker trees and a mismatched runtime PID", async ()
   assert.ok(report.problems.includes("worker_process_tree_changed"));
   assert.ok(report.problems.includes("runtime_pid_missing_from_process_samples"));
 }));
+
+test("hourly private and handle trends expose growth even with stable working sets", async () => fixture(async ({ dir, rows, summary }) => {
+  const processRows = rows.filter((_, i) => i % 2 === 0).map((row, i) => ({
+    at: row.at, processTypes: { 3: "Tab" },
+    processes: [{ pid: 3, name: "electron", created: rows[0].at,
+      privateMiB: 100 + i, handles: 300 + i, threads: 20 }],
+  }));
+  await fs.writeFile(path.join(dir, "process-samples.local.jsonl"), processRows.map(JSON.stringify).join("\n") + "\n");
+  const { code, report } = await run(dir, rows, summary);
+  assert.equal(code, 0);
+  assert.equal(report.memoryAssessment, "review_late_growth");
+  assert.deepEqual(report.lateGrowthReviewPids, []);
+  assert.deepEqual(report.supplementaryGrowthReviewPids, [3]);
+  assert.equal(report.supplementaryCoverage.startsWithin45Seconds, true);
+  assert.equal(report.supplementaryCoverage.endsWithin90SecondsOfDeadline, true);
+  const process = report.supplementaryProcesses[0];
+  assert.ok(process.lateHalfPrivateSlopeMiBPerHour > 59);
+  assert.ok(process.hourlyWindows[7].privateMiB.median > process.hourlyWindows[1].privateMiB.median);
+  assert.equal(report.processMemory[2].hourlyWindows[1].workingSetMiB.median, 100);
+}));
+
+test("supplementary sampling gaps cannot silently look continuous", async () => fixture(async ({ dir, rows, summary }) => {
+  const processRows = rows.filter((_, i) => i % 2 === 0 && (i < 300 || i > 400))
+    .map(row => ({ at: row.at, processes: [{ pid: 3, created: rows[0].at, privateMiB: 100, handles: 300, threads: 20 }] }));
+  await fs.writeFile(path.join(dir, "process-samples.local.jsonl"), processRows.map(JSON.stringify).join("\n") + "\n");
+  const { code, report } = await run(dir, rows, summary);
+  assert.equal(code, 1);
+  assert.ok(report.problems.includes("supplementary_observation_gap_over_90_seconds"));
+}));

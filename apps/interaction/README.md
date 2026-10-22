@@ -123,6 +123,8 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 
 `sample-processes.mjs` 作为独立采样器运行至同一 soak deadline；确认 runtime 命令行属于该数据目录，收集实际全进程树的私有内存、工作集、句柄、线程和创建时间，不保存命令行或配置。它不会重启运行时。`audit-soak.mjs` 检查 8 小时时间窗、采样缺口、uptime/PID/build 连续性、音频资源、渲染与恢复错误，并汇总一小时预热后的内存斜率；每小时大于 10MiB 的增长列为复查项，不据此自动断定泄漏。审计通过后仍须人工审阅趋势及完成真实硬件验收。
 
+审计的每个进程带 `hourlyWindows`（按起点小时的 min/median/max、样本数和覆盖分钟）与预热后时间窗后半段的斜率，帮助检查增长是否趋稳。补充采样单独报告起点/截止覆盖与采样缺口，超过 90 秒的缺口列为问题；句柄或私有内存增长即使未反映在工作集也会列入人工复查。单个小时仍可能含预热或活动波动，斜率/统计不自动作泄漏结论。
+
 `metrics.jsonl` 只保存允许字段的计时、计数和状态，8MiB 轮转，写队列上限 256；不保存输入音频、识别文本、发声文本、任意错误消息、token 或聊天记录。辅助 benchmark 可生成**固定测试音频**到 gitignored `tmp/`。`diagnostics:true` 可启用页面截图和模拟 lifecycle 接口；截图留在本机私有验收目录，关闭时不可调用。
 
 合成麦克风链路可用 `make-voice-fixture.ps1 -Output <gitignored-fixture.wav>` 生成十句固定 SAPI 音频，再用 Electron 的 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 启动独立临时运行时，配置 autoListen false、silentOutput true。立即启动 `verify-synthetic-voice.mjs <data-dir>`：先订阅 SSE、等待 worker ready，再开启伪麦克风，固定回复“听到了。”并关联 turnId；保存计时/计数，不存识别文字。它证明 AudioWorklet→VAD→ASR→SSE→TTS→PCM 的合成输入闭环，不证明真人准确率、AEC 或物理扬声器首声。

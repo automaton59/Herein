@@ -35,6 +35,29 @@ function slope(points) {
   const variance = x.reduce((sum, value) => sum + (value - mx) ** 2, 0);
   return variance ? y.reduce((sum, value, i) => sum + (x[i] - mx) * (value - my), 0) / variance : null;
 }
+function hourlyWindows(points, fields) {
+  const windows = new Map();
+  for (const point of points) {
+    const hour = Math.floor(point.hours);
+    const window = windows.get(hour) || [];
+    window.push(point);
+    windows.set(hour, window);
+  }
+  return [...windows.entries()].sort(([a], [b]) => a - b).map(([hour, window]) => ({
+    hourFromStart: hour, observations: window.length,
+    sampledSpanMinutes: (window.at(-1).hours - window[0].hours) * 60,
+    ...Object.fromEntries(Object.entries(fields).map(([label, key]) =>
+      [label, stats(window.map(point => point[key]))])),
+  }));
+}
+function lateHalfSlope(points, field) {
+  const late = points.filter(point => point.hours >= 1);
+  if (!late.length) return null;
+  const midpoint = (late[0].hours + late.at(-1).hours) / 2;
+  const tail = late.filter(point => point.hours >= midpoint && Number.isFinite(point[field]));
+  return tail.length >= 3 && tail.at(-1).hours - tail[0].hours >= 1
+    ? slope(tail.map(point => ({ hours: point.hours, value: point[field] }))) : null;
+}
 const endpoint = await readJson("endpoint.local.json");
 const summary = await readJson("soak-summary.local.json");
 const endurance = await readJson("endurance-summary.local.json").catch(error => {
@@ -103,6 +126,9 @@ const processMemory = [...processSeries.values()].map(record => {
     lateWorkingSetSlopeMiBPerHour: windowHours >= 1 ? slope(late) : null,
     latePrivateSlopeMiBPerHour: windowHours >= 1 ? slope(privatePoints) : null,
     privateMiB: stats(record.points.map(point => point.privateMiB)),
+    lateHalfWorkingSetSlopeMiBPerHour: lateHalfSlope(record.points, "value"),
+    lateHalfPrivateSlopeMiBPerHour: lateHalfSlope(record.points, "privateMiB"),
+    hourlyWindows: hourlyWindows(record.points, { workingSetMiB: "value", privateMiB: "privateMiB" }),
   };
 });
 const processIds = type => samples.map(row => (row.processes || [])
@@ -136,10 +162,20 @@ const supplementaryProcesses = [...supplementarySeries.values()].map(record => {
     threads: stats(record.points.map(point => point.threads)), lateWindowHours: windowHours,
     latePrivateSlopeMiBPerHour: windowHours >= 1 ? slope(late.map(point => ({ hours: point.hours, value: point.privateMiB }))) : null,
     lateHandleSlopePerHour: windowHours >= 1 ? slope(late.map(point => ({ hours: point.hours, value: point.handles }))) : null,
+    lateHalfPrivateSlopeMiBPerHour: lateHalfSlope(record.points, "privateMiB"),
+    lateHalfHandleSlopePerHour: lateHalfSlope(record.points, "handles"),
+    hourlyWindows: hourlyWindows(record.points, { privateMiB: "privateMiB", handles: "handles", threads: "threads" }),
   };
 });
 if (supplementary.rows.some(row => row.failure) || supplementaryProcesses.some(record => record.identityChanged))
   problems.push("supplementary_process_sampling_failure");
+const supplementaryTimes = supplementary.rows.filter(row => !row.failure).map(row => Date.parse(row.at));
+const supplementaryGaps = supplementaryTimes.slice(1).map((time, i) => (time - supplementaryTimes[i]) / 1000);
+if (supplementaryGaps.some(gap => gap > 90)) problems.push("supplementary_observation_gap_over_90_seconds");
+if (supplementaryTimes.some((time, i) => i && time <= supplementaryTimes[i - 1]))
+  problems.push("supplementary_non_monotonic_samples");
+const supplementaryGrowth = supplementaryProcesses.filter(record =>
+  record.latePrivateSlopeMiBPerHour > 10 || record.lateHandleSlopePerHour > 10);
 const finished = summary.status === "finished" && Date.now() >= deadline &&
   (deadline - started) >= 8 * 3600000 && firstAt - started <= 45000 && deadline - lastAt <= 45000;
 if (endurance && summary.status === "finished" && endurance.status !== "finished")
@@ -160,9 +196,16 @@ const report = {
   processMemory, lateGrowthReviewPids: lateGrowth.map(record => record.pid),
   supplementaryProcesses,
   supplementaryCoverageStart: supplementary.rows[0]?.at,
-  supplementaryGrowthReviewPids: supplementaryProcesses.filter(record => record.latePrivateSlopeMiBPerHour > 10 || record.lateHandleSlopePerHour > 10).map(record => record.pid),
+  supplementaryCoverage: {
+    samples: supplementaryTimes.length,
+    startsWithin45Seconds: supplementaryTimes.length ? supplementaryTimes[0] - started <= 45000 : false,
+    endsWithin90SecondsOfDeadline: supplementaryTimes.length ? Math.abs(deadline - supplementaryTimes.at(-1)) <= 90000 : false,
+    sampledSpanHours: supplementaryTimes.length ? (supplementaryTimes.at(-1) - supplementaryTimes[0]) / 3600000 : 0,
+    sampleGapsSeconds: stats(supplementaryGaps),
+  },
+  supplementaryGrowthReviewPids: supplementaryGrowth.map(record => record.pid),
   memoryReviewThresholdMiBPerHour: 10,
-  memoryAssessment: lateGrowth.length ? "review_late_growth" : finished ? "review_trends_before_acceptance" : "insufficient_duration",
+  memoryAssessment: lateGrowth.length || supplementaryGrowth.length ? "review_late_growth" : finished ? "review_trends_before_acceptance" : "insufficient_duration",
   metricsCoverageStart: metrics[0]?.at,
   metricsCounts: Object.fromEntries(["asr.complete", "tts.complete", "playback.sound", "playback.interrupted", "renderer.gone", "worker.recovery", "tts.error", "avatar.error"]
     .map(type => [type, metrics.filter(row => row.type === type).length])),
