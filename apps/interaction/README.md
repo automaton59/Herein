@@ -132,3 +132,5 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 插话 fixture 可运行 `powershell -NoProfile -File apps/interaction/make-voice-fixture.ps1 -Output <gitignored-barge.wav> -BargeIn`；它含 2 秒静音、一句固定 SAPI 输入、6 秒尾部静音。启动独立实例时通过 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 指定它，再运行插话 verifier。输出配置必须 silentOutput=true，不能在夜间真人麦克风实例上运行。
 
 `verify-replacement-burst.mjs` 在独立静音、autoListen=false 的实例中串行发出 5 轮、每轮 10 次立即替换与 1 个最终短句。按 generation 核查只有最终轮次产生软件首声，旧轮次不复活、无欠供、模型在实际动画帧后闭嘴回 idle。它会替换当前声音，不能对正在进行的长测或真人实例运行。
+
+`verify-body-during-speech.mjs <isolated-silent-data-dir>` 在固定长句 PCM 播放期间模拟 tap/drag，检查一次性反应结束后回到 speaking、恢复原表情、口型继续变化；连续 20 次反应后在动作中取消，确认旧动作结束事件不再恢复说话。30fps 可用配置单独验证；该脚本需要 diagnostics，不能对正在长测的实例运行，也不证明真实鼠标点拖。

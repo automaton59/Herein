@@ -146,3 +146,5 @@
 启动后整机瞬时空闲物理内存约 3GiB，GPU 占用约 5927/8188MiB（含其他已在运行的实例/服务）；这些是资源余量快照，不能归为蓝鱼单实例内存或无泄漏证明。原 Shizuku 旧版本长测独立保留，未停止用户 Core/TTS/tunnel，未开启真实麦克风。
 
 同 buildId 的 `tmp/interaction-blue-burst-data/replacement-burst-verification.local.json` 补查快速连续替换：5 轮共 55 个命令，50 个旧轮次无软件首声、5 个最终短句均完成，首声 621.5–965.3ms，欠供/渲染错误均 0。播放 drained 事件可能早于下一动画帧，验证等实际模型帧闭嘴/neutral/idle 后再判定。该实例 CPU ASR、静音、透明窗口，只运行短压力测试；按完整命令行与 endpoint PID 归属回收，没有改冻结 runtime 或重启两个蓝鱼长测。
+
+同 buildId 的 `tmp/interaction-body-states-data/body-during-speech-verification.local.json` 补查说话中的表演：独立透明、30fps、SAPI 固定长句静音 PCM、CPU ASR、真人麦克风关闭。tap/drag 各一次后继续 speaking、恢复原 happy；连续 20 个模拟反应队列无积压；动作中取消恢复 idle/闭嘴，2.2 秒后未复活旧 speaking，后续 excited 表情仍可应用。采样口型 0.00001–0.905，最低 29.51fps、renderErrors=0、underruns=0。SAPI 取消后的 worker 重建是该降级实现的行为，不能把此条当 GGUF worker 无重启证据；原两条 GGUF 长测未动。
