@@ -175,3 +175,15 @@ thinkEnd 一次结束后回 idle，2.2 秒后仍 idle；happy 保留。模拟隐
 临时 runtime PID 26324 已经完整命令行和数据目录验证，连同 10 个子进程回收；再查进程不存在。两条原蓝鱼 runtime/soak/endurance/process sampler 仍保持原 PID/创建时间，未覆盖 bundle 或修改冻结 runtime。
 
 长测审计补 `hourlyPerformance` 分别汇总 ASR、VAD→识别、合成首包、软件首声/取消确认、RTF/fps，缺测保留 count=0/null，不把主/renderer ASR 双计。8/8 审计回归通过。阶段性首小时主实例 ASR 511 次、89.18–555.58ms，中位 344.98ms；软件首声 4 次、737.6–826.8ms，RTF 2 次、0.44–0.45，帧率最低 58.26。透明实例当时首声 3 次、586.6–953.2ms。主后续第 1 小时尚不足完整时段，不能从少量 TTS 样本断言长期速度稳定。长测固定 TTS 与循环合成输入未连接回复，endToSound 不存在；不混作合成十轮闭环或真人声音证据。
+
+## 2026-10-23 SAPI 长语音降级缺陷与待应用修复
+
+**当前冻结源码仍未修复此项。** SAPI 保留30秒总超时，500字固定worker带实时PCM背压复现：30.48秒返回worker closed，仅接收25.1895秒PCM。原始 `tmp/interaction-evidence/sapi-long-probe.local.json`。没有物理输出或真人音频。
+
+为保留两条原GGUF长测的源码/版本连续性，候选仅复制到忽略目录 `tmp/interaction-sapi-progress-candidate`，补丁与4个机制回归保留在 `apps/interaction/pending/sapi-progress`。候选改90秒无进展超时，PCM/ACK续期、失败清监听器及立即停止worker；取消丢待播PCM。4/4通过（持续推进超过30/90秒总时限、真实停滞、取消/替换、ACK失败），原Windows SAPI取消回归1/1通过。500字worker实测122.4945秒PCM、145.91秒完成，RTF包含人为逐块等待，不当作纯合成性能。
+
+完整候选buildId `a46ecc9bc3cc331f86825bbbecdc5424c9c9abc4b34d4b0d7905753a67be76cc`；数据 `tmp/interaction-sapi-progress-runtime-data`，同冻结renderer、透明30fps、CPU ASR、SAPI、silentOutput=true/autoListen=false。145/500字输出37.69/130.40秒PCM，软件首声205.9/133.4ms、RTF0.91/0.97、欠供0；长文取消/替换通过，末态buffer0/idle/嘴0/轨0/错误0。临时runtime PID21848及10子进程归属核查后回收。最初误用冻结入口的未执行测试实例PID26772也已回收，不作为候选证据。
+
+补丁在当前CRLF源码下 `git apply --check` 通过，但尚未应用到交付源码。原两条GGUF long soak仍旧build/PID连续运行，当前约1.6/1.1小时、失败0；不是8小时结论。必须在原长测结束审阅并保留后应用修复、记录新build并完成必要复验，不能将旧GGUF长测或候选短测称为最终新版全天候证明。
+
+“持续进展超过总时限”回归在冻结源码实测失败、候选通过，确认能检测缺陷。清理后旧临时PID26772被Windows新svchost进程复用（新创建01:10:08，原测试endpoint01:04:37），未对复用后的系统进程操作；候选PID21848已不存在。停止判断以完整命令行/创建时间归属为准，不只看编号。
