@@ -5,8 +5,9 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
-    "build": "npm run check:core && tsc && vite build",
+    "build": "npm run check:core && npm run check:contrast && tsc && vite build",
     "check:core": "node scripts/check-core-boundaries.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs",
     "build:core": "npx tsc -p packages/core/tsconfig.json",
     "check:bilibili": "npx tsc -p adapters/bilibili/tsconfig.json --noEmit",
     "build:bilibili": "npx tsc -p adapters/bilibili/tsconfig.json",

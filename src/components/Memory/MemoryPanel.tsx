@@ -465,7 +465,7 @@ export function MemoryPanel({
         <section aria-label="结构化记忆" className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">结构化记忆</h3>
-            <span className="text-xs text-slate-400 dark:text-slate-500">{visibleMemories.length} / {structuredMemories.length} 条</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">{visibleMemories.length} / {structuredMemories.length} 条</span>
           </div>
 
           <div className="grid grid-cols-3 rounded-lg border border-sky-100 bg-white/70 p-1 text-xs font-medium dark:border-white/10 dark:bg-white/5">
@@ -508,7 +508,7 @@ export function MemoryPanel({
                   <article key={memory.id} className="space-y-2 rounded-lg border border-sky-100 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
                       <span className="font-medium text-sky-700 dark:text-sky-200">{KIND_LABELS[memory.kind]}</span>
-                      <span className="text-slate-400 dark:text-slate-500">{SCOPE_LABELS[memory.scope]}</span>
+                      <span className="text-slate-500 dark:text-slate-400">{SCOPE_LABELS[memory.scope]}</span>
                       <span className={`rounded-full border px-2 py-0.5 ${badgeClass(memory)}`}>
                         {memory.status === 'disabled' ? '已禁用' : inContext ? '进入上下文' : '不进上下文'}
                       </span>

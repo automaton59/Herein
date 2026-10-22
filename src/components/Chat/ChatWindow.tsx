@@ -946,7 +946,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-slate-950 dark:text-sky-50">{displayName}</span>
                   </span>
-                  <span className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                  <span className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                     {hasUnread && (
                       <span aria-label="有未读消息" className="h-2 w-2 rounded-full bg-sky-500" />
                     )}

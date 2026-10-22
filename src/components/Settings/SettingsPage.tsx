@@ -89,7 +89,7 @@ export function SettingsPage({ activeSection, onSectionChange }: SettingsPagePro
                   <Icon size={18} className="shrink-0" />
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold">{label}</span>
-                    <span className={`mt-0.5 hidden truncate text-xs sm:block ${isActive ? 'opacity-80' : 'text-slate-400 dark:text-slate-500'}`}>
+                    <span className={`mt-0.5 hidden truncate text-xs sm:block ${isActive ? 'opacity-80' : 'text-slate-500 dark:text-slate-400'}`}>
                       {description}
                     </span>
                   </span>

@@ -887,6 +887,8 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
       {proactiveToast && (
         <button
           type="button"
+          role="status"
+          aria-live="polite"
           onClick={() => {
             setProactiveToast('');
             bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
