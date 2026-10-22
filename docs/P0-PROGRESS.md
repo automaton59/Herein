@@ -16,6 +16,7 @@
 | P0-03 | 聊天上下文 | `buildCoreChatPrompt`：角色/关系/最近总结/记忆预算/回复形态拼进 `/v1/chat`；群聊排除 private 记忆；2 个测试 |
 | P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,490,913 bytes，SHA256 `8D3FCD3C...363B`） |
 | P0-13 | Android 状态 | 聊天页系统状态芯片/抽屉；每 20s 轮询 `/v1/status`；展示 Core/DB/模型/声音/插件 |
+| P0-13 | Android SSE | 监听 `core` 事件：`chat.completed`/`timeline.synced`/`assistant.proactive` 后重拉时间线 |
 | P0-10 | 连接页 UX | “换地址”不再清 Token；保留地址/Token；粘贴 Token、显示/隐藏、清除记录（显式确认）；关闭自动大写/纠错 |
 | P1b | 移动聊天基础版 | 手机填 `http://192.168.1.3:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
 | P1a | 桌面 Core 路径 | `coreClient.ts` + 设置页 Core 地址/Token；聊天走 Core `/v1/chat`（含关系/记忆上下文），记录同步走 Core HTTP，失败回退本地 API；`parseAssistantMetadata` 提取 emotion/voice |

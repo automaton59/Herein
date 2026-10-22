@@ -429,6 +429,19 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
     }
   };
 
+  const refreshMessages = React.useCallback(async () => {
+    try {
+      const data = await coreRequest<{ messages: ChatMessage[] }>(
+        config,
+        `/v1/timeline/${CHARACTER_ID}/messages?limit=50`,
+      );
+      setMessages(data.messages);
+      setStatus('已连接');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : '连接失败');
+    }
+  }, [config]);
+
   React.useEffect(() => {
     const tokenQuery = config.token ? `?token=${encodeURIComponent(config.token)}` : '';
     const source = new EventSource(`${config.url}/v1/events${tokenQuery}`);
@@ -481,37 +494,34 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
     };
 
     source.addEventListener('song.shared', onShared as EventListener);
-    return () => {
-      source.removeEventListener('song.shared', onShared as EventListener);
-      source.close();
-    };
-  }, [config]);
 
-  React.useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
+    const onCore = (event: MessageEvent) => {
       try {
-        const data = await coreRequest<{ messages: ChatMessage[] }>(
-          config,
-          `/v1/timeline/${CHARACTER_ID}/messages?limit=50`,
-        );
-        if (!cancelled) {
-          setMessages(data.messages);
-          setStatus('已连接');
+        const parsed = JSON.parse(String(event.data)) as { type?: string };
+
+        if (
+          parsed.type === 'chat.completed'
+          || parsed.type === 'timeline.synced'
+          || parsed.type === 'assistant.proactive'
+        ) {
+          void refreshMessages();
         }
-      } catch (error) {
-        if (!cancelled) {
-          setStatus(error instanceof Error ? error.message : '连接失败');
-        }
+      } catch {
+        // Ignore malformed core events.
       }
     };
 
-    void load();
+    source.addEventListener('core', onCore as EventListener);
     return () => {
-      cancelled = true;
+      source.removeEventListener('song.shared', onShared as EventListener);
+      source.removeEventListener('core', onCore as EventListener);
+      source.close();
     };
-  }, [config]);
+  }, [config, refreshMessages]);
+
+  React.useEffect(() => {
+    void refreshMessages();
+  }, [refreshMessages]);
 
   React.useEffect(() => {
     let cancelled = false;
