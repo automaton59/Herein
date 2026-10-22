@@ -14,7 +14,7 @@
 | P0-03 | Core 启动方式 | `npm run core:serve`；`HEREIN_CORE_HOST/PORT/TOKEN`、`HEREIN_DATA_DIR`、`HEREIN_DB_PATH`；非 loopback 必须设 token |
 | P0-03 | 模型网关 | `electron/core/llm.ts` + `POST /v1/chat`：OpenAI-compatible、私钥文件、超时、usage；真实 `llm.json` 冒烟 1 次通过（3.7s，`persist:false`） |
 | P0-03 | 聊天上下文 | `buildCoreChatPrompt`：角色/关系/最近总结/记忆预算/回复形态拼进 `/v1/chat`；群聊排除 private 记忆；2 个测试 |
-| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,493,192 bytes，SHA256 `30DC6DA1...B3F5`） |
+| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,493,385 bytes，SHA256 `C088832E...3A23`） |
 | P0-13 | Android 状态 | 聊天页系统状态芯片/抽屉；每 20s 轮询 `/v1/status`；展示 Core/DB/模型/声音/插件 |
 | P0-13 | Android SSE | 监听 `core` 事件：`chat.completed`/`timeline.synced`/`assistant.proactive` 后重拉时间线 |
 | P1a | 已读状态 | schema v10 `timeline_read_state`；Core `GET/POST /v1/read-state/:characterId`；Android 刷新后标记最后一条已读 |
@@ -61,7 +61,7 @@
 | P0-13 | 状态与控制台 | Core `/v1/status`：Core/DB/LLM/TTS/plugins/agents/relay；桌面新增“系统”控制台；Android 状态芯片/抽屉；weather E2E；通用插件配置表单 |
 | P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
 | P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
-| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；可选 `InitiativeScheduler`（`HEREIN_INITIATIVE_AUTO=1`）；可选 ntfy 推送；桌面可手动运行；6 个测试 |
+| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；可选 `InitiativeScheduler`（`HEREIN_INITIATIVE_AUTO=1`）；可选 ntfy 推送；Android 应用内横幅；桌面可手动运行；6 个测试 |
 | P0-15 | 白蓝设计 | 全 `src` rose/cream 色系切到 sky/白/深海蓝；body/暗色背景、聊天气泡、设置、记忆、通话、Android 统一；`rose-` 残留 0 |
 
 ## 验证
@@ -76,7 +76,7 @@
 - Core HTTP 已测：`/health`、`/v1/status`、`/v1/plugins*`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
 - Core `/v1/chat` 真实 LLM 冒烟：HTTP 200，“在的”，3.7s
 - `npm run build` → 0；vite 2241 modules
-- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,493,192 bytes），SHA256 `30DC6DA1...B3F5`
+- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,493,385 bytes），SHA256 `C088832E...3A23`
 - Live2D 演示：`?live2d=1`，Electron 中 canvas=1，模型尺寸 624×672；截图受无显示桌面限制
 - 远程：`http://147.224.56.120/herein/health` → 无 token 401，带 token 200；`:8000` 酒馆 401
 
@@ -93,7 +93,7 @@
 | P1a | Core 双端一致性 | 记忆/已读/离线幂等/桌面增量 apply 已进 Core；跨端实时 read/outbox 未做；本地 IPC 仍写本地 DB，删除已能通过 apply 传播 |
 | P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；`AgentProvider` 契约已就绪，真实 DSH provider 等 B 交付 |
 | P0-13 | 状态完整性 | `/v1/status` 覆盖 Core/DB/LLM/TTS/plugins/agents/relay；Android 后台限制、Agent 能力操作 UI 还没接 |
-| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy 已有；A 的 InteractionPort、App 内通知/在场信号未接 |
+| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy/Android 应用内横幅 已有；A 的 InteractionPort、在场信号未接 |
 | P0-15 | 设计系统 | 调色板已 sweep；语义 token、对比度审计、视觉回归/真机截图未做 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |

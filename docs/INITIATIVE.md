@@ -16,12 +16,12 @@
 - Core `POST /v1/initiative/run`；桌面“系统”控制台可手动运行一次。
 - 可选自动调度：`HEREIN_INITIATIVE_AUTO=1` 开启，默认每 30 分钟检查一次；`HEREIN_INITIATIVE_INTERVAL_MS` 可调。
 - 可选 ntfy 推送：配置 `HEREIN_NTFY_*` 后，主动消息会同时发一条“蓝蓝”通知。
+- Android 应用内：收到 `assistant.proactive` 时显示顶部“蓝蓝：…”横幅，8 秒自动消失，点击滚到底部。
 - 测试覆盖：跨午夜免打扰、用户在场、冷却、每日上限、模型拒绝、成功写入 + SSE、调度器 tick、ntfy 推送。
 
 ## 现在没有什么
 
-- A 的 `InteractionPort`：还没有把主动消息变成桌面语音/口播；当前只写时间线 + SSE + ntfy。
-- Android 应用内通知：ntfy 是系统通知；App 内还没有未读/提醒面板。
+- A 的 `InteractionPort`：还没有把主动消息变成桌面语音/口播；当前只写时间线 + SSE + ntfy + Android 横幅。
 - 在场信号：还没有接桌面空闲、Android 前台、通话状态。
 - 渠道选择：目前只写主时间线 + ntfy，不发 QQ/其他 channel。
 

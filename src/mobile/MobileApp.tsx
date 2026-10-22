@@ -338,6 +338,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   const [statusOpen, setStatusOpen] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [outboxCount, setOutboxCount] = React.useState(() => readOutbox().length);
+  const [proactiveToast, setProactiveToast] = React.useState('');
   const [speakingId, setSpeakingId] = React.useState<string | null>(null);
   const [showAvatar, setShowAvatar] = React.useState(false);
   const [mouthOpen, setMouthOpen] = React.useState(0);
@@ -426,6 +427,15 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
     messagesRef.current = messages;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  React.useEffect(() => {
+    if (!proactiveToast) {
+      return;
+    }
+
+    const timer = setTimeout(() => setProactiveToast(''), 8000);
+    return () => clearTimeout(timer);
+  }, [proactiveToast]);
 
   const toggleSpeak = async (message: ChatMessage) => {
     if (speakingId === message.id) {
@@ -560,7 +570,14 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
 
     const onCore = (event: MessageEvent) => {
       try {
-        const parsed = JSON.parse(String(event.data)) as { type?: string };
+        const parsed = JSON.parse(String(event.data)) as {
+          type?: string;
+          payload?: { message?: { content?: string } };
+        };
+
+        if (parsed.type === 'assistant.proactive' && parsed.payload?.message?.content) {
+          setProactiveToast(parsed.payload.message.content);
+        }
 
         if (
           parsed.type === 'chat.completed'
@@ -839,6 +856,20 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
           </button>
         </div>
       </header>
+
+      {proactiveToast && (
+        <button
+          type="button"
+          onClick={() => {
+            setProactiveToast('');
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="mx-4 mt-3 rounded-2xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-left text-xs leading-5 text-sky-100"
+        >
+          <span className="font-semibold text-sky-200">蓝蓝</span>
+          <span className="text-sky-100/80">：{proactiveToast}</span>
+        </button>
+      )}
 
       <main className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
