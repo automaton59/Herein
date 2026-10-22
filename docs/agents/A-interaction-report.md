@@ -195,3 +195,9 @@ thinkEnd 一次结束后回 idle，2.2 秒后仍 idle；happy 保留。模拟隐
 首个SAPI重建原始时序：playback.sound 01:16:38.716，cancel generation2 01:16:38.830，playback.interrupted 01:16:38.831（ACK0.2ms），worker.recovery 01:16:42.978，新worker创建01:16:42.976，ready01:16:43.425。下一次全树采样旧powershell9320/conhost17788消失，只有新powershell14752/conhost4800；CIM按创建时间复核旧身份已不在，当前唯一SAPI worker直属runtime25784。
 
 新增离线 `pending/sapi-progress/review-recovery.mjs` 整理每次取消、恢复、新创建和后续独占worker，ASR身份另检；不清通用审计标记、不自动判长测通过。3/3反例回归通过；当前1次转换相关证据齐全，peakWorkerCount1、ASR身份未变。周期快照不能证明两次采样之间没有短暂重叠；后续每次取消必须继续核查，不能把首个结果推广为全程。
+
+## 2026-10-23 两小时资源复查快照
+
+主GGUF长测约2.046小时/242样本，失败0。第一次拥有一小时后期窗口时，ASR实际python7780私有内存斜率15.43MiB/h触发复查，而工作集斜率-0.11MiB/h。原始数据在1791.14/1855.26/1887.33/1919.39MiB间反复升降，第0/1小时私有峰值1919.46/1919.39MiB，低值1790.30/1791.14MiB；補充采样第1小时handles恒388。当前证据符合周期分配，但时间不足，不删除增长复查标记、不声称无泄漏。阶段审阅留 `tmp/interaction-blue-overnight-data/asr-memory-review.local.json`，完整8小时后必须重新审阅。
+
+主GGUF TTS28428同阶段私有斜率约1.36MiB/h，小时中位2616.66→2618.77MiB，仍需更长窗口确认平台。透明实例约1.54小时、SAPI候选约0.33小时，此阶段不能作完整后期趋势判断。所有长测原PID/创建时间与build连续，没有重启或覆盖源码/bundle；真人/硬件验收仍待用户主动启动。
