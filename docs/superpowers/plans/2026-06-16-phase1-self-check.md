@@ -1,5 +1,7 @@
 # Phase 1 Self-Check Testing Plan
 
+> Historical note: this Phase 1 self-check plan preserves early implementation assumptions. Current Phase 2 direction is defined by `docs/PROJECT-BACKGROUND-AND-ROADMAP.md`, `docs/HANDOVER.md`, and `docs/superpowers/specs/2026-06-19-phase2-personality-relationship-memory-assets-design.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Comprehensive self-check of Phase 1 implementation before user testing. Verify all components, fix bugs, and ensure production readiness.
@@ -1109,4 +1111,3 @@ Before marking this plan complete, verify:
 ---
 
 **Plan Status:** Ready for execution
-

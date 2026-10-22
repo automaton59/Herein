@@ -1,11 +1,11 @@
 {
-  "appId": "com.aigirlfriend.app",
-  "productName": "AI Girlfriend",
+  "appId": "com.herein.app",
+  "productName": "Herein",
   "directories": {
-    "output": "dist"
+    "output": "release"
   },
   "files": [
-    "dist-react/**/*",
+    "dist/**/*",
     "dist-electron/**/*"
   ],
   "mac": {

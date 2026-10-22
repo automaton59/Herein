@@ -1,5 +1,7 @@
 # AI Girlfriend MVP - Phase 1: Project Foundation Implementation Plan
 
+> Historical note: this Phase 1 implementation plan preserves early project assumptions. The current roadmap has superseded the old split where Phase 2 was only memory/SQLite and Phase 3 was character management. Current Phase 2 is "Personality, Relationship, Memory, and Character Assets" with SQLite-first storage and Herein internal character archives.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Set up project foundation with React + TypeScript + Electron, establish service abstraction layer, and implement basic LLM integration with a simple chat interface.
@@ -14,7 +16,7 @@
 - ✅ Basic OpenAI integration
 - ✅ Simple chat UI that works
 
-**Subsequent phases:** Phase 2 (Memory + SQLite), Phase 3 (Character Management), Phase 4 (Emotions + TTS), Phase 5 (Polish + Features)
+**Current roadmap note:** Phase 2 is now Personality, Relationship, Memory, and Character Assets. Phase 3 is Character Presence and Video Chat.
 
 ---
 
@@ -1541,8 +1543,8 @@ src/
 ## Roadmap
 
 - **Phase 1** (Current): Foundation + Basic Chat ✅
-- **Phase 2**: Memory System (SQLite + Vector Search)
-- **Phase 3**: Character Management (SillyTavern compatible)
+- **Phase 2**: Personality, Relationship, Memory, and Character Assets
+- **Phase 3**: Character Presence and Video Chat
 - **Phase 4**: Emotions + TTS
 - **Phase 5**: Polish + Additional Features
 
@@ -1653,10 +1655,9 @@ From design doc `docs/superpowers/specs/2026-06-15-ai-girlfriend-design.md`, Pha
 - [x] **Testing**: Manual integration tests ✓ (Task 14)
 
 **Deferred to Phase 2+:**
-- Memory system (SQLite + vectors)
-- Character management
-- Emotions + TTS
-- Multiple conversations
+- SQLite data foundation, relationship memory, summaries, character assets
+- Character presence, expressions, Live2D, and voice in later phases
+- Historical Phase 1 multi-conversation support will be migrated toward one primary timeline per character
 
 ### Placeholder Check
 
@@ -1688,17 +1689,12 @@ After completing Phase 1, you'll have a working AI girlfriend chat app with:
 - ✅ Settings management
 - ✅ Basic chat interface
 
-**Phase 2** will add:
-- SQLite database for conversation history
-- Vector search for memory retrieval
-- Core memory management (user facts)
-- Conversation persistence
+**Current roadmap note:** Phase 2 added SQLite-first storage, one primary timeline per character, summaries, structured memories, character assets, Herein internal character archives, and backup/restore.
 
-**Phase 3** will add:
-- Character creation and management
-- SillyTavern card import/export
-- Multiple characters support
-- Character switching
+**Phase 3** will focus on character presence and video-chat direction:
+- Expression/state pipeline
+- Live2D or other character presence assets
+- Voice and video-chat style surfaces
 
 **Phase 4** will add:
 - Emotion-driven avatar display

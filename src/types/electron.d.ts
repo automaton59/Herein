@@ -1,5 +1,8 @@
 export {};
 
+import type { LocalTtsSynthesisRequest, LocalTtsSynthesisResult } from '../services/interfaces';
+import type { Phase2PreloadAPI } from '../services/phase2/types';
+
 declare global {
   interface Window {
     electron?: {
@@ -16,6 +19,10 @@ declare global {
       theme?: {
         setSource: (themeMode: string) => Promise<'light' | 'dark'>;
       };
+      tts?: {
+        synthesize: (request: LocalTtsSynthesisRequest) => Promise<LocalTtsSynthesisResult>;
+      };
+      phase2?: Phase2PreloadAPI;
     };
   }
 }

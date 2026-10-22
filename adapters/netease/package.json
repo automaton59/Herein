@@ -1,0 +1,15 @@
+{
+  "name": "@herein/adapter-netease",
+  "version": "0.1.0",
+  "description": "Anonymous read-only NetEase Cloud Music adapter for Herein",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npx tsc -p tsconfig.json"
+  },
+  "license": "MIT"
+}

@@ -1,5 +1,8 @@
 import type { AppConfig, CharacterConfig, LLMConfig, ThemeMode } from '../interfaces';
 import { DEFAULT_CHARACTER } from '../character';
+import { createPhase2Client } from '../phase2/client';
+import { characterConfigToProfile, characterProfileToConfig } from '../phase2/mappers';
+import { DEFAULT_VOICE_CONFIG, normalizeVoiceConfig } from '../phase3/voice';
 import { readJSONFile, writeJSONFile } from '../storage';
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -14,6 +17,11 @@ const DEFAULT_CONFIG: AppConfig = {
   activeCharacterId: DEFAULT_CHARACTER.id,
   activeProfileId: null,
   themeMode: 'system',
+  voice: DEFAULT_VOICE_CONFIG,
+  memoryEnabled: true,
+  memoryProfileMode: 'follow-chat',
+  memoryProfileId: null,
+  summaryTriggerMessageCount: 20,
 };
 
 type StoredAppConfig = Partial<AppConfig> & {
@@ -30,6 +38,7 @@ function normalizeCharacter(character: Partial<CharacterConfig> | undefined, fal
     scenario: character?.scenario ?? fallback.scenario,
     firstMessage: character?.firstMessage ?? fallback.firstMessage,
     systemPrompt: character?.systemPrompt ?? fallback.systemPrompt,
+    avatarAssetId: character?.avatarAssetId ?? fallback.avatarAssetId ?? null,
   };
 }
 
@@ -62,6 +71,14 @@ function normalizeThemeMode(value: unknown): ThemeMode {
     : DEFAULT_CONFIG.themeMode;
 }
 
+function normalizeMemoryProfileMode(value: unknown): AppConfig['memoryProfileMode'] {
+  return value === 'custom' || value === 'follow-chat' ? value : DEFAULT_CONFIG.memoryProfileMode;
+}
+
+function normalizePositiveInteger(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
 function normalizeConfig(parsed: StoredAppConfig | null | undefined): AppConfig {
   if (!parsed) {
     return DEFAULT_CONFIG;
@@ -78,6 +95,14 @@ function normalizeConfig(parsed: StoredAppConfig | null | undefined): AppConfig 
     activeCharacterId,
     activeProfileId: typeof parsed.activeProfileId === 'string' ? parsed.activeProfileId : null,
     themeMode: normalizeThemeMode(parsed.themeMode),
+    voice: normalizeVoiceConfig(parsed.voice),
+    memoryEnabled: typeof parsed.memoryEnabled === 'boolean' ? parsed.memoryEnabled : DEFAULT_CONFIG.memoryEnabled,
+    memoryProfileMode: normalizeMemoryProfileMode(parsed.memoryProfileMode),
+    memoryProfileId: typeof parsed.memoryProfileId === 'string' ? parsed.memoryProfileId : null,
+    summaryTriggerMessageCount: normalizePositiveInteger(
+      parsed.summaryTriggerMessageCount,
+      DEFAULT_CONFIG.summaryTriggerMessageCount,
+    ),
   };
 }
 
@@ -88,8 +113,35 @@ function sanitizeConfig(config: AppConfig): AppConfig {
   };
 }
 
+function hasPhase2Storage() {
+  return Boolean(window.electron?.phase2);
+}
+
+function phase2SettingsToConfig(input: Awaited<ReturnType<ReturnType<typeof createPhase2Client>['bootstrap']>>): AppConfig {
+  const characters = input.characters.length > 0
+    ? input.characters.map(characterProfileToConfig)
+    : [DEFAULT_CHARACTER];
+  const activeCharacterId = typeof input.settings.activeCharacterId === 'string'
+    && characters.some(character => character.id === input.settings.activeCharacterId)
+    ? input.settings.activeCharacterId
+    : characters[0].id;
+
+  return normalizeConfig({
+    llm: DEFAULT_CONFIG.llm,
+    characters,
+    activeCharacterId,
+    activeProfileId: typeof input.settings.activeProfileId === 'string' ? input.settings.activeProfileId : null,
+    themeMode: input.settings.themeMode,
+    voice: input.settings.voiceConfig,
+    memoryEnabled: input.settings.memoryEnabled,
+    memoryProfileMode: input.settings.memoryProfileMode,
+    memoryProfileId: input.settings.memoryProfileId,
+    summaryTriggerMessageCount: input.settings.summaryTriggerMessageCount,
+  });
+}
+
 export class ConfigService {
-  private static readonly STORAGE_KEY = 'ai-girlfriend-config';
+  private static readonly STORAGE_KEY = 'herein-config';
   private static readonly FILE_NAME = 'config.json';
 
   static load(): AppConfig {
@@ -115,6 +167,12 @@ export class ConfigService {
   }
 
   static async loadPersistent(): Promise<AppConfig> {
+    if (hasPhase2Storage()) {
+      const config = phase2SettingsToConfig(await createPhase2Client().bootstrap());
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sanitizeConfig(config)));
+      return config;
+    }
+
     const fileConfig = await readJSONFile<StoredAppConfig>(this.FILE_NAME);
 
     if (fileConfig) {
@@ -131,6 +189,23 @@ export class ConfigService {
   static async savePersistent(config: AppConfig): Promise<void> {
     const sanitized = sanitizeConfig(config);
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sanitized));
+
+    if (hasPhase2Storage()) {
+      const client = createPhase2Client();
+      await Promise.all(sanitized.characters.map(character => client.characters.upsert(characterConfigToProfile(character))));
+      await Promise.all([
+        client.settings.set('activeCharacterId', sanitized.activeCharacterId),
+        client.settings.set('activeProfileId', sanitized.activeProfileId ?? null),
+        client.settings.set('themeMode', sanitized.themeMode),
+        client.settings.set('voiceConfig', sanitized.voice),
+        client.settings.set('memoryEnabled', sanitized.memoryEnabled),
+        client.settings.set('memoryProfileMode', sanitized.memoryProfileMode),
+        client.settings.set('memoryProfileId', sanitized.memoryProfileId ?? null),
+        client.settings.set('summaryTriggerMessageCount', sanitized.summaryTriggerMessageCount),
+      ]);
+      return;
+    }
+
     await writeJSONFile(this.FILE_NAME, sanitized);
   }
 

@@ -1,0 +1,48 @@
+{
+  "ts": "2026-10-21T20:42:55+0800",
+  "nav": {
+    "http": 200,
+    "code": -101
+  },
+  "wbi_keys": {
+    "img_key": "7cd084941338484aae1ad9425b84077c",
+    "sub_key": "4932caff0ff746eab6f01bf08b70ac45"
+  },
+  "view_plain": {
+    "http": 200,
+    "code": 0,
+    "message": "OK"
+  },
+  "view_wbi": {
+    "http": 200,
+    "code": 0,
+    "message": "OK"
+  },
+  "view_meta": {
+    "aid": 2,
+    "cid": 62131,
+    "title": "字幕君交流场所"
+  },
+  "rcmd_plain": {
+    "http": 200,
+    "code": 0,
+    "message": "OK",
+    "vvoucher": false
+  },
+  "ranking_plain": {
+    "http": 200,
+    "code": 0,
+    "n": 100
+  },
+  "player_v2": {
+    "http": 200,
+    "code": 0,
+    "need_login_subtitle": false,
+    "subtitles": []
+  },
+  "reply_read": {
+    "http": 200,
+    "code": 0,
+    "n": 3
+  }
+}

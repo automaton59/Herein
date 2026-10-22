@@ -1,0 +1,127 @@
+# P0 进度与证据
+
+最后更新：2026-10-21
+
+## 已完成
+
+| ID | 任务 | 结果 |
+|---|---|---|
+| P0-01 | 仓库分层 | 新增 `packages/core`（公开契约）；`private/` 已进 `.gitignore`；新增 `scripts/check-core-boundaries.mjs` 和 `npm run check:core` |
+| P0-02 | 增量消息持久化 | 新增 `messages.sync` + `phase2:timeline:sync-messages`；`savePersistentChatHistory` 从“逐条 IPC”改为“一次事务同步”；插入/更新/删除/清空都有测试 |
+| P0-04 | Observation / Experience / Sync schema | schema v6：`channel_accounts`、`identity_links`、`observations`、`experiences`、`activity_sessions`、`sync_ops`；`memory_items` 增加 audience/importance/provenance/supersedes/source_observation_ids/recall 字段 |
+| P0-04 | 最小仓储 | `channelAccounts`、`identityLinks`、`observations`、`experiences`、`syncOps` 的插入/查询；带 dedupe、audience/provenance 测试 |
+| P0-03 | Core daemon | `electron/core/server.ts`：独立 HTTP 服务，复用 SQLite；`/health`、characters、timeline messages/sync、memory、observations、experiences、sync ops、SSE `/v1/events`；token、CORS、优雅关闭 |
+| P0-03 | Core 启动方式 | `npm run core:serve`；`HEREIN_CORE_HOST/PORT/TOKEN`、`HEREIN_DATA_DIR`、`HEREIN_DB_PATH`；非 loopback 必须设 token |
+| P0-03 | 模型网关 | `electron/core/llm.ts` + `POST /v1/chat`：OpenAI-compatible、私钥文件、超时、usage；真实 `llm.json` 冒烟 1 次通过（3.7s，`persist:false`） |
+| P0-03 | 聊天上下文 | `buildCoreChatPrompt`：角色/关系/最近总结/记忆预算/回复形态拼进 `/v1/chat`；群聊排除 private 记忆；2 个测试 |
+| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,386,172 bytes，SHA256 `A39090B7...DEE6`） |
+| P0-10 | 连接页 UX | “换地址”不再清 Token；保留地址/Token；粘贴 Token、显示/隐藏、清除记录（显式确认）；关闭自动大写/纠错 |
+| P1b | 移动聊天基础版 | 手机填 `http://192.168.1.3:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
+| P1a | 桌面 Core 路径 | `coreClient.ts` + 设置页 Core 地址/Token；聊天走 Core `/v1/chat`（含关系/记忆上下文），记录同步走 Core HTTP，失败回退本地 API；`parseAssistantMetadata` 提取 emotion/voice |
+| P3 | B 站只读适配器 | `adapters/bilibili`：WBI、nav（兼容 -101）、view/rcmd/conclusion/player、搜索、分P、字幕原文、限速、错误类型；7 个测试；真实 rcmd 5 条通过，view 当前 IP 412 |
+| P3 | 字幕优先 | `searchVideos` + `getSubtitleText`：优先 ai-zh/zh-CN/zh，抓 `subtitle_url` 正文，过滤“字幕by”署名；空/只有署名标记 empty，调用方可跳过 |
+| P3 | B 站 Activity | `scanBilibiliFeed`：推荐流 → observations + activity_sessions；Core `/v1/bilibili/scan`、`/v1/activity`；重复扫描按天去重 |
+| P4 | 网易云匿名适配器 | `adapters/netease`：搜索/歌曲/歌词/歌单/榜单/公开推荐、限速、错误类型；3 个测试；匿名实测 64 榜单、37 搜索结果、歌词可用 |
+| P4 | ContentProfile | `packages/core/src/content.ts`：LRC 取 hook（跳过作词/作曲等 credit）、歌名/歌手/专辑映射、按 type+id 去重；3 个测试 |
+| P4 | 推荐闸门 | `packages/core/src/recommendation.ts`：用户低落/冷却/轮次/7 天重复闸门 + JSON 决策校验；4 个测试 |
+| P4 | 推荐服务 | `electron/services/contentRecommender.ts`：读私有 prompt、替换变量、走 Core LLM、JSON 解析、闸门短路；Core `POST /v1/recommend`；2+1 个测试 |
+| P4 | 候选池 | `electron/services/neteaseCandidates.ts`：搜索/榜单→歌单→ContentProfile；Core `POST /v1/netease/candidates`；3+1 个测试 |
+| P4 | 真实端到端 | 网易云 3 首候选 → Core `/v1/recommend` → 真实 LLM：`shouldRecommend:true`，理由“这首 evening 名字就写着夜晚…”，4.5s |
+| P4 | 聊天内推荐 | 移动端识别“想听歌/好无聊/推荐首歌”，拉候选 → Core 推荐 → 歌卡；45 分钟冷却 + 7 天重复本地记录；意图/冷却单测 |
+| P4 | 服务端状态 | schema v8 `recommendation_events`；`/v1/recommend` 无 gate 时读服务端冷却/7 天重复；推荐成功落库；`/v1/recommend/feedback`、`/v1/recommendations` 仍在 |
+| P4 | 随手转发 | 移动端改成“短句 + 歌曲卡片”：去掉“推荐一首”标签和喜欢/跳过按钮；显式“想听歌”之外，低频主动分享（75 分钟冷却/18% 概率/低落抑制）；prompt 的 reason 改为 ≤20 字随口话；封面来自 NetEase 专辑图 |
+| P4 | 后台低频分享 | `ProactiveShareScheduler`：90 分钟一次、服务端冷却/7 天去重、落库、`song.shared` SSE；Core `POST /v1/proactive/share/run`；移动端 EventSource 收到后插卡；`HEREIN_PROACTIVE_SHARE=1` 开启 |
+| P4 | 离线推送 | `electron/services/ntfy.ts`：分享时 POST ntfy；`HEREIN_NTFY_URL/TOPIC/TOKEN/CLICK`；APP 关闭时靠 ntfy app 收通知；`docs/PUSH.md` |
+| P4 | 候选/反馈打磨 | 移动端默认走中文榜单，不再用“夜晚”关键词搜出俄语歌；`likedItemIds/skippedItemIds` 进入 taste，prompt 明确不推 skipped |
+| P3 | 参考 dsh-bili-scroll | 采纳字幕优先/空字幕判空/素材非指令/只读工具面；不采纳 Python MCP、扫码登录、发评论；笔记在 `docs/research/dsh-bili-scroll-notes.md` |
+| P1c | 远程访问 | Caddy 80 `/herein` + SSH `-R` 到本机 Core；token 保护；实测无 token 401、带 token 200；酒馆 8000 仍 401；`npm run tunnel` + `docs/REMOTE.md` |
+| P0-11/P5 | QQ 适配器骨架 | `adapters/qq`：token 缓存、gateway、群/私聊被动文本、事件归一化、identify payload、WS 心跳/READY/事件分发/可选重连；5 个测试；凭证后置 |
+| P0-11/P5 | QQ listener 落库 | `electron/services/qqListener.ts`：配置加载、fake/真实 gateway、归一化→observations、停止清理；Core `HEREIN_QQ_ENABLED=1` 启动；2 个测试 |
+| P0-11/P5 | QQ 被动回复 | `responder` 接线：@群消息/私聊 → 被动 `msg_id` 文本回复；默认关闭；`createQQResponder` 用 Core 上下文生成并剥标签；测试覆盖 |
+| P0-11/P5 | QQ 语音接收 | `attachments[].voice_wav_url` + `asr_refer_text` → observation.media；空 content 用 ASR 文本；测试覆盖；发送 SILK 仍未做 |
+| P0-11/P5 | QQ 语音发送 API | URL 上传 `file_type=3` → `file_info` → `msg_type=7` 被动语音；群/私聊方法；测试覆盖；本地 SILK/分片上传未做 |
+| P0-05 | 记忆 v2 持久化 | schema v7：audience/importance/provenance/supersedes/source_observation_ids/recall 字段落库；`memories.search` 用 FTS5 + LIKE fallback；测试覆盖写入/读取/audience 过滤 |
+| P0-05 | 记忆预算/受众 | `contextAssembly` 增加 audience 过滤、importance/pinned 排序、`memoryBudgetTokens`（默认 1200）；群聊排除 private；pinned 可超预算 |
+| P0-06 | Prompt 引擎 | `packages/core/src/prompts.ts`：L0–L6、`PromptRegistry`、`compilePrompt`、变量校验；3 个测试 |
+| P0-06 | Prompt 内容 | `private/prompts/v0/` 10 个文件齐：safety/character/relationship/chat/group/memory_extract/summary/experience/content_recommend/moderation |
+| P0-07 | 角色包 | `packages/core/src/character.ts`：`CharacterPackManifest` + `validateCharacterPack`；3 个测试；私有 `private/characters/haishixiang/character.json` |
+| P0-09 | Avatar 契约 | `packages/core/src/avatar.ts`：`AvatarRenderer` / `AvatarLoadOptions` / 工厂类型 |
+| P0-09 | Live2D 渲染 | Pixi 7 + Cubism 2 `Live2DStage`；Core `/assets`；`?live2d=1` 演示页；实际加载 Shizuku 成功（canvas 1，模型 624×672）；`docs/LIVE2D.md` |
+| P2 | Live2D 接入 | `CallWindow` 已接 `Live2DStage`（Core assets + presentation entry）；APP 右上角“形象”打开全屏 Live2D；口型/正式蓝蓝模型/通话实机未验证 |
+| P0-08 | TTS 横评脚本 | `scripts/benchmark_tts.mjs` + `npm run bench:tts`：延迟/音频时长/RTF，支持自定义 endpoint/text |
+| P0-08 | TTS 实测 | `D:\AI\tools\qwen_tts\venv`（torch 2.11+cu128/CUDA）+ CustomVoice 1.7B：平均 **4.8s/句，RTF 3.70**；0.6B：**4.87s/句，RTF 3.28**；能出声，未实时。详见 `docs/TTS.md` |
+| P0-08/P2 | 手机朗读 | Core `POST /v1/tts` 代理；移动端助手消息“▶ 朗读”；本地 38KB/5.1s，远端 `/herein/v1/tts` 30KB/3.9s |
+
+## 验证
+
+- `npx tsc --noEmit` → 0
+- `npx tsc -p tsconfig.electron.json --noEmit` → 0
+- `npx vitest run` → **47 files / 177 tests passed**
+- `npm run check:core` → core boundary ok（6 files）
+- `npm run build:core` → 0
+- `node scripts/benchmark_tts.mjs --help` → 0
+- `npm run core:serve` + `GET /health` 冒烟通过（临时 dataDir，未碰真实数据）
+- Core HTTP 已测：`/health`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
+- Core `/v1/chat` 真实 LLM 冒烟：HTTP 200，“在的”，3.7s
+- `npm run build` + `npx cap sync android` → 0
+- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,484,515 bytes），SHA256 `0D291066...3E18`
+- Live2D 演示：`?live2d=1`，Electron 中 canvas=1，模型尺寸 624×672；截图受无显示桌面限制
+- 远程：`http://147.224.56.120/herein/health` → 无 token 401，带 token 200；`:8000` 酒馆 401
+
+## 尚未完成
+
+| ID | 任务 | 说明 |
+|---|---|---|
+| P0-03 | 队列/调度 | Core HTTP + 模型网关已有；队列、主动行为调度、桌面 UI 接 Core 还没做 |
+| P0-05 | 混合召回 | FTS/LIKE + importance 已做；embedding/触发词/recency 混合排序待做 |
+| P0-08 | TTS 实时化 | 1.7B batch RTF 3.70 已实测；还缺 0.6B/流式/C 引擎对比，未接语音通话 |
+| P2 | 实时语音/Live2D | Live2D 渲染已通；口型同步、正式模型、TTS 实时化未做 |
+| P0-10 | 真机验证 | APK 已出；还没装到手机/平板实测 |
+| P0-11 | QQ listener | 配置/连接/心跳/归一化/落库/被动回复接线已做；语音、频控、审核、默认回复策略待做，等 `qqbot.json` |
+| P1a | Core 双端一致性 | 桌面/手机都走 Core，但桌面本地记忆更新仍走 IPC；跨端实时同步未做 |
+| P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
+| P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |
+| P4 | 推荐打磨 | 歌卡/反馈/服务端冷却已有；还缺中文候选过滤、反馈影响排序 |
+
+## 下一步顺序
+
+1. 真机装 APK，验证 LAN 聊天。
+2. P3：B 站 Experience + UI“她今天看了什么”。
+3. P4：聊天内推荐/反馈。
+4. P1a：桌面聊天/上下文全走 Core。
+5. P0-08：用现成 venv 接 batch TTS 到回复；再测 0.6B/流式/C 引擎。
+6. P1c：隧道开机自启/断线重连 + TLS/Tailscale。
+7. P0-11：QQ listener（凭据到位后）。
+
+## Core HTTP
+
+启动：
+
+```powershell
+$env:HEREIN_DATA_DIR = "D:\Herein\tmp\core-data"
+$env:HEREIN_CORE_HOST = "127.0.0.1"
+$env:HEREIN_CORE_PORT = "8787"
+npm run core:serve
+```
+
+接口：
+
+| Method | Path | 作用 |
+|---|---|---|
+| GET | `/health` | 健康检查 |
+| GET | `/v1/characters` | 角色列表 |
+| GET | `/v1/timeline/:characterId/messages?limit=100` | 主时间线消息 |
+| POST | `/v1/timeline/:characterId/sync` | 批量同步消息 `{title,messages}` |
+| GET | `/v1/memory?characterId=&timelineId=&q=&limit=` | 记忆列表/搜索 |
+| GET/POST | `/v1/observations` | Observation 读写 |
+| GET | `/v1/experiences?limit=20` | Experience 列表 |
+| GET/POST | `/v1/sync/ops` | E2EE oplog 读写 |
+| GET | `/v1/events` | SSE 事件流 |
+
+非 loopback 绑定必须设置 `HEREIN_CORE_TOKEN`，请求带 `Authorization: Bearer <token>`。
+
+## 边界
+
+- `private/` 不进公开仓库。
+- `packages/core` 不 import `src/`、`apps/`、`adapters/`、`private/`、`electron/`。
+- 公开仓库不放 demo 角色；只放 schema/空模板/引导。

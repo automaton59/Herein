@@ -1,6 +1,7 @@
 import type { LLMService, ChatParams, ChatResponse, LLMConfig, LLMCallOptions, Message } from '../interfaces';
 import type { OpenAIChatResponse, OpenAIMessage } from './types';
 import { llmFetchJSON } from './http';
+import { parseAssistantMetadata } from './metadata';
 
 type ContentExtraction = {
   content: string;
@@ -23,23 +24,6 @@ export class OpenAIAdapter implements LLMService {
       role: msg.role as 'system' | 'user' | 'assistant',
       content: msg.content,
     }));
-  }
-
-  private parseEmotion(content: string): { text: string; emotion?: string } {
-    const emotions = 'neutral|happy|sad|angry|shy|excited|worried';
-    const emotionRegex = new RegExp(`\\[(?:emotion:\\s*)?(${emotions})\\]`, 'i');
-    const stripEmotionRegex = new RegExp(`\\s*\\[(?:emotion:\\s*)?(${emotions})\\]\\s*`, 'gi');
-    const trailingBareEmotionRegex = new RegExp(`(?:^|\\n)\\s*['"]?(${emotions})['"]?\\s*$`, 'i');
-    const match = content.match(emotionRegex) || content.match(trailingBareEmotionRegex);
-
-    if (match) {
-      return {
-        text: content.replace(stripEmotionRegex, ' ').replace(trailingBareEmotionRegex, '').trim(),
-        emotion: match[1].toLowerCase(),
-      };
-    }
-
-    return { text: content.trim() };
   }
 
   private readText(value: unknown): string {
@@ -200,11 +184,12 @@ export class OpenAIAdapter implements LLMService {
         throw new Error('API returned no message content. Check the model name and Base URL.');
       }
 
-      const { text, emotion } = this.parseEmotion(inlineThinking.content);
+      const { text, emotion, voiceInstruct } = parseAssistantMetadata(inlineThinking.content);
 
       return {
         content: text,
         emotion,
+        voiceInstruct,
         reasoning: reasoning || undefined,
         usage: {
           promptTokens: response.usage?.prompt_tokens || 0,

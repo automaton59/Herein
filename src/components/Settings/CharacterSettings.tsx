@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSettingsStore } from '../../stores/settings';
 import type { CharacterConfig } from '../../services/interfaces';
 import { SelectMenu } from '../UI/SelectMenu';
+import { CharacterArchiveControls } from './CharacterArchiveControls';
 
 type Feedback = {
   type: 'success' | 'error';
@@ -29,10 +30,6 @@ function validateCharacter(character: CharacterConfig): string[] {
 
   if (!normalized.description) {
     errors.push('角色设定不能为空');
-  }
-
-  if (!normalized.systemPrompt) {
-    errors.push('行为提示词不能为空');
   }
 
   return errors;
@@ -119,7 +116,6 @@ export function CharacterSettings() {
             options={characters.map((character) => ({
               value: character.id,
               label: character.name,
-              description: character.scenario,
             }))}
           />
         </label>
@@ -149,6 +145,8 @@ export function CharacterSettings() {
           </button>
         </div>
 
+        <CharacterArchiveControls characterId={activeCharacterId} />
+
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">角色名</span>
           <input
@@ -170,32 +168,12 @@ export function CharacterSettings() {
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">场景</span>
-          <textarea
-            value={localCharacter.scenario}
-            onChange={(event) => updateField('scenario', event.target.value)}
-            rows={3}
-            className="min-h-24 w-full resize-y rounded-xl border border-rose-100 px-3 py-2 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
-          />
-        </label>
-
-        <label className="grid gap-1.5">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">开场白</span>
           <textarea
             value={localCharacter.firstMessage}
             onChange={(event) => updateField('firstMessage', event.target.value)}
             rows={2}
             className="min-h-20 w-full resize-y rounded-xl border border-rose-100 px-3 py-2 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
-          />
-        </label>
-
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">行为提示词</span>
-          <textarea
-            value={localCharacter.systemPrompt}
-            onChange={(event) => updateField('systemPrompt', event.target.value)}
-            rows={4}
-            className="min-h-28 w-full resize-y rounded-xl border border-rose-100 px-3 py-2 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
           />
         </label>
 

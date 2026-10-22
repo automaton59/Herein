@@ -1,10 +1,12 @@
-import { KeyRound, SlidersHorizontal, UserRound } from 'lucide-react';
+import { Brain, Database, KeyRound, SlidersHorizontal, UserRound } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { APISettings } from './APISettings';
 import { AppSettings } from './AppSettings';
 import { CharacterSettings } from './CharacterSettings';
+import { MemorySettings } from '../Memory/MemorySettings';
+import { DataSettings } from './DataSettings';
 
-export type SettingsSection = 'app' | 'api' | 'characters';
+export type SettingsSection = 'app' | 'api' | 'characters' | 'memory' | 'data';
 
 interface SettingsPageProps {
   activeSection: SettingsSection;
@@ -35,6 +37,18 @@ const SECTIONS: Array<{
     description: '角色卡与开场白',
     Icon: UserRound,
   },
+  {
+    id: 'memory',
+    label: '记忆',
+    description: '总结与抽取',
+    Icon: Brain,
+  },
+  {
+    id: 'data',
+    label: '数据',
+    description: '备份与恢复',
+    Icon: Database,
+  },
 ];
 
 function renderSection(section: SettingsSection) {
@@ -43,6 +57,10 @@ function renderSection(section: SettingsSection) {
       return <APISettings />;
     case 'characters':
       return <CharacterSettings />;
+    case 'memory':
+      return <MemorySettings />;
+    case 'data':
+      return <DataSettings />;
     default:
       return <AppSettings />;
   }
@@ -53,7 +71,7 @@ export function SettingsPage({ activeSection, onSectionChange }: SettingsPagePro
     <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,#ffe4e6_0,#fff7ed_38%,#f8fafc_88%)] dark:bg-[radial-gradient(circle_at_top_left,#3a1728_0,#1b1018_38%,#0d1118_88%)]">
       <div className="mx-auto grid w-full max-w-6xl gap-5 px-5 py-6 lg:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="rounded-2xl border border-rose-100 bg-white/65 p-2 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/70 dark:shadow-none lg:sticky lg:top-6 lg:self-start">
-          <nav className="grid gap-1 sm:grid-cols-3 lg:grid-cols-1">
+          <nav className="grid gap-1 sm:grid-cols-5 lg:grid-cols-1">
             {SECTIONS.map(({ id, label, description, Icon }) => {
               const isActive = activeSection === id;
 

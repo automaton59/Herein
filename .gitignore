@@ -33,11 +33,39 @@ secrets/
 api-profiles*.json
 config.local.json
 chat-history.local.json
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+assets/
+backups/
+exports/
+restore-snapshots/
 
 # Build outputs
 out
 build
 *.tsbuildinfo
+.superpowers/
+.agents/
+.codex-logs/
+
+# Local scratch, downloaded models, session dumps
+tmp/
+
+# Android build outputs / local SDK config
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+
+# Private layer (persona, prompts, assets, credentials)
+private/
+
+# Local-only third-party research evidence snapshots
+docs/research/**/_evidence/
 
 # OS
 Thumbs.db

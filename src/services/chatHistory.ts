@@ -1,8 +1,29 @@
 import type { Conversation, Message } from './interfaces';
+import { CoreClient } from './coreClient';
+import { createPhase2Client } from './phase2/client';
+import { messageToTimelineMessage, timelineToConversation } from './phase2/mappers';
 import { readJSONFile, writeJSONFile } from './storage';
 
-const STORAGE_KEY = 'ai-girlfriend-chat-history';
+const STORAGE_KEY = 'herein-chat-history';
 const FILE_NAME = 'chat-history.json';
+export const CORE_URL_KEY = 'herein-core-url';
+export const CORE_TOKEN_KEY = 'herein-core-token';
+
+function getConfiguredCoreClient(): CoreClient | null {
+  try {
+    const baseUrl = localStorage.getItem(CORE_URL_KEY);
+    if (!baseUrl) {
+      return null;
+    }
+
+    return new CoreClient({
+      baseUrl,
+      token: localStorage.getItem(CORE_TOKEN_KEY) || undefined,
+    });
+  } catch {
+    return null;
+  }
+}
 
 interface StoredChatHistory {
   conversations?: unknown;
@@ -29,6 +50,7 @@ function normalizeMessage(message: unknown): Message | null {
     content,
     timestamp: parseDate(raw.timestamp),
     emotion: typeof raw.emotion === 'string' ? raw.emotion : undefined,
+    voiceInstruct: typeof raw.voiceInstruct === 'string' && raw.voiceInstruct.trim() ? raw.voiceInstruct : undefined,
     reasoning: typeof raw.reasoning === 'string' && raw.reasoning.trim() ? raw.reasoning : undefined,
   };
 }
@@ -44,14 +66,25 @@ function normalizeConversation(conversation: unknown): Conversation | null {
     ? raw.messages.map(normalizeMessage).filter((message): message is Message => message !== null)
     : [];
 
+  const contactRemark = typeof raw.contactRemark === 'string' && raw.contactRemark.trim()
+    ? raw.contactRemark.trim()
+    : typeof raw.customTitle === 'string' && raw.customTitle.trim()
+      ? raw.customTitle.trim()
+      : null;
+
   return {
     id,
     title: typeof raw.title === 'string' && raw.title.trim() ? raw.title : '新聊天',
-    characterId: typeof raw.characterId === 'string' && raw.characterId ? raw.characterId : 'al-1s-default',
+    ...(contactRemark ? { contactRemark } : {}),
+    characterId: typeof raw.characterId === 'string' && raw.characterId ? raw.characterId : 'herein-default',
     messages,
     createdAt: parseDate(raw.createdAt),
     updatedAt: parseDate(raw.updatedAt),
   };
+}
+
+function hasPhase2Storage() {
+  return Boolean(window.electron?.phase2);
 }
 
 export function loadChatHistory() {
@@ -83,6 +116,14 @@ export function loadChatHistory() {
 export function saveChatHistory(conversations: Conversation[], activeConversationId: string | null) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations, activeConversationId }));
+
+    if (hasPhase2Storage()) {
+      void savePersistentChatHistory(conversations, activeConversationId).catch(error => {
+        console.error('Failed to save Phase 2 chat history:', error);
+      });
+      return;
+    }
+
     void writeJSONFile(FILE_NAME, { conversations, activeConversationId });
   } catch (error) {
     console.error('Failed to save chat history:', error);
@@ -90,6 +131,30 @@ export function saveChatHistory(conversations: Conversation[], activeConversatio
 }
 
 export async function loadPersistentChatHistory() {
+  if (hasPhase2Storage()) {
+    const client = createPhase2Client();
+    const bootstrap = await client.bootstrap();
+    const conversations: Conversation[] = [];
+
+    for (const character of bootstrap.characters) {
+      const timeline = await client.timeline.getPrimary(character.id);
+
+      if (!timeline) {
+        continue;
+      }
+
+      const messages = await client.timeline.listMessages(timeline.id, 10000);
+      conversations.push(timelineToConversation(timeline, messages, character.name));
+    }
+
+    const activeConversationId = conversations.find(
+      conversation => conversation.characterId === bootstrap.settings.activeCharacterId,
+    )?.id ?? conversations[0]?.id ?? null;
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations, activeConversationId }));
+    return { conversations, activeConversationId };
+  }
+
   const fileHistory = await readJSONFile<StoredChatHistory>(FILE_NAME);
 
   if (fileHistory) {
@@ -114,5 +179,65 @@ export async function loadPersistentChatHistory() {
 
 export async function savePersistentChatHistory(conversations: Conversation[], activeConversationId: string | null) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations, activeConversationId }));
+
+  if (hasPhase2Storage()) {
+    const client = createPhase2Client();
+    const bootstrap = await client.bootstrap();
+    const characterNames = new Map(bootstrap.characters.map(character => [character.id, character.name]));
+    const core = getConfiguredCoreClient();
+
+    if (core) {
+      try {
+        await core.health();
+
+        for (const conversation of conversations) {
+          const timelineTitle = conversation.contactRemark?.trim()
+            || conversation.customTitle?.trim()
+            || characterNames.get(conversation.characterId)
+            || '新聊天';
+
+          await core.syncMessages(
+            conversation.characterId,
+            conversation.messages.map(message => messageToTimelineMessage(message, 'pending')),
+            timelineTitle,
+          );
+        }
+
+        const activeConversation = conversations.find(conversation => conversation.id === activeConversationId);
+        if (activeConversation) {
+          await client.settings.set('activeCharacterId', activeConversation.characterId);
+        }
+        return;
+      } catch (error) {
+        console.warn('Core sync failed; falling back to IPC', error);
+      }
+    }
+
+    for (const conversation of conversations) {
+      const timeline = await client.timeline.getPrimary(conversation.characterId);
+
+      if (!timeline) {
+        continue;
+      }
+
+      const timelineTitle = conversation.contactRemark?.trim()
+        || conversation.customTitle?.trim()
+        || characterNames.get(conversation.characterId)
+        || timeline.title;
+
+      await client.timeline.syncMessages(
+        timeline.id,
+        conversation.messages.map(message => messageToTimelineMessage(message, timeline.id)),
+        timelineTitle,
+      );
+    }
+
+    const activeConversation = conversations.find(conversation => conversation.id === activeConversationId);
+    if (activeConversation) {
+      await client.settings.set('activeCharacterId', activeConversation.characterId);
+    }
+    return;
+  }
+
   await writeJSONFile(FILE_NAME, { conversations, activeConversationId });
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { APIProfile, CharacterConfig, ConnectionStatus, LLMConfig, ThemeMode } from '../services/interfaces';
+import type { APIProfile, CharacterConfig, ConnectionStatus, LLMConfig, ThemeMode, VoiceConfig } from '../services/interfaces';
 import { ConfigService } from '../services/config';
 import { DEFAULT_CHARACTER } from '../services/character';
 import {
@@ -12,6 +12,7 @@ import {
 import { listLLMModels } from '../services/llm/modelDiscovery';
 import { LLMServiceFactory } from '../services/llm';
 import { applyThemeMode } from '../services/theme';
+import type { AppConfig } from '../services/interfaces';
 
 let characterCounter = 0;
 
@@ -58,6 +59,11 @@ interface SettingsState {
   activeCharacterId: string;
   characterConfig: CharacterConfig;
   themeMode: ThemeMode;
+  voiceConfig: VoiceConfig;
+  memoryEnabled: boolean;
+  memoryProfileMode: AppConfig['memoryProfileMode'];
+  memoryProfileId: string | null;
+  summaryTriggerMessageCount: number;
   isConfigured: boolean;
   isHydrated: boolean;
   connectionStatus: ConnectionStatus;
@@ -76,6 +82,17 @@ interface SettingsState {
   duplicateCharacter: (characterId?: string) => string;
   deleteCharacter: (characterId: string) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
+  updateVoiceConfig: (config: Partial<Omit<VoiceConfig, 'gptSovits' | 'qwen3Tts' | 'qwen3VoiceClone'>> & {
+    gptSovits?: Partial<VoiceConfig['gptSovits']>;
+    qwen3Tts?: Partial<VoiceConfig['qwen3Tts']>;
+    qwen3VoiceClone?: Partial<VoiceConfig['qwen3VoiceClone']>;
+  }) => void;
+  updateMemorySettings: (config: Partial<Pick<AppConfig,
+    | 'memoryEnabled'
+    | 'memoryProfileMode'
+    | 'memoryProfileId'
+    | 'summaryTriggerMessageCount'
+  >>) => void;
   checkConfigured: () => boolean;
 }
 
@@ -89,6 +106,11 @@ async function persistAppConfig(state: SettingsState) {
     activeCharacterId: state.activeCharacterId,
     activeProfileId: state.activeProfileId,
     themeMode: state.themeMode,
+    voice: state.voiceConfig,
+    memoryEnabled: state.memoryEnabled,
+    memoryProfileMode: state.memoryProfileMode,
+    memoryProfileId: state.memoryProfileId,
+    summaryTriggerMessageCount: state.summaryTriggerMessageCount,
   });
 }
 
@@ -126,6 +148,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   activeCharacterId: initialConfig.activeCharacterId,
   characterConfig: initialCharacter,
   themeMode: initialConfig.themeMode,
+  voiceConfig: initialConfig.voice,
+  memoryEnabled: initialConfig.memoryEnabled,
+  memoryProfileMode: initialConfig.memoryProfileMode,
+  memoryProfileId: initialConfig.memoryProfileId || null,
+  summaryTriggerMessageCount: initialConfig.summaryTriggerMessageCount,
   isConfigured: false,
   isHydrated: false,
   connectionStatus: isLLMConfigured(initialConfig.llm) ? 'checking' : 'unconfigured',
@@ -154,6 +181,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       activeCharacterId: characterConfig.id,
       characterConfig,
       themeMode: config.themeMode,
+      voiceConfig: config.voice,
+      memoryEnabled: config.memoryEnabled,
+      memoryProfileMode: config.memoryProfileMode,
+      memoryProfileId: config.memoryProfileId || null,
+      summaryTriggerMessageCount: config.summaryTriggerMessageCount,
       isConfigured: configured,
       isHydrated: true,
       connectionStatus: configured ? 'checking' : 'unconfigured',
@@ -391,6 +423,33 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setThemeMode: (themeMode) => {
     applyThemeMode(themeMode);
     set({ themeMode });
+    void persistAppConfig(get());
+  },
+
+  updateVoiceConfig: (config) => {
+    set({
+      voiceConfig: {
+        ...get().voiceConfig,
+        ...config,
+        gptSovits: {
+          ...get().voiceConfig.gptSovits,
+          ...config.gptSovits,
+        },
+        qwen3Tts: {
+          ...get().voiceConfig.qwen3Tts,
+          ...config.qwen3Tts,
+        },
+        qwen3VoiceClone: {
+          ...get().voiceConfig.qwen3VoiceClone,
+          ...config.qwen3VoiceClone,
+        },
+      },
+    });
+    void persistAppConfig(get());
+  },
+
+  updateMemorySettings: (config) => {
+    set(config);
     void persistAppConfig(get());
   },
 

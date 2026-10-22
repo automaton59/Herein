@@ -1,9 +1,21 @@
 import { create } from 'zustand';
-import type { Conversation, Message, LLMService } from '../services/interfaces';
+import type { ChatResponse, Conversation, Message, LLMService } from '../services/interfaces';
 import { LLMServiceFactory } from '../services/llm';
+import { parseAssistantMetadata } from '../services/llm/metadata';
+import { CoreClient } from '../services/coreClient';
 import { useSettingsStore } from './settings';
 import { buildCharacterSystemPrompt } from '../services/character';
-import { loadChatHistory, loadPersistentChatHistory, saveChatHistory } from '../services/chatHistory';
+import {
+  CORE_TOKEN_KEY,
+  CORE_URL_KEY,
+  loadChatHistory,
+  loadPersistentChatHistory,
+  saveChatHistory,
+} from '../services/chatHistory';
+import { profileToLLMConfig } from '../services/apiProfiles';
+import { createPhase2Client } from '../services/phase2/client';
+import { buildPhase2ChatContext } from '../services/phase2/chatContext';
+import { runPhase2MemoryUpdate, shouldRunMemoryUpdate } from '../services/phase2/chatMemory';
 
 let messageCounter = 0;
 let conversationCounter = 0;
@@ -15,6 +27,22 @@ const generateMessageId = () => {
 const generateConversationId = () => {
   return `conversation_${Date.now()}_${conversationCounter++}`;
 };
+
+function getConfiguredCoreClient(): CoreClient | null {
+  try {
+    const baseUrl = localStorage.getItem(CORE_URL_KEY);
+    if (!baseUrl) {
+      return null;
+    }
+
+    return new CoreClient({
+      baseUrl,
+      token: localStorage.getItem(CORE_TOKEN_KEY) || undefined,
+    });
+  } catch {
+    return null;
+  }
+}
 
 type PendingRequest = {
   conversationId: string;
@@ -54,6 +82,79 @@ function getConversationTitle(messages: Message[], fallback: string) {
 function isAbortError(error: unknown) {
   return error instanceof DOMException && error.name === 'AbortError'
     || error instanceof Error && error.name === 'AbortError';
+}
+
+function hasPhase2Storage() {
+  return Boolean(window.electron?.phase2);
+}
+
+async function buildSystemPrompt(character: ReturnType<typeof useSettingsStore.getState>['characterConfig'], messages: Message[]) {
+  if (hasPhase2Storage()) {
+    try {
+      const context = await buildPhase2ChatContext({
+        client: createPhase2Client(),
+        character,
+        messages,
+      });
+      return context.systemPrompt;
+    } catch (error) {
+      console.warn('Failed to build Phase 2 chat context, falling back to character prompt:', error);
+    }
+  }
+
+  return buildCharacterSystemPrompt(character);
+}
+
+async function resolveMemoryLLMConfig() {
+  const settings = useSettingsStore.getState();
+
+  if (settings.memoryProfileMode === 'custom' && settings.memoryProfileId) {
+    const profile = settings.apiProfiles.find(item => item.id === settings.memoryProfileId);
+
+    if (profile) {
+      return profileToLLMConfig(profile);
+    }
+  }
+
+  return settings.llmConfig;
+}
+
+async function maybeRunMemoryUpdate(character: ReturnType<typeof useSettingsStore.getState>['characterConfig'], messages: Message[]) {
+  if (!hasPhase2Storage()) {
+    return;
+  }
+
+  try {
+    const settings = useSettingsStore.getState();
+    const client = createPhase2Client();
+    const timeline = await client.timeline.getPrimary(character.id);
+
+    if (!timeline) {
+      return;
+    }
+
+    const previousSummary = await client.summary.get(timeline.id);
+
+    if (!shouldRunMemoryUpdate({ settings, messages, previousSummary })) {
+      return;
+    }
+
+    const service = LLMServiceFactory.create(await resolveMemoryLLMConfig());
+    const result = await runPhase2MemoryUpdate({
+      client,
+      service,
+      timelineId: timeline.id,
+      characterId: character.id,
+      messages,
+      previousSummary,
+    });
+
+    if (!result.ok) {
+      console.warn('Phase 2 memory update failed:', result.error);
+    }
+  } catch (error) {
+    console.warn('Phase 2 memory update failed:', error);
+  }
 }
 
 function commitConversations(
@@ -108,6 +209,8 @@ interface ChatState {
   initializeLLMService: () => void;
   createConversation: (characterId?: string) => string;
   selectConversation: (conversationId: string) => void;
+  setContactRemark: (conversationId: string, contactRemark: string) => void;
+  renameConversation: (conversationId: string, customTitle: string) => void;
   deleteConversation: (conversationId: string) => void;
   sendMessage: (content: string) => Promise<void>;
   retractMessage: (messageId: string) => void;
@@ -125,21 +228,52 @@ async function requestAssistantReply(
   pendingRequest: PendingRequest,
 ) {
   const settingsStore = useSettingsStore.getState();
-  const service = LLMServiceFactory.create(settingsStore.llmConfig);
   const conversation = get().conversations.find(item => item.id === conversationId);
   const character = settingsStore.characters.find(item => item.id === conversation?.characterId)
     || settingsStore.characterConfig;
+  const core = getConfiguredCoreClient();
 
   set({ pendingRequest, isLoading: true, error: null });
   settingsStore.setConnectionStatus('typing');
 
   try {
-    const response = await service.chat({
-      messages: messagesForRequest,
-      systemPrompt: buildCharacterSystemPrompt(character),
-    }, {
-      signal: pendingRequest.controller.signal,
-    });
+    let response: ChatResponse | null = null;
+
+    if (core) {
+      try {
+        const coreResult = await core.chat(
+          character.id,
+          messagesForRequest.slice(-30).map(message => ({
+            role: message.role as 'user' | 'assistant' | 'system',
+            content: message.content,
+          })),
+          { maxTokens: 160, persist: false },
+        );
+        const parsed = parseAssistantMetadata(coreResult.message.content);
+        response = {
+          content: parsed.text,
+          emotion: parsed.emotion,
+          voiceInstruct: parsed.voiceInstruct,
+        };
+      } catch (error) {
+        // A stale Core address must not brick the desktop; fall back to the
+        // direct API when it is configured.
+        if (!settingsStore.isConfigured) {
+          throw error;
+        }
+      }
+    }
+
+    if (!response) {
+      const service = LLMServiceFactory.create(settingsStore.llmConfig);
+      const systemPrompt = await buildSystemPrompt(character, messagesForRequest);
+      response = await service.chat({
+        messages: messagesForRequest,
+        systemPrompt,
+      }, {
+        signal: pendingRequest.controller.signal,
+      });
+    }
 
     if (get().pendingRequest?.controller !== pendingRequest.controller) {
       return;
@@ -151,6 +285,7 @@ async function requestAssistantReply(
       content: response.content,
       timestamp: new Date(),
       emotion: response.emotion,
+      voiceInstruct: response.voiceInstruct,
       status: 'sent',
     };
     const conversations = updateConversationMessages(get().conversations, conversationId, messages => [
@@ -167,6 +302,11 @@ async function requestAssistantReply(
       pendingRequest: null,
     });
     await useSettingsStore.getState().markConnectionOnline();
+
+    const finalConversation = conversations.find(item => item.id === conversationId);
+    if (finalConversation) {
+      void maybeRunMemoryUpdate(character, finalConversation.messages);
+    }
   } catch (error) {
     if (get().pendingRequest?.controller !== pendingRequest.controller) {
       return;
@@ -244,6 +384,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   createConversation: (characterId) => {
     const resolvedCharacterId = characterId || useSettingsStore.getState().activeCharacterId;
+    const existingConversation = get().conversations.find(conversation => conversation.characterId === resolvedCharacterId);
+
+    if (existingConversation) {
+      commitConversations(set, get().conversations, existingConversation.id, { error: null });
+      return existingConversation.id;
+    }
+
     const conversation = makeConversation(resolvedCharacterId);
     const conversations = [conversation, ...get().conversations];
 
@@ -259,6 +406,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     commitConversations(set, conversations, conversationId, { error: null });
+  },
+
+  setContactRemark: (conversationId, contactRemark) => {
+    const remark = contactRemark.trim();
+    const conversations = get().conversations.map(conversation =>
+      conversation.id === conversationId
+        ? { ...conversation, contactRemark: remark || null, customTitle: undefined, updatedAt: new Date() }
+        : conversation
+    );
+
+    commitConversations(set, conversations, get().activeConversationId, { error: null });
+  },
+
+  renameConversation: (conversationId, customTitle) => {
+    get().setContactRemark(conversationId, customTitle);
   },
 
   deleteConversation: (conversationId) => {
@@ -295,7 +457,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     const settings = useSettingsStore.getState();
 
-    if (!settings.isConfigured) {
+    if (!settings.isConfigured && !getConfiguredCoreClient()) {
       set({ error: '请先检查 API 设置。' });
       return;
     }

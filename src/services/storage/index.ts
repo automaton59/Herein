@@ -1,4 +1,4 @@
-const STORAGE_PREFIX = 'al-1s-file:';
+const STORAGE_PREFIX = 'herein-file:';
 
 function hasElectronStorage() {
   return Boolean(window.electron?.storage);

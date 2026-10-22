@@ -1,8 +1,9 @@
 import type { APIKeyEncoding, APIProfile, LLMConfig } from './interfaces';
 import { decryptSecret, encryptSecret, readJSONFile, writeJSONFile } from './storage';
+import { createPhase2Client } from './phase2/client';
 
 const FILE_NAME = 'api-profiles.json';
-const LEGACY_STORAGE_KEY = 'ai-girlfriend-api-profiles';
+const LEGACY_STORAGE_KEY = 'herein-api-profiles';
 
 let profileCounter = 0;
 
@@ -86,7 +87,24 @@ function normalizeProfiles(value: unknown): APIProfile[] {
   });
 }
 
+function hasPhase2Storage() {
+  return Boolean(window.electron?.phase2);
+}
+
 export async function loadAPIProfiles(legacyConfig: LLMConfig): Promise<APIProfile[]> {
+  if (hasPhase2Storage()) {
+    const bootstrap = await createPhase2Client().bootstrap();
+    const profiles = normalizeProfiles(bootstrap.profiles);
+
+    if (profiles.length > 0) {
+      return profiles;
+    }
+
+    const migratedProfile = await makeAPIProfile(legacyConfig, getDefaultProfileName(legacyConfig), 'default-api-profile');
+    await saveAPIProfiles([migratedProfile]);
+    return [migratedProfile];
+  }
+
   const fileProfiles = await readJSONFile<unknown>(FILE_NAME);
   const profiles = normalizeProfiles(fileProfiles);
 
@@ -112,6 +130,20 @@ export async function loadAPIProfiles(legacyConfig: LLMConfig): Promise<APIProfi
 }
 
 export async function saveAPIProfiles(profiles: APIProfile[]): Promise<void> {
+  if (hasPhase2Storage()) {
+    const client = createPhase2Client();
+    const existingProfiles = await client.profiles.list();
+    const nextIds = new Set(profiles.map(profile => profile.id));
+
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(profiles));
+
+    await Promise.all(profiles.map(profile => client.profiles.upsert(profile)));
+    await Promise.all(existingProfiles
+      .filter(profile => !nextIds.has(profile.id))
+      .map(profile => client.profiles.delete(profile.id)));
+    return;
+  }
+
   localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(profiles));
   await writeJSONFile(FILE_NAME, profiles);
 }

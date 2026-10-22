@@ -1,5 +1,7 @@
 # Self-Check Findings - Task 1: Service Layer Review
 
+> Historical note: this file is a Phase 1 self-check log. Some entries mention browser localStorage, in-memory chat, or Phase 2 as a generic memory/history task. Treat those as historical findings, not as the current product roadmap. Current Phase 2 direction is defined by `docs/PROJECT-BACKGROUND-AND-ROADMAP.md`, `docs/HANDOVER.md`, and `docs/superpowers/specs/2026-06-19-phase2-personality-relationship-memory-assets-design.md`.
+
 **Review Date:** 2026-06-16
 **Reviewer:** Claude Code (Self-Check)
 **Status:** DONE_WITH_CONCERNS

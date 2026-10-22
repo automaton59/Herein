@@ -1,250 +1,141 @@
-# AL-1S AI 女友项目 🤖💕
+# 此间
 
-一个开源的 AI 陪伴应用，使用 React + TypeScript + Electron 构建。
+此间（Herein）是一个本地优先的私人 IM 陪伴应用，使用 React、TypeScript 和 Electron 构建。
 
-## 📖 项目简介
+它的目标不是做角色扮演工作台，也不是做 SillyTavern 的轻量版。核心体验应该像打开一个熟悉的聊天对象：联系人、聊天气泡、本地历史、稳定人格、持续关系、用户可控的记忆。
 
-AL-1S 是一个本地优先、隐私保护的 AI 女友应用。通过自然的对话交互，提供情感陪伴体验。
+## 当前状态
 
-**核心特点：**
-- 🔒 **本地优先**：数据存储在你的电脑上，隐私完全掌控
-- 🎨 **多 LLM 支持**：可使用 OpenAI、Deepseek、或任何 OpenAI 兼容的 API
-- 😊 **情绪感知**：AI 会表达情绪（开心、难过、害羞等）
-- 💾 **配置持久化**：设置自动保存，无需重复配置
-- 🖥️ **跨平台**：支持 Windows、macOS、Linux
+Phase 2 已基本收尾。核心产品链路已经落地，剩余 Phase 2 工作主要是真实 Electron smoke、打包验证和发布前打磨。当前已经具备：
 
-## 🚀 快速开始
+- Electron + Vite 开发启动流程。
+- OpenAI-compatible API profile。
+- Electron 下通过 `safeStorage` 加密 API key，并保存进 SQLite。
+- Electron IPC 访问 SQLite 本地数据底座。
+- Phase 1 JSON 数据迁移进 `app.db`。
+- 多角色；每个角色一条主聊天时间线。
+- 消息编辑、重新生成、撤回打断、删除后续。
+- 主聊天隐藏 thinking/reasoning。
+- 情绪标签从正文剥离，仅保存为 metadata。
+- 基于角色、总结、记忆的上下文装配。
+- 后台会话总结和结构化记忆抽取。
+- 聊天侧记忆面板与全局记忆设置。
+- 此间内部角色档案导入导出。
+- 完整备份/恢复 zip，包含 manifest、`app.db` 和 assets。
+- Light、Dark、System 主题。
+
+## 快速开始
 
 ### 前置要求
 
-- **Node.js 18+**（[下载地址](https://nodejs.org/)）
-- **npm**（Node.js 自带）
+- Node.js 18+
+- npm
 
-### 安装步骤
-
-#### 1. 克隆项目
-
-```bash
-git clone https://github.com/automaton59/AL-9S.git
-cd AL-9S
-```
-
-#### 2. 安装依赖
+### 安装依赖
 
 ```bash
 npm install
 ```
 
-> ⏱️ 首次安装需要 3-5 分钟，请耐心等待。
-
-#### 3. 启动应用
-
-**方式 A：Web 开发模式（推荐调试）**
-
-```bash
-npm run dev
-```
-
-然后在浏览器打开：http://localhost:5173
-
-**方式 B：Electron 桌面应用（推荐使用）**
+### 启动 Electron 应用
 
 ```bash
 npm start
 ```
 
-会自动编译并启动 Electron 桌面应用。
+这是推荐的开发和使用入口。
 
-## ⚙️ 配置使用
-
-### 第一次使用
-
-1. **启动应用后，会自动跳转到「设置」标签页**
-
-2. **选择 LLM 提供商：**
-   - **OpenAI**：需要 OpenAI API Key
-   - **Deepseek**：需要 Deepseek API Key（推荐，更便宜）
-   - **自定义**：任何兼容 OpenAI 格式的 API
-
-3. **填写配置信息：**
-
-#### 选项 A：使用 OpenAI
-
-```
-提供商：OpenAI
-API Key：sk-proj-xxxxxx（在 https://platform.openai.com/api-keys 获取）
-模型：gpt-4o-mini
-```
-
-#### 选项 B：使用 Deepseek（推荐）
-
-```
-提供商：Deepseek
-API Key：sk-xxxxxx（在 https://platform.deepseek.com 注册获取）
-模型：deepseek-chat
-Base URL：https://api.deepseek.com
-```
-
-#### 选项 C：使用自定义 API
-
-```
-提供商：Custom (OpenAI-compatible)
-API Key：你的 API Key
-模型：你的模型名称
-Base URL：你的 API 地址
-```
-
-4. **点击「Save Settings」保存**
-
-5. **切换到「Chat」标签页，开始聊天！** 🎉
-
-### 常见问题
-
-**Q: 我没有 API Key 怎么办？**
-
-A: 你需要注册一个 LLM 服务提供商账号：
-- **OpenAI**：https://platform.openai.com （需要信用卡，$5 起充值）
-- **Deepseek**：https://platform.deepseek.com （支持支付宝，更便宜）
-
-**Q: API 调用收费吗？**
-
-A: 是的，LLM API 按 token 使用量计费。Deepseek 大约 ¥1 可以聊几千轮对话。
-
-**Q: 数据存储在哪里？**
-
-A: 配置存储在浏览器的 localStorage，聊天记录目前仅在内存（Phase 2 会添加数据库）。
-
-**Q: 如何清空配置重新设置？**
-
-A: 
-- 浏览器：打开开发者工具（F12） → Application → Local Storage → 删除 `ai-girlfriend-config`
-- Electron：清空配置后重启应用
-
-**Q: 应用卡住或报错怎么办？**
-
-A: 
-1. 检查 API Key 是否正确
-2. 检查网络连接
-3. 查看浏览器控制台（F12）的错误信息
-4. 重启应用
-
-## 🎮 使用技巧
-
-### 对话技巧
-
-- **普通对话**：直接输入文字，按回车发送
-- **查看情绪**：AI 回复下方会显示当前情绪（如果有）
-- **等待响应**：发送后会显示跳动的加载动画
-
-### 快捷键
-
-- **Enter**：发送消息
-- **Shift + Enter**：换行（暂未实现，当前仅支持单行）
-
-## 📁 项目结构
-
-```
-AL-1S/
-├── electron/              # Electron 桌面应用
-│   ├── main.ts           # 主进程
-│   └── preload.ts        # 预加载脚本
-├── src/
-│   ├── components/       # React 组件
-│   │   ├── Chat/        # 聊天界面
-│   │   └── Settings/    # 设置界面
-│   ├── services/        # 服务层（核心抽象）
-│   │   ├── interfaces.ts # 接口定义
-│   │   ├── llm/         # LLM 适配器
-│   │   └── config/      # 配置管理
-│   ├── stores/          # 状态管理
-│   └── App.tsx          # 主应用
-├── docs/                # 文档
-├── package.json         # 依赖配置
-└── README.md           # 本文档
-```
-
-## 🛠️ 开发相关
-
-### 可用命令
+### 构建检查
 
 ```bash
-# 开发模式（Vite 热重载）
-npm run dev
-
-# 构建生产版本
 npm run build
-
-# 启动 Electron 应用
-npm start
-
-# 编译 Electron 代码
 npm run electron:compile
-
-# 打包为可执行文件
-npm run electron:build
 ```
 
-### 技术栈
+`npm run dev` 仍可启动 Vite 浏览器开发服务器，用于有限的前端调试。但 Phase 2 的长期数据层是 Electron-first SQLite，浏览器模式不再作为完整产品目标。
 
-- **前端**：React 18 + TypeScript 5.7
-- **构建**：Vite 6
-- **桌面**：Electron 33
-- **状态管理**：Zustand 4.5
-- **样式**：TailwindCSS 3.4
-- **LLM SDK**：OpenAI SDK 4.77
+## 配置 API
 
-## 📅 开发路线
+在应用设置中：
 
-- ✅ **Phase 1（已完成）**：项目基础 + 基础聊天
-  - 多 LLM API 支持
-  - 聊天界面
-  - 情绪检测
-  - 配置管理
+1. 新建 API profile。
+2. 选择 OpenAI-compatible provider。
+3. 填写 API key、model，必要时填写 base URL。
+4. 测试连接。
+5. 回到聊天界面开始使用。
 
-- 🚧 **Phase 2（计划中）**：记忆系统
-  - SQLite 数据库
-  - 对话历史存储
-  - 向量检索（长期记忆）
-  - 核心记忆管理
+此间应尽量保持 API 中立。OpenAI、DeepSeek、OpenRouter、AnyRouter、OpenCode 或其他兼容端点都应通过 profile 和 adapter 消化差异，而不是把 provider 逻辑散落在 UI 里。
 
-- 📋 **Phase 3（计划中）**：角色管理
-  - 自定义角色
-  - SillyTavern 角色卡兼容
-  - 多角色切换
+## 数据与隐私
 
-- 🎨 **Phase 4（计划中）**：表情 + 语音
-  - 立绘显示
-  - 表情切换
-  - TTS 语音合成
-  - 语音输入
+Electron 数据位于：
 
-- 🌟 **Phase 5（计划中）**：完善功能
-  - 主动对话
-  - 统计面板
-  - 数据导出/导入
+```text
+%APPDATA%\herein\data\
+```
 
-## 🤝 贡献指南
+当前长期数据：
 
-欢迎贡献代码、报告 Bug、提出建议！
+- `app.db`
+- `assets/`
+- `backups/`
+- `exports/`
 
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/AmazingFeature`
-3. 提交更改：`git commit -m 'Add some AmazingFeature'`
-4. 推送到分支：`git push origin feature/AmazingFeature`
-5. 提交 Pull Request
+Phase 1 JSON 文件（`config.json`、`chat-history.json`、`api-profiles.json`）现在只作为迁移输入和保留备份。Electron 下 API key 会优先使用 `safeStorage` 加密；完整备份默认排除 API key 密文。
 
-## 📄 许可证
+详见 [docs/local-data-and-secrets.md](docs/local-data-and-secrets.md)。
 
-MIT License - 详见 [LICENSE](LICENSE) 文件
+## Phase 2 实现
 
-## 🙏 致谢
+Phase 2 围绕这些决策实现：
 
-- OpenAI - GPT 模型
-- Deepseek - 高性价比 LLM 服务
-- SillyTavern - 角色卡格式参考
+- SQLite-first、Electron-first，使用 `better-sqlite3` 打长期可靠数据底座。
+- 每个角色默认只有一条主聊天时间线。
+- 角色像联系人，不是剧情卡存档。
+- 会话总结负责承接长对话。
+- 结构化记忆记录重要事实、偏好、状态变化和共同经历。
+- 自动总结和记忆抽取直接入库，不用每次弹窗确认。
+- 用户可以查看、编辑、禁用、置顶、手动新增记忆。
+- 可配置全局记忆/总结 API profile，默认跟随当前聊天模型。
+- 聊天、总结、抽取 prompt 是内部产品逻辑，不作为用户可编辑设置暴露。
+- 支持此间内部角色档案导入导出。
+- 全量备份/恢复导出 zip，包含 `manifest.json`、`app.db` 和 `assets/`。
+- SillyTavern 只作为实现参考，不作为 Phase 2 兼容目标。
 
----
+完整设计见：
 
-**如有问题，请提交 Issue：** https://github.com/automaton59/AL-9S/issues
+- [Phase 2 设计文档](docs/superpowers/specs/2026-06-19-phase2-personality-relationship-memory-assets-design.md)
+- [项目背景与路线图](docs/PROJECT-BACKGROUND-AND-ROADMAP.md)
+- [交接文档](docs/HANDOVER.md)
+- [Phase 3 交接文档](docs/PHASE3-HANDOVER.md)
 
-**祝你聊得开心！** 💕✨
+## 项目结构
+
+```text
+electron/
+  main.ts
+  preload.ts
+src/
+  components/
+    Chat/
+    Memory/
+    Settings/
+  services/
+    phase2/
+    llm/
+    storage/
+    config/
+  stores/
+docs/
+```
+
+## 路线图
+
+- **Phase 1：私人 IM MVP**，已完成。
+- **Phase 2：人格、关系、记忆与角色资产**，包括 SQLite 数据底座、单角色单主时间线、记忆管理、角色档案导入导出、备份恢复；基本收尾。
+- **Phase 3：角色存在感与视频聊天方向**，包括展示状态、表情资产、Live2D 或等价动态形象、状态管线和可选语音。
+- **Phase 4+：功能池**，包括正式打包、移动端评估、可控主动聊天、工具调用、同步/备份、插件等。
+
+## 许可证
+
+MIT
