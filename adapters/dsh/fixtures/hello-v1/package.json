@@ -1,0 +1,9 @@
+{
+  "name": "@herein/dsh-hello", "version": "1.0.0", "private": true, "type": "module",
+  "description": "A local DSH bridge verification tool.",
+  "engines": { "dsh": "0.2.1-rc.2" },
+  "peerDependencies": { "@deepseek-ai/dsh-tools": "0.2.1-rc.2" },
+  "exports": { ".": "./index.js", "./locale/*.json": "./locale/*.json", "./icon": "./icon.svg" },
+  "files": ["index.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
+}

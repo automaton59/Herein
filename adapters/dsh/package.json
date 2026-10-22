@@ -1,0 +1,13 @@
+{
+  "name": "@herein/dsh-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/bridge.mjs", "./client": "./src/client.mjs" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "demo": "node scripts/demo.mjs",
+    "serve": "node scripts/cli.mjs serve"
+  },
+  "engines": { "node": ">=22" }
+}
