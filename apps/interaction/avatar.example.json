@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "cubism": 2,
+  "root": "<absolute-path-to-private-avatar-directory>",
+  "entry": "<relative-model-entry.json>",
+  "core": "<relative-cubism-core.js>",
+  "parameters": {
+    "mouth": "PARAM_MOUTH_OPEN_Y",
+    "breath": "PARAM_BREATH",
+    "eyeLeft": "PARAM_EYE_L_OPEN",
+    "eyeRight": "PARAM_EYE_R_OPEN"
+  },
+  "expressions": {
+    "neutral": "<expression-name>",
+    "happy": "<expression-name>"
+  },
+  "motions": { "idle": "idle", "tap": "tap_body", "drag": "shake" },
+  "scale": 0.92,
+  "offsetX": 0,
+  "offsetY": 0
+}

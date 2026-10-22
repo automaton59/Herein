@@ -1,0 +1,29 @@
+{
+  "asr": {
+    "python": "<absolute-path-to-python>",
+    "model": "<absolute-path-to-offline-faster-whisper-model>",
+    "device": "cuda",
+    "cudaBin": "<absolute-path-to-CUDA-and-cuDNN-dll-directory>"
+  },
+  "tts": {
+    "provider": "sapi",
+    "voice": "Microsoft Huihui Desktop",
+    "qwenPython": "<absolute-path-to-python>",
+    "qwenModel": "<absolute-path-to-local-qwen-model-or-GGUF-export-folder>",
+    "ggufSource": "<absolute-path-to-private-Qwen3-TTS-GGUF-checkout>",
+    "ggufDependencies": "<absolute-path-to-private-python-dependencies>",
+    "ggufDecoder": "DML"
+  },
+  "avatarManifest": "<absolute-path-to-local-avatar-manifest>",
+  "port": 0,
+  "alwaysOnTop": true,
+  "fps": 60,
+  "vad": {
+    "startMs": 60,
+    "endMs": 450,
+    "minSpeechMs": 150,
+    "maxUtteranceMs": 15000,
+    "threshold": 0.015
+  },
+  "demoReply": "我在，你慢慢说。"
+}
