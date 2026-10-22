@@ -4,7 +4,7 @@ import { useChatStore } from '../../stores/chat';
 import { useCallStore } from '../../stores/call';
 import { useSettingsStore } from '../../stores/settings';
 import { createPhase2Client } from '../../services/phase2/client';
-import { CORE_TOKEN_KEY, CORE_URL_KEY } from '../../services/chatHistory';
+import { CORE_TOKEN_KEY, CORE_URL_KEY, getConfiguredCoreClient } from '../../services/chatHistory';
 import { MessageList } from './MessageList';
 import { InputBar } from './InputBar';
 import { MemoryPanel } from '../Memory/MemoryPanel';
@@ -283,6 +283,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
   const [dynamicAssets, setDynamicAssets] = useState<AssetRecord[]>([]);
   const [dynamicAssetDataUrls, setDynamicAssetDataUrls] = useState<Record<string, string>>({});
   const [presentationProfiles, setPresentationProfiles] = useState<Record<string, CharacterPresentationProfile>>({});
+  const [readStates, setReadStates] = useState<Record<string, string | null>>({});
   const [pendingCallCharacterId, setPendingCallCharacterId] = useState<string | null>(null);
   const {
     conversations,
@@ -395,6 +396,57 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
         return bTime - aTime;
       });
   }, [avatarDataUrls, characters, conversations]);
+
+  useEffect(() => {
+    const core = getConfiguredCoreClient();
+
+    if (!core) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const load = async () => {
+      const entries = await Promise.all(characters.map(async character => {
+        try {
+          const result = await core.getReadState(character.id);
+          return [character.id, result.readState.lastReadMessageId] as const;
+        } catch {
+          return [character.id, null] as const;
+        }
+      }));
+
+      if (!cancelled) {
+        setReadStates(Object.fromEntries(entries));
+      }
+    };
+
+    void load();
+    const timer = setInterval(() => {
+      void load();
+    }, 30000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [characters]);
+
+  useEffect(() => {
+    const core = getConfiguredCoreClient();
+    const lastMessage = activeConversation?.messages[activeConversation.messages.length - 1];
+
+    if (!core || !activeConversation || !lastMessage) {
+      return;
+    }
+
+    void core.markRead(activeConversation.characterId, lastMessage.id)
+      .then(() => setReadStates(current => ({
+        ...current,
+        [activeConversation.characterId]: lastMessage.id,
+      })))
+      .catch(() => undefined);
+  }, [activeConversation, activeConversationId]);
 
   useEffect(() => {
     if (isConfigured) {
@@ -877,6 +929,10 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
           <div className="grid gap-2">
             {contactRows.map(({ character, conversation, displayName, avatarSrc }) => {
               const isActive = character.id === currentCharacter.id;
+              const latestMessage = conversation?.messages[conversation.messages.length - 1];
+              const hasUnread = !isActive
+                && latestMessage?.role === 'assistant'
+                && readStates[character.id] !== latestMessage.id;
 
               return (
                 <button
@@ -890,7 +946,12 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
                   <span className="min-w-0">
                     <span className="block truncate text-sm font-semibold text-slate-950 dark:text-sky-50">{displayName}</span>
                   </span>
-                  <span className="text-xs text-slate-400 dark:text-slate-500">{formatConversationTime(conversation)}</span>
+                  <span className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
+                    {hasUnread && (
+                      <span aria-label="有未读消息" className="h-2 w-2 rounded-full bg-sky-500" />
+                    )}
+                    {formatConversationTime(conversation)}
+                  </span>
                 </button>
               );
             })}

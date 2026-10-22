@@ -61,7 +61,7 @@ export function diffMessagesForCoreSync(
   return { current, upserts, deletes };
 }
 
-function getConfiguredCoreClient(): CoreClient | null {
+export function getConfiguredCoreClient(): CoreClient | null {
   try {
     const baseUrl = localStorage.getItem(CORE_URL_KEY);
     if (!baseUrl) {

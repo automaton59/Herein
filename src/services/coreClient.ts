@@ -387,6 +387,24 @@ export class CoreClient {
     return this.request('/v1/characters');
   }
 
+  getReadState(characterId: string): Promise<{
+    readState: {
+      characterId: string;
+      lastReadMessageId: string | null;
+      lastReadAt: string | null;
+      updatedAt: string | null;
+    };
+  }> {
+    return this.request(`/v1/read-state/${encodeURIComponent(characterId)}`);
+  }
+
+  markRead(characterId: string, lastReadMessageId: string): Promise<unknown> {
+    return this.request(`/v1/read-state/${encodeURIComponent(characterId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ lastReadMessageId }),
+    });
+  }
+
   runInitiative(characterId?: string): Promise<CoreInitiativeResult> {
     return this.request('/v1/initiative/run', {
       method: 'POST',
