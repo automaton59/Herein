@@ -1,6 +1,6 @@
 # Agent A 交互运行时证据报告
 
-更新时间：2026-10-22。**进行中，尚未完成整体验收。**
+更新时间：2026-10-23。**进行中，尚未完成整体验收。**
 
 当前以末尾“长文截断与重载状态修复”“夜间审计补充”为准：修复版 buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`，数据 `tmp/interaction-blue-overnight-data`，8 小时从 10-22 23:33:39 至 10-23 07:33:39 北京时间。下文早期蓝鱼和 Shizuku 表格是历史证据，其旧运行状态不能当作当前冻结版验收。
 
@@ -148,3 +148,18 @@
 同 buildId 的 `tmp/interaction-blue-burst-data/replacement-burst-verification.local.json` 补查快速连续替换：5 轮共 55 个命令，50 个旧轮次无软件首声、5 个最终短句均完成，首声 621.5–965.3ms，欠供/渲染错误均 0。播放 drained 事件可能早于下一动画帧，验证等实际模型帧闭嘴/neutral/idle 后再判定。该实例 CPU ASR、静音、透明窗口，只运行短压力测试；按完整命令行与 endpoint PID 归属回收，没有改冻结 runtime 或重启两个蓝鱼长测。
 
 同 buildId 的 `tmp/interaction-body-states-data/body-during-speech-verification.local.json` 补查说话中的表演：独立透明、30fps、SAPI 固定长句静音 PCM、CPU ASR、真人麦克风关闭。tap/drag 各一次后继续 speaking、恢复原 happy；连续 20 个模拟反应队列无积压；动作中取消恢复 idle/闭嘴，2.2 秒后未复活旧 speaking，后续 excited 表情仍可应用。采样口型 0.00001–0.905，最低 29.51fps、renderErrors=0、underruns=0。SAPI 取消后的 worker 重建是该降级实现的行为，不能把此条当 GGUF worker 无重启证据；原两条 GGUF 长测未动。
+
+## 2026-10-23 模型替换审计补充
+
+补充离线 `avatar-inventory.mjs`，由 `inspect-avatar.mjs` 调用；没有修改冻结 runtime 源文件、bundle 或两个长测进程。私有清单 `tmp/interaction-evidence/dsh-avatar-inventory.local.json` 实测 15 资源、2,580,988 bytes，原模型指纹保持 `a3c2ee30cf93781072931e365534429f3f76fe6fe1b953bdfef38d2b13ae36c3`。
+
+| 动作 | 原素材时长 | 有嘴曲线 | 执行循环 |
+| --- | --- | --- | --- |
+| idle | 12.717s | 无 | true |
+| speaking | 12.717s | 有 | true |
+| thinking | 12.717s | 无 | true |
+| thinkEnd | 1.717s | 无 | false；原素材 true，由 manifest 覆盖 |
+
+9 个 manifest 参数均列在可选 DisplayInfo 元数据内；它不是 moc 的权威参数表，真实 mouth 仍由 renderer 校验。5 个表情名称映射存在，relaxed 唯一为恒等操作；模型 EyeBlink 有双眼，LipSync 为空且 HitAreas 为空，当前分别通过 manifest mouth 和运行时形象区域执行口型/点拖。审计列出这些事实与覆盖，不把资源加载成功当作独立可见表情。
+
+审计回归 3/3：能区分 Add 0/Multiply 1 与有效的 Overwrite 0，检测错误表情名称/动作索引，保留可选元数据缺失的 unknown，并列出旧式随机动作组的全部选择。蓝鱼实际清单通过。两个 live `/health` 再查同 buildId，约 58.3/58.4fps、单轨/单上下文、欠供/渲染错误 0；这仍是未到截止的阶段性观察，不是 8 小时验收结论。

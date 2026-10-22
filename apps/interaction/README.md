@@ -64,6 +64,8 @@ manifest 的 `motions` 兼容旧字符串组名，也可使用 `{group,index,loo
 
 资源复查显示原 `relax.exp3.json` 的参数全部为 Add 0，它是恒等操作，不能声称 relaxed 有独立可见效果。happy/puzzled/excited/sad 有实际参数变化；neutral 与 happy 在 idle 的笑眼阶段可能相近。保留原素材，后续换模型由 manifest 映射新的表情。`inspect-avatar.mjs` 的本地报告包含 `expressionEffects` 和 `identityOnly`，帮助区分加载成功与实际表达能力。
 
+替换模型时同一离线审计还会检查 expression 名称、motion 组和索引，列出动作时长、原循环标记/manifest 覆盖、嘴/眼曲线、EyeBlink/LipSync 组与命中区域。蓝鱼 idle/speaking/thinking 各 12.717 秒、thinkEnd 1.717 秒；除 speaking 外的动作没有嘴曲线，因此切换前清嘴与 PCM 驱动有必要。该模型 LipSync 组为空且没有 HitAreas；当前口型通过 manifest 的 mouth 参数，点拖以运行时形象区域处理。DisplayInfo 只作可选元数据参考，不能代替 renderer 对 moc 真实参数的验证。审计不改变资源或运行时，也不保证新素材的主观表演质量。
+
 `inspect-avatar.mjs <local-manifest> <local-report>` 检查模型引用的资源与路径边界，并给出本地 SHA-256 指纹。`verify-avatar.mjs <data-dir>` 验证 9 次表情切换/复位、4 个动作索引、模拟 tap/drag、视线回中和 PCM 口型/取消；`verify-avatar-stress.mjs <data-dir>` 验证 200 次快速切换与队列回收。它们需要 diagnostics，模拟反应不代替实际 Windows 点按/拖动验收。演示窗口提供表情/动作选择与恢复待机按钮。
 
 先启动 `soak.mjs <data-dir> 8` 后，可另跑 `endurance.mjs <data-dir> <local-config>`。它必须使用 silentOutput=true/diagnostics=true 的独立配置，按同一 soak deadline 运行，每分钟轮换模型动作/表情并检查复位，每 15 轮测试固定静音发声、交替取消。它是一段验收负载脚本，不是运行时的主动性策略。计数与状态留在 `endurance-summary.local.json`，是否真正完成仍看实际 deadline、失败和进程趋势。
