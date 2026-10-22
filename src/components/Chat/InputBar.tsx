@@ -39,7 +39,7 @@ export function InputBar({ onSend, disabled }: InputBarProps) {
         <button
           type="submit"
           disabled={disabled || !input.trim()}
-          className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-600 font-medium text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-700 font-medium text-white shadow-sm shadow-sky-200 hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
           title="发送"
         >
           <SendHorizontal size={19} />

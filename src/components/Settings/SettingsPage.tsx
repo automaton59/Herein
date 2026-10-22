@@ -82,7 +82,7 @@ export function SettingsPage({ activeSection, onSectionChange }: SettingsPagePro
                   onClick={() => onSectionChange(id)}
                   className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
                     isActive
-                      ? 'bg-sky-600 text-white shadow-sm shadow-sky-200 dark:bg-sky-300 dark:text-[#04101a] dark:shadow-none'
+                      ? 'bg-sky-700 text-white shadow-sm shadow-sky-200 dark:bg-sky-300 dark:text-[#04101a] dark:shadow-none'
                       : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-sky-100'
                   }`}
                 >

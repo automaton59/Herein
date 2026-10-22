@@ -435,7 +435,7 @@ export function MemoryPanel({
                   <button
                     type="button"
                     onClick={() => void saveSummary()}
-                    className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
                   >
                     <Check size={15} />
                     保存总结
@@ -481,7 +481,7 @@ export function MemoryPanel({
                 onClick={() => setMemoryView(view)}
                 className={`h-8 rounded-md px-2 transition ${
                   memoryView === view
-                    ? 'bg-sky-600 text-white shadow-sm dark:bg-sky-300 dark:text-[#04101a]'
+                    ? 'bg-sky-700 text-white shadow-sm dark:bg-sky-300 dark:text-[#04101a]'
                     : 'text-slate-500 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-sky-100'
                 }`}
               >
@@ -609,7 +609,7 @@ export function MemoryPanel({
                           <button
                             type="button"
                             onClick={() => void saveEditingMemory()}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
+                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
                           >
                             <Check size={15} />
                             保存修改
@@ -691,7 +691,7 @@ export function MemoryPanel({
               <button
                 type="button"
                 onClick={() => void handleCreateMemory()}
-                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
+                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
               >
                 <Plus size={16} />
                 保存记忆

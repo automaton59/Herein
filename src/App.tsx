@@ -96,7 +96,7 @@ function App() {
                 </p>
                 <button
                   onClick={() => openSettingsSection('api')}
-                  className="rounded-full bg-sky-500 px-5 py-2 text-white shadow-sm shadow-sky-200 hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300"
+                  className="rounded-full bg-sky-500 px-5 py-2 text-white shadow-sm shadow-sky-200 hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300"
                 >
                   打开设置
                 </button>

@@ -295,7 +295,7 @@ export function CallWindow({
                 type="submit"
                 aria-label="发送通话消息"
                 disabled={isLoading || !draft.trim()}
-                className="grid h-11 w-11 place-items-center rounded-full bg-sky-600 text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
+                className="grid h-11 w-11 place-items-center rounded-full bg-sky-700 text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-500"
               >
                 <Send size={17} />
               </button>

@@ -93,7 +93,7 @@ export function CharacterArchiveControls({
           type="button"
           onClick={() => void handleExport('full')}
           disabled={isWorking}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
         >
           <Download size={16} />
           导出完整归档

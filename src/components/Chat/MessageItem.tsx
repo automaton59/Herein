@@ -51,7 +51,7 @@ export function MessageItem({
         <div
           className={`rounded-3xl px-4 py-3 text-sm shadow-sm ${
             isUser
-              ? 'rounded-br-lg bg-sky-600 text-white shadow-sky-200 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none'
+              ? 'rounded-br-lg bg-sky-700 text-white shadow-sky-200 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none'
               : 'rounded-bl-lg border border-white/80 bg-white/90 text-slate-900 shadow-sky-100 dark:border-white/10 dark:bg-white/10 dark:text-sky-50 dark:shadow-none'
           } ${isFailed ? 'ring-2 ring-red-200 dark:ring-red-400/40' : ''}`}
         >
@@ -75,7 +75,7 @@ export function MessageItem({
                   type="button"
                   onClick={handleSave}
                   disabled={!draft.trim()}
-                  className="rounded-full bg-sky-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+                  className="rounded-full bg-sky-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
                 >
                   保存
                 </button>

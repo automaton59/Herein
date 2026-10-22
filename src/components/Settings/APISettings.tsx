@@ -419,7 +419,7 @@ export function APISettings() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 font-medium text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 font-medium text-white shadow-sm shadow-sky-200 hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
           >
             <Save size={17} />
             {isSaving ? '保存中' : '保存 Profile'}

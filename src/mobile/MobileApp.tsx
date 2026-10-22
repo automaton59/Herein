@@ -1021,7 +1021,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                   );
                 })
               ) : (
-                <div className="rounded-2xl bg-sky-600/10 px-3 py-4 text-xs leading-5 text-sky-200/70">
+                <div className="rounded-2xl bg-sky-700/10 px-3 py-4 text-xs leading-5 text-sky-200/70">
                   {systemStatusError || 'Core 状态不可用。检查地址、Token，或 Core 是否在运行。'}
                 </div>
               )}

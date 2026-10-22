@@ -302,7 +302,7 @@ export function AppSettings() {
           <button
             type="button"
             onClick={saveCoreSettings}
-            className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
+            className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-medium text-white hover:bg-sky-800"
           >
             保存 Core 设置
           </button>

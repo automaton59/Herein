@@ -95,7 +95,7 @@ export function DataSettings({ onExportBackup, onRestoreBackup }: DataSettingsPr
             type="button"
             onClick={() => void handleExport()}
             disabled={isWorking}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
           >
             <Download size={17} />
             导出完整备份

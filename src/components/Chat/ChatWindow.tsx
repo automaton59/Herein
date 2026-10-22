@@ -223,7 +223,7 @@ function ContactProfilePanel({
             type="button"
             aria-label="保存备注"
             onClick={() => onSaveRemark(remarkDraft)}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
           >
             <Check size={15} />
             保存备注
@@ -1141,7 +1141,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
               <button
                 type="button"
                 onClick={confirmSecondCall}
-                className="h-10 rounded-xl bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
+                className="h-10 rounded-xl bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
               >
                 结束当前通话并拨给 {pendingCallCharacter.name}
               </button>
