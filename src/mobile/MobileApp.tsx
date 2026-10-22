@@ -339,6 +339,8 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   const [sending, setSending] = React.useState(false);
   const [outboxCount, setOutboxCount] = React.useState(() => readOutbox().length);
   const [proactiveToast, setProactiveToast] = React.useState('');
+  const [isAppVisible, setIsAppVisible] = React.useState(() => document.visibilityState !== 'hidden');
+  const [isOnline, setIsOnline] = React.useState(() => navigator.onLine !== false);
   const [speakingId, setSpeakingId] = React.useState<string | null>(null);
   const [showAvatar, setShowAvatar] = React.useState(false);
   const [mouthOpen, setMouthOpen] = React.useState(0);
@@ -516,6 +518,10 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   }, [config]);
 
   React.useEffect(() => {
+    if (!isAppVisible || !isOnline) {
+      return;
+    }
+
     const tokenQuery = config.token ? `?token=${encodeURIComponent(config.token)}` : '';
     const source = new EventSource(`${config.url}/v1/events${tokenQuery}`);
 
@@ -597,11 +603,13 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
       source.removeEventListener('core', onCore as EventListener);
       source.close();
     };
-  }, [config, refreshMessages]);
+  }, [config, refreshMessages, isAppVisible, isOnline]);
 
   React.useEffect(() => {
-    void refreshMessages();
-  }, [refreshMessages]);
+    if (isAppVisible && isOnline) {
+      void refreshMessages();
+    }
+  }, [isAppVisible, isOnline, refreshMessages]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -772,13 +780,30 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   }, [postChat, refreshMessages]);
 
   React.useEffect(() => {
-    void flushOutbox();
+    const onVisibility = () => {
+      setIsAppVisible(document.visibilityState !== 'hidden');
+    };
     const onOnline = () => {
+      setIsOnline(true);
       void flushOutbox();
     };
-    window.addEventListener('online', onOnline);
+    const onOffline = () => {
+      setIsOnline(false);
+    };
 
-    return () => window.removeEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+
+    if (document.visibilityState !== 'hidden' && navigator.onLine !== false) {
+      void flushOutbox();
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
   }, [flushOutbox]);
 
   const send = async () => {
@@ -829,7 +854,9 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
       <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
         <div>
           <div className="text-base font-semibold">海拾香</div>
-          <div className="mt-0.5 text-[11px] text-sky-200/50">{status}</div>
+          <div className="mt-0.5 text-[11px] text-sky-200/50">
+            {!isOnline ? '离线，消息会排队' : !isAppVisible ? '后台暂停同步' : status}
+          </div>
           {outboxCount > 0 && (
             <div className="mt-0.5 text-[11px] text-amber-300/80">待发送 {outboxCount}</div>
           )}
