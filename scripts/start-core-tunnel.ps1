@@ -26,6 +26,12 @@ $token = (Get-Content -LiteralPath $tokenFile -Raw).Trim()
 $env:HEREIN_CORE_HOST = '127.0.0.1'
 $env:HEREIN_CORE_PORT = '8787'
 $env:HEREIN_CORE_TOKEN = $token
+if (-not $env:HEREIN_RELAY_URL) {
+  $env:HEREIN_RELAY_URL = 'http://147.224.56.120/herein'
+}
+if (-not $env:HEREIN_RELAY_TOKEN) {
+  $env:HEREIN_RELAY_TOKEN = $token
+}
 if (-not $env:HEREIN_PROACTIVE_SHARE) {
   $env:HEREIN_PROACTIVE_SHARE = '1'
 }

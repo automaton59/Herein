@@ -77,6 +77,17 @@ sudo cp /etc/caddy/Caddyfile.bak-20261021-154729 /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
+## 隧道状态
+
+Core 可以自查公网入口。启动前设置：
+
+```powershell
+$env:HEREIN_RELAY_URL = "http://147.224.56.120/herein"
+$env:HEREIN_RELAY_TOKEN = "<core-token>"
+```
+
+`/v1/status` 的 `relay` 组件会请求 `<relay>/health`（2 秒超时），桌面/Android 状态里显示“隧道 正常/不可用/未配置”。未设置 URL 时是 `unknown`，不影响本地使用。
+
 ## 安全
 
 - Core 绑定 `127.0.0.1`，只通过 SSH 隧道暴露给服务器本机。

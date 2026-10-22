@@ -74,6 +74,7 @@ export interface CoreStatus {
     tts: CoreStatusComponent;
     plugins: CoreStatusComponent;
     agents: CoreStatusComponent;
+    relay: CoreStatusComponent;
   };
 }
 

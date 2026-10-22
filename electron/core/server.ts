@@ -83,6 +83,10 @@ export interface CoreServerOptions {
     intervalMs?: number;
   };
   agentProviders?: AgentProvider[];
+  relayUrl?: string;
+  relayToken?: string;
+  relayFetch?: typeof fetch;
+  relayTimeoutMs?: number;
 }
 
 export interface CoreServerHandle {
@@ -876,6 +880,14 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           db,
           pluginRegistry,
           agentRegistry: agentProviderRegistry,
+          relay: {
+            url: options.relayUrl ?? process.env.HEREIN_RELAY_URL,
+            token: options.relayToken
+              ?? process.env.HEREIN_RELAY_TOKEN
+              ?? token,
+            fetchImpl: options.relayFetch,
+            timeoutMs: options.relayTimeoutMs,
+          },
           startedAt,
           version: CORE_SERVER_VERSION,
           ttsUrl,

@@ -3,10 +3,18 @@ import type { PluginRegistry } from '../plugins/registry';
 import type { AgentProviderRegistry } from '../plugins/agentProvider';
 import { loadLlmConfig, type LlmConfig } from './llm';
 
+export interface RelayStatusOptions {
+  url?: string;
+  token?: string;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
 export interface CoreStatusOptions {
   db: Phase2Database;
   pluginRegistry: PluginRegistry;
   agentRegistry?: AgentProviderRegistry;
+  relay?: RelayStatusOptions;
   startedAt: number;
   version: string;
   ttsUrl: string;
@@ -37,6 +45,7 @@ export interface CoreStatus {
     tts: StatusComponent;
     plugins: StatusComponent;
     agents: StatusComponent;
+    relay: StatusComponent;
   };
 }
 
@@ -73,8 +82,51 @@ async function checkTts(url: string, fetchImpl: typeof fetch): Promise<StatusCom
   }
 }
 
-async function checkLlm(options: CoreStatusOptions): Promise<StatusComponent> {
-  if (options.llmConfig) {
+async function checkRelay(options: RelayStatusOptions | undefined): Promise<StatusComponent> {
+  if (!options?.url?.trim()) {
+    return {
+      status: 'unknown',
+      message: 'relay not configured',
+    };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 2000);
+  const startedAt = Date.now();
+
+  try {
+    const response = await (options.fetchImpl ?? fetch)(
+      `${options.url.replace(/\/+$/, '')}/health`,
+      {
+        signal: controller.signal,
+        headers: options.token ? { authorization: `Bearer ${options.token}` } : {},
+      },
+    );
+
+    if (!response.ok) {
+      return {
+        status: 'unavailable',
+        message: `relay HTTP ${response.status}`,
+        latencyMs: Date.now() - startedAt,
+      };
+    }
+
+    return {
+      status: 'ok',
+      latencyMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    return {
+      status: 'unavailable',
+      message: error instanceof Error ? error.message : 'relay unreachable',
+      latencyMs: Date.now() - startedAt,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function checkLlm(options: CoreStatusOptions): Promise<StatusComponent> {  if (options.llmConfig) {
     return {
       status: 'ok',
       detail: {
@@ -117,9 +169,10 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     };
   }
 
-  const [llm, tts] = await Promise.all([
+  const [llm, tts, relay] = await Promise.all([
     checkLlm(options),
     checkTts(options.ttsUrl, options.ttsFetch),
+    checkRelay(options.relay),
   ]);
 
   const pluginSummary = options.pluginRegistry.summary();
@@ -174,10 +227,12 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     tts,
     plugins,
     agents,
+    relay,
   };
 
   const degraded = [dbStatus, llm, tts, plugins, agents]
-    .some(component => component.status !== 'ok');
+    .some(component => component.status !== 'ok')
+    || (relay.status !== 'ok' && relay.status !== 'unknown');
 
   return {
     ok: true,

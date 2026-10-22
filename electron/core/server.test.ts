@@ -673,6 +673,34 @@ describe('core server', () => {
     expect(authorized.status).toBe(200);
   });
 
+  it('reports the relay health when configured', async () => {
+    const relayFetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.headers).toEqual(expect.objectContaining({
+        authorization: 'Bearer relay-token',
+      }));
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      relayUrl: 'http://relay.test/herein',
+      relayToken: 'relay-token',
+      relayFetch,
+    });
+    handles.push(handle);
+
+    const status = await getJson(handle, '/v1/status');
+    expect(status.body.components.relay).toEqual(expect.objectContaining({
+      status: 'ok',
+      latencyMs: expect.any(Number),
+    }));
+    expect(relayFetch).toHaveBeenCalledTimes(1);
+  });
+
   it('exposes agent providers and delegates lifecycle operations', async () => {
     const provider = {
       id: 'dsh',

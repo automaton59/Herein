@@ -99,6 +99,7 @@ interface SystemStatus {
     tts: SystemStatusComponent;
     plugins: SystemStatusComponent;
     agents: SystemStatusComponent;
+    relay: SystemStatusComponent;
   };
 }
 
@@ -943,6 +944,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                   ['声音', systemStatus.components.tts],
                   ['插件', systemStatus.components.plugins],
                   ['Agent', systemStatus.components.agents],
+                  ['隧道', systemStatus.components.relay],
                 ].map(([label, component]) => {
                   const value = component as SystemStatusComponent;
                   return (
