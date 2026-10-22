@@ -144,3 +144,5 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 `verify-avatar-loops.mjs <isolated-data-dir> <local-config>` 检查本次 dsh 验证模型的 happy/excited/puzzled/sad 各保持约 29 秒，跨两个 12.717 秒动作周期，确保循环不重置表情、队列不积压；另查 thinkEnd 单次结束、隐藏降帧和显示恢复。使用 diagnostics=true、autoListen=false、silentOutput=true 的独立实例，保存参数/计时与本机 renderer 截图，不开启监听或发声。表情和基础动作叠加可能在某些帧视觉相近，参数变化不代替主观表演评价。
 
 `verify-body-during-speech.mjs <isolated-silent-data-dir>` 在固定长句 PCM 播放期间模拟 tap/drag，检查一次性反应结束后回到 speaking、恢复原表情、口型继续变化；连续 20 次反应后在动作中取消，确认旧动作结束事件不再恢复说话。30fps 可用配置单独验证；该脚本需要 diagnostics，不能对正在长测的实例运行，也不证明真实鼠标点拖。
+
+`verify-expression-during-speech.mjs <isolated-data-dir> <local-config>` 在独立静音、autoListen=false、diagnostics=true 的蓝鱼实例中检查六种表情映射与 PCM 口型叠加：反应结束恢复原表情、反应中收到的新表情保留、动作中取消与晚到结束事件不复活旧状态。等待表情淡入参数到位后再断言；选中表情的名称不等于渐变已完成。原 relaxed 素材是恒等操作，只检查映射与状态，不声称可见效果。只保存计时/状态/参数，不保存 PCM 或文字，不在长测或真人实例运行。
