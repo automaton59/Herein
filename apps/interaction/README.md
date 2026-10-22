@@ -106,6 +106,7 @@ npm run check:core
 node apps/interaction/verify-runtime.mjs <interaction-data-dir>
 node apps/interaction/verify-stream.mjs <interaction-data-dir>
 node apps/interaction/verify-replacement.mjs <interaction-data-dir>
+node apps/interaction/verify-replacement-burst.mjs <isolated-silent-data-dir>
 node apps/interaction/verify-long-speech.mjs <interaction-data-dir>
 node apps/interaction/verify-lifecycle.mjs <interaction-data-dir>
 node apps/interaction/soak.mjs <interaction-data-dir> 8
@@ -129,3 +130,5 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 逐项验收顺序与现有/缺失证据见 [ACCEPTANCE.md](./ACCEPTANCE.md)。`verify-synthetic-barge.mjs <data-dir>` 使用 fresh autoListen=false 的静音 fake-device 实例：先播放固定长句，开启含前导静音/固定插话的伪麦克风，确认取消先于 ASR 完成、闭嘴回 idle、旧轮次不 completed、新句能播放。报告的 microphone-enable-to-cancel 包含 fixture 前导静音，不是实际人声起点到余音停止时间。
 
 插话 fixture 可运行 `powershell -NoProfile -File apps/interaction/make-voice-fixture.ps1 -Output <gitignored-barge.wav> -BargeIn`；它含 2 秒静音、一句固定 SAPI 输入、6 秒尾部静音。启动独立实例时通过 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 指定它，再运行插话 verifier。输出配置必须 silentOutput=true，不能在夜间真人麦克风实例上运行。
+
+`verify-replacement-burst.mjs` 在独立静音、autoListen=false 的实例中串行发出 5 轮、每轮 10 次立即替换与 1 个最终短句。按 generation 核查只有最终轮次产生软件首声，旧轮次不复活、无欠供、模型在实际动画帧后闭嘴回 idle。它会替换当前声音，不能对正在进行的长测或真人实例运行。
