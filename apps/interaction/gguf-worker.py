@@ -11,9 +11,26 @@ import json
 import logging
 import os
 import queue
+import re
 import sys
 import threading
 import time
+
+
+def speech_segments(text, max_length=60):
+    """Keep all input, prefer sentence boundaries, and bound each context."""
+    parts = []
+    for sentence in re.split(r'(?<=[。！？!?\n])', text):
+        while len(sentence) > max_length:
+            boundary = max_length
+            for match in re.finditer(r'[,，;；、\s]', sentence[:max_length]):
+                if match.end() >= max_length // 2:
+                    boundary = match.end()
+            parts.append(sentence[:boundary])
+            sentence = sentence[boundary:]
+        if sentence:
+            parts.append(sentence)
+    return parts
 
 
 def main():
@@ -93,12 +110,17 @@ def main():
         pass
 
     def loop(*a, **k):
+        cfg = k.get('cfg') or a[1]
         generator = original_loop(*a, **k)
+        steps = 0
         try:
             for item in generator:
                 if cancelled.is_set():
                     raise Cancelled()
+                steps += 1
                 yield item
+            if steps >= cfg.max_steps:
+                raise RuntimeError('generation_limit')
         finally:
             generator.close()
 
@@ -129,12 +151,19 @@ def main():
             cancelled.clear()
             started = time.perf_counter()
             try:
-                with contextlib.redirect_stdout(sys.stderr):
-                    result = stream.custom(command['text'], speaker=command.get('speaker', 'Serena'),
-                                           language='chinese', instruct=command.get('instruct', ''),
-                                           config=TTSConfig(streaming=True, max_steps=300, seed=42, sub_seed=42))
-                if result is None and not cancelled.is_set():
-                    raise RuntimeError('synthesis_failed')
+                for segment in speech_segments(command['text']):
+                    if cancelled.is_set():
+                        break
+                    with contextlib.redirect_stdout(sys.stderr):
+                        result = stream.custom(segment, speaker=command.get('speaker', 'Serena'),
+                                               language='chinese', instruct=command.get('instruct', ''),
+                                               config=TTSConfig(streaming=True, max_steps=max(300, len(segment) * 15),
+                                                                seed=42, sub_seed=42))
+                    if result is None and not cancelled.is_set():
+                        raise RuntimeError('synthesis_failed')
+                    # Upstream per-turn caches must not accumulate across a long request.
+                    engine.decoder.sessions.clear()
+                    engine.decoder._bank.clear()
                 emit({'id': command['id'], 'done': True, 'cancelled': cancelled.is_set(),
                       'elapsedMs': (time.perf_counter() - started) * 1000})
             except Exception as error:

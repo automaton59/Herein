@@ -66,6 +66,8 @@ manifest 的 `motions` 兼容旧字符串组名，也可使用 `{group,index,loo
 
 先启动 `soak.mjs <data-dir> 8` 后，可另跑 `endurance.mjs <data-dir> <local-config>`。它必须使用 silentOutput=true/diagnostics=true 的独立配置，按同一 soak deadline 运行，每分钟轮换模型动作/表情并检查复位，每 15 轮测试固定静音发声、交替取消。它是一段验收负载脚本，不是运行时的主动性策略。计数与状态留在 `endurance-summary.local.json`，是否真正完成仍看实际 deadline、失败和进程趋势。
 
+如独立实例通过 Chromium `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<fixed-fixture.wav>` 循环合成输入，并设 autoListen=true，可给 endurance 加 `--synthetic-input`：保持伪麦克风监听、统计 ASR 请求，固定发声测试期间暂时关伪麦克风以免下段 fixture 干扰，随后恢复。该标志仅适用于确认使用假音频设备的隔离实例，不能用于真人麦克风或声称真实连续监听通过。
+
 `diagnostics:true` 时，鉴权 `GET /v1/diagnostics/avatar` 读取当帧模型参数、动作索引、表情与队列；`POST` 同路径只接受 tap/drag/focus/center 四个固定诊断动作，明确标记 simulated。没有启用任意 renderer 脚本接口。
 
 ## 私有 GGUF 环境复现
@@ -88,6 +90,8 @@ python -X utf8 apps/interaction/export-gguf.py `
 
 GGUF worker 在导入上游前禁用其文件日志；只在内存保留 PCM 和当轮上下文。取消在 codec frame 边界停止计算，播放器立即清空。下一句等待前一轮计算退出，防止同一 context 并发使用。固定种子用于可复现验收，声音偏好的调整由后续产品配置处理。
 
+单次 speech 仍接受至 500 字符。GGUF 先按句末或邻近分句标点切成最多 60 字的有界片段，在同一 generation 下连续输出 PCM；取消会停止剩余片段。每片段的生成预算为 max(300, 字符数×15) 帧；触顶作为失败上报，避免把截断音频标成成功。worker 使用 90 秒无进展超时，持续生成/播放的长内容不受 90 秒总时限截断。长文中每段声线衔接的主观质量仍需真人听测。
+
 不完整分句在标点、60 字符上限或 `end` 时进入 TTS；真正上游 LLM 延迟由 C 负责。固定回复演示是用户显式勾选的测试模式，不是主动性策略或人格实现。
 
 ## 验证与证据
@@ -100,11 +104,14 @@ npm run check:core
 node apps/interaction/verify-runtime.mjs <interaction-data-dir>
 node apps/interaction/verify-stream.mjs <interaction-data-dir>
 node apps/interaction/verify-replacement.mjs <interaction-data-dir>
+node apps/interaction/verify-long-speech.mjs <interaction-data-dir>
 node apps/interaction/verify-lifecycle.mjs <interaction-data-dir>
 node apps/interaction/soak.mjs <interaction-data-dir> 8
 ```
 
 前两项验证关键状态/缓冲/边界与真实 SAPI 取消。运行验证发出 10 句测试声音，检查首声、播放结束、取消后静音及鉴权；它**不等于真实用户麦克风 10 句验收**。增量验证检查两句播放和待播分句取消；replacement 验证生成中替换。lifecycle 需要 `diagnostics:true`，模拟挂起/恢复、隐藏/显示、ASR/renderer 故障和并发麦克风启动；不是实际休眠或设备拔插。长测保存 health、Electron 与 ASR/TTS 进程内存、总 GPU 显存、fps、音频轨/上下文/欠供、buildId；监测进程存活和最终 `soak-summary.local.json` 才能确认长测完成。
+
+`verify-long-speech.mjs` 需要 diagnostics；检查固定 145/500 字语音的 PCM 时长、超过原 24 秒上限后的持续生成、欠供、结束复位、长文取消与替换。它不保存 PCM，不证明文字逐字完整或实际扬声器音质。Python 分段回归可用 `python -B -m unittest discover -s apps/interaction/tests -p 'test_*.py'`；不需要模型。
 
 `metrics.jsonl` 只保存允许字段的计时、计数和状态，8MiB 轮转，写队列上限 256；不保存输入音频、识别文本、发声文本、任意错误消息、token 或聊天记录。辅助 benchmark 可生成**固定测试音频**到 gitignored `tmp/`。`diagnostics:true` 可启用页面截图和模拟 lifecycle 接口；截图留在本机私有验收目录，关闭时不可调用。
 

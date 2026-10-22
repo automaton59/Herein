@@ -87,3 +87,28 @@
 旧的 Shizuku 资源审计发现未使用的 flick_head 动作引用缺失（`flickHead_00.mtn`）；不能把全部旧资产都标完整。蓝鱼本次 15 个引用资源审计通过。
 
 截至本次提交，蓝鱼最终版本短测完成、运行时源文件与构建 main.js 的 SHA-256 重算符合 live buildId；两个历史蓝鱼长测片段不计入最终结果。当前 8 小时仍在真实计时，不标完成。夜间蓝鱼 endurance 驱动身体与 TTS，真人麦克风关闭；ASR 十轮闭环来自单独的合成输入实例，8 小时主实例不作持续麦克风/ASR 请求负载通过证据。
+
+## 2026-10-22 深夜：长文截断与重载状态修复
+
+进一步隔离测试发现：旧蓝鱼版本 145 字语音在 24.00 秒停止，GGUF `max_steps=300` 对应的 300 帧上限使长文提前结束，却仍返回 completed。39 字对照为 8.56 秒。修复为句末/分句优先、每片最多 60 字的连续 PCM 合成，各片段预算 max(300, 字符数×15) 帧；到达生成上限上报失败，取消会停止后续片段。worker 原先 90 秒总超时改为 90 秒无进展超时，仍约束停滞或背压。没有更改用户正在运行的 TTS 服务。
+
+渲染器崩溃时 health 会短暂保留旧 avatarReady 和轨数；现在立即清理旧就绪状态、renderer 时间与 micActive。加强生命周期验收，必须等新 renderer 样本、模型重新加载，再确认新 happy 参数生效；重载期间诊断接口的瞬时超时在 30 秒期限内重试，不把旧 health 当恢复证据。
+
+修复版 buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`；独立短测数据 `tmp/interaction-long-fixed-v2-data`，静音、伪麦克风，CPU ASR。相关短测实例已回收，不接触 Core/TTS/tunnel。
+
+| 验证 | 证据 | 结果/限制 |
+| --- | --- | --- |
+| 145/500 字完整请求 | `long-speech-verification.local.json`：30.00s /104.32s PCM；首声 928.5/851.1ms；合成 27.22/101.49s；RTF 0.91/0.97 | 欠供 0；500 字跨过原 90 秒总时限；结束后待机闭嘴；长文取消和立即替换通过 |
+| 末句未被裁掉 | `gguf-tail-verification.local.json`：上述两条固定 TTS PCM 尾部 12 秒，重采样后 Whisper CPU 识别；两条均检测到“蓝色大鱼”及“明天” | 固定合成内容的末句关键词证据；不保存 PCM/识别文字，不等于逐字完整或真人音质通过 |
+| 十句回归 | `verification.local.json`：首声 713.2–838.3ms，RTF 0.57–0.79 | 静音软件链路，欠供 0；多实例并发负载下测得 |
+| 身体回归 | `avatar-verification.local.json`：9 个表情切换、4 个动作、模拟点拖、口型/取消；`avatar-stress-verification.local.json`：200 次切换 | 错误 0、约 58.4fps、结束动作/表情队列各 1；不能替代真实桌面观察 |
+| 生命周期加强 | `lifecycle-verification.local.json`：五个并发麦克风请求、模拟挂起恢复、隐藏显示、ASR/renderer 重启、重载后表情参数 | 通过；使用静音 fake device，不等于实际休眠/拔插 |
+| 30fps 原身体回归 | `tmp/interaction-fps30-data/avatar-verification.local.json`，body/bundle 未变；同样 9 表情/4 动作/点拖/取消，约 29.5fps | 对应前一 buildId 的身体降级证据；不混作新版 TTS 证据 |
+| 分段边界/构建 | Python 3/3（500 字无标点、分句、Unicode/空白完整保留）、Node 11/11、438 modules 构建、Core boundary 10 files | 通过 |
+| 增量/替换回归 | stream/replacement 报告，同修复版实例 | 通过 |
+
+旧蓝鱼 `tmp/interaction-blue-final-data` 在约 29 分钟后主动终止并标记 `stopped-for-long-speech-and-reload-fix`；此前采样和表现轮换无失败，但不能算 8 小时。原 Shizuku 历史长测独立保留，也不能替代修复版。
+
+修复版重新开始真实 8 小时：本机数据 `tmp/interaction-blue-overnight-data`，静态 bundle `tmp/interaction-blue-overnight-dist`；runtime PID 22520，monitor PID 6776，endurance PID 17500。开始 **2026-10-22 23:33:39 北京时间**，预计 **10-23 07:33:39** 结束。静音最终输出、Chromium fake device 循环固定 fixture，不访问真人麦克风。约每分钟轮换动作/表情，持续经过 VAD/ASR；每 15 轮暂关伪麦克风进行固定 TTS 完成/取消测试后恢复。endurance 另记 ASR 请求计数，此测试不作“毫不中断的真人监听”证据，也不决定产品主动性。
+
+当前长测仍在真实计时；不能标整体验收完成。明天等用户主动发“开始真人验收”再验证实声/插话与桌面操作；夜间没有请求用户回复或操作。

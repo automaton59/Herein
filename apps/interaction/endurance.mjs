@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 
 const dir = path.resolve(process.argv[2]);
 const config = JSON.parse(await fs.readFile(process.argv[3], "utf8"));
+// This flag is only for a separately launched Chromium fake-audio instance.
+const syntheticInput = process.argv.includes("--synthetic-input");
 assert.equal(config.silentOutput, true, "Endurance requires silent output");
 assert.equal(config.diagnostics, true, "Endurance requires isolated diagnostics runtime");
 const endpoint = JSON.parse(await fs.readFile(path.join(dir, "endpoint.local.json"), "utf8"));
@@ -18,7 +20,7 @@ const summaryFile = path.join(dir, "endurance-summary.local.json");
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const motions = ["thinking", "speaking", "thinkEnd", "idle"];
 const emotions = ["happy", "puzzled", "sad", "excited", "relaxed", "neutral"];
-let cycles = 0, speeches = 0, cancels = 0, failures = 0, minimumFps = Infinity;
+let cycles = 0, speeches = 0, cancels = 0, failures = 0, minimumFps = Infinity, asrRequests = 0;
 async function request(route, body) {
   const r = await fetch(endpoint.url + route, {
     method: body ? "POST" : "GET", headers,
@@ -43,6 +45,7 @@ async function save(status) {
     deadline: new Date(deadline).toISOString(), cycles, speeches, cancels, failures,
     minimumFps: Number.isFinite(minimumFps) ? minimumFps : null,
     silentOutput: true, realMicrophone: false,
+    syntheticInput, asrRequests,
   }, null, 2));
 }
 await save("running");
@@ -54,6 +57,7 @@ while (Date.now() < deadline) {
     assert.ok(health.avatarReady);
     assert.equal(health.metrics.renderErrors, 0);
     assert.equal(health.metrics.underruns, 0);
+    if (syntheticInput) assert.ok(health.micActive && health.metrics.tracks === 1);
     await request("/v1/avatar", { motion: motions[cycles % motions.length], emotion: emotions[cycles % emotions.length] });
     await sleep(2500);
     const active = await request("/v1/diagnostics/avatar");
@@ -67,6 +71,12 @@ while (Date.now() < deadline) {
     assert.equal(rest.parameters.ParamMouthOpenY, 0);
     // Fixed diagnostic speech every 15 cycles, never a proactive conversation policy.
     if (cycles % 15 === 0) {
+      // Keep fixed playback independent of the next synthetic utterance.
+      if (syntheticInput) {
+        await request("/v1/listening", { enabled: false });
+        await waitFor(async () => (await request("/health")).metrics.tracks === 0);
+      }
+      try {
       const requestAt = new Date().toISOString();
       const { generation } = await request("/v1/speech", {
         text: "这是一句固定的静音稳定性验证语音。", emotion: "happy",
@@ -81,6 +91,14 @@ while (Date.now() < deadline) {
         const current = await request("/v1/diagnostics/avatar");
         return !["thinking", "speaking"].includes(current.state) && current.motion === "idle" && current.parameters.ParamMouthOpenY === 0;
       });
+      } finally {
+        if (syntheticInput) await request("/v1/listening", { enabled: true });
+      }
+    }
+    if (syntheticInput) {
+      const metrics = (await fs.readFile(path.join(dir, "metrics.jsonl"), "utf8"))
+        .trim().split("\n").map(JSON.parse);
+      asrRequests = metrics.filter(row => row.at >= started && row.type === "asr.complete").length;
     }
     cycles++;
     await fs.appendFile(file, JSON.stringify({ at: new Date().toISOString(), cycle: cycles,

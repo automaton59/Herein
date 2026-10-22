@@ -642,6 +642,9 @@ async function main() {
   win.on("show", () => push({ type: "visibility", hidden: false }));
   win.webContents.on("render-process-gone", (_event, details) => {
     ready = false;
+    lastRendererAt = 0;
+    micActive = false;
+    lastMetrics = { ...lastMetrics, avatarReady: false, tracks: 0, fps: 0 };
     cancel("renderer-crash");
     metric({ type: "renderer.gone", reason: details.reason });
     if (!quitting)

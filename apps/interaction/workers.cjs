@@ -211,13 +211,21 @@ class VoiceWorkers extends EventEmitter {
       try {
         const task = new Promise((resolve, reject) => {
           let serial = Promise.resolve();
-          const timer = setTimeout(() => {
-            cleanup();
-            this.qwen.close();
-            reject(new Error("Qwen timeout"));
-          }, 90000);
+          // Long accepted texts can take over 90 seconds to play. Bound stalls,
+          // including a stuck downstream ACK, without truncating steady progress.
+          let timer;
+          const progress = () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              cleanup();
+              this.qwen.close();
+              reject(new Error("Qwen progress timeout"));
+            }, 90000);
+          };
+          progress();
           const message = (event) => {
             if (event.id !== id) return;
+            progress();
             if (event.pcm) {
               const pcm = Buffer.from(event.pcm, "base64");
               this.qwen.child.stdout.pause();
