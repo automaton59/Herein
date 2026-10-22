@@ -73,7 +73,7 @@
 | 构建/单测/边界 | 438 modules 构建；11/11；Core boundary 10 files | 通过 |
 | 表情与动作 | `avatar-verification.local.json`：9 次表情切换/复位、4 个索引、模拟 tap/drag、视线、PCM/取消 | 通过，约 58fps、renderErrors=0；不替代真实 Windows 点拖 |
 | 残留修复 | excited 嘴参数约 1；tap/drag 回待机嘴都为 0；视线 X 约 0.746→0.002 | 通过；neutral 恢复原模型 idle，idle 前几秒本身包含笑眼，不等于人为强制直脸 |
-| 快速切换 | `avatar-stress-verification.local.json`：200 次；采样淡出表情队列峰值 4，结束动作/表情队列各 1；renderer 工作集以同版本 stress 报告为准 | 短测通过；不是无泄漏长测证据 |
+| 快速切换 | `avatar-stress-verification.local.json`：200 次；采样淡出表情队列峰值 4，结束动作/表情队列各 1；renderer 工作集 147.69→146.38MiB | 短测通过；不是无泄漏长测证据 |
 | 十句软件首声 | `verification.local.json`：557.6–849.4ms，RTF 0.38–0.68，欠供 0 | 静音 PCM 通过；非扬声器首声 |
 | 增量/取消替换 | stream/replacement 报告，同一版本 | 通过 |
 | 合成输入十轮 | `tmp/interaction-blue-synthetic-data/synthetic-voice-verification.local.json`：10 transcripts /10 PCM sound；endToSound 1130–1480ms，欠供 0 | 伪麦克风→AudioWorklet→VAD→ASR→SSE 固定回复→TTS→PCM；非真人准确率/AEC/扬声器验收 |
