@@ -87,7 +87,7 @@
 
 | ID | 任务 | 说明 |
 |---|---|---|
-| P0-03 | 队列/调度 | Core HTTP + 模型网关已有；队列、主动行为调度、桌面 UI 接 Core 还没做 |
+| P0-03 | 队列/调度 | Core HTTP + 模型网关 + initiative scheduler 已有；通用任务队列/后台作业调度未做 |
 | P0-05 | 混合召回 | FTS/LIKE + importance 已做；embedding/触发词/recency 混合排序待做 |
 | P0-08 | TTS 实时化 | 1.7B batch RTF 3.70 已实测；还缺 0.6B/流式/C 引擎对比，未接语音通话 |
 | P2 | 实时语音/Live2D | Live2D 渲染已通；手机朗读口型已接；桌面口型、正式模型、TTS 实时化未做 |
@@ -106,8 +106,8 @@
 ## 下一步顺序
 
 1. P0-12：DSH bridge 真实桌面联调（当前用 fake bridge 测试；B adapter 自测 13/13）。
-2. P1a：补 SSE chat/read/outbox、删除传播；桌面从全量快照迁到增量 append。
-3. P0-14：A 实现 InteractionPort 服务；C 已留 HTTP adapter 和 env。
+2. P1a：跨端实时 read/outbox、删除 tombstone；本地 IPC 与 Core 的写入仲裁。
+3. P0-14：A runtime 分支合并/启动验收；A → C 的 transcript/presence/interrupted SSE。
 4. P0-13：Agent action 的真实联调；Android Doze/系统级后台真机验证。
 5. 真机装 APK，验证 LAN 聊天、状态芯片、天气插件。
 6. P0-08：TTS 实时化（A 的工作流）。
