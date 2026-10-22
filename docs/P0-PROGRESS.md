@@ -57,12 +57,13 @@
 | P0-13 | 状态与控制台 | Core `/v1/status`：Core/DB/LLM/TTS/plugins；桌面新增“系统”控制台；Android 状态芯片/抽屉；天气插件 E2E 通过 |
 | P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
 | P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
+| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；桌面可手动运行；5 个测试 |
 
 ## 验证
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **51 files / 195 tests passed**
+- `npx vitest run` → **52 files / 201 tests passed**
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
@@ -87,7 +88,7 @@
 | P1a | Core 双端一致性 | 记忆已在 Core 触发；跨端实时 SSE chat/read/outbox 未做；桌面仍是全量快照 sync（Core 默认不 prune，删除传播未做） |
 | P0-12 | 插件接入面 | `weather`/`bilibili`/`netease` 已是 native plugin；QQ 仍是独立 listener，未包成 channel plugin；DSH provider 未接（B 的工作流） |
 | P0-13 | 状态完整性 | `/v1/status` 只覆盖 Core/DB/LLM/TTS/plugins；relay/隧道状态、Android 后台限制、跨端 outbox 还没接 |
-| P0-14 | 主动性 | 仍只有 90 分钟歌曲分享；通用 InitiativeEngine、免打扰、预算、A 的 InteractionPort 未接 |
+| P0-14 | 主动性 | 策略/手动运行/时间线/SSE 已有；自动调度、A 的 InteractionPort、ntfy/Android 通知、在场信号未接 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |
 | P4 | 推荐打磨 | 歌卡/反馈/服务端冷却已有；还缺中文候选过滤、反馈影响排序 |
@@ -96,7 +97,7 @@
 
 1. P0-12：把 QQ 包成 channel plugin；接 DSH provider（B 的工作流完成后）。
 2. P1a：补 SSE chat/read/outbox、删除传播；桌面从全量快照迁到增量 append。
-3. P0-14：InitiativeEngine + 免打扰/预算；接 A 的 InteractionPort。
+3. P0-14：接自动调度、A 的 InteractionPort、ntfy/Android 通知和在场信号。
 4. P0-13：relay/隧道状态、Android 离线队列/后台限制；控制台补通用插件配置 UI。
 5. 真机装 APK，验证 LAN 聊天、状态芯片、天气插件。
 6. P0-08：TTS 实时化（A 的工作流）。
@@ -134,6 +135,7 @@ npm run core:serve
 | POST | `/v1/plugins/:id/invoke` | 调用插件 `{action,input}` |
 | DELETE | `/v1/plugins/:id` | 卸载插件 |
 | GET | `/v1/plugins/audit?limit=100` | 插件审计 |
+| POST | `/v1/initiative/run` | 手动运行一次主动策略 `{characterId?}` |
 
 非 loopback 绑定必须设置 `HEREIN_CORE_TOKEN`，请求带 `Authorization: Bearer <token>`。
 

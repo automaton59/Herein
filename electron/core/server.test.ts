@@ -191,6 +191,69 @@ describe('core server', () => {
     ]);
   });
 
+  it('runs the initiative engine through Core HTTP', async () => {
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            shouldSpeak: true,
+            reason: '有具体内容',
+            message: '刚看到个东西，想起你。',
+          }),
+        },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      memory: { enabled: false },
+      initiative: {
+        quietHours: { start: '00:00', end: '00:00' },
+        minIdleMs: 0,
+      },
+    });
+    handles.push(handle);
+
+    const before = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    const timeline = before.body.timeline;
+    await postJson(handle, '/v1/timeline/herein-default/sync', {
+      messages: [{
+        id: 'initiative-user-1',
+        timelineId: timeline.id,
+        role: 'user',
+        content: '今天有点累。',
+        timestamp: '2026-10-22T10:00:00.000Z',
+      }],
+    });
+
+    const run = await postJson(handle, '/v1/initiative/run', {
+      characterId: 'herein-default',
+    });
+    expect(run.status).toBe(200);
+    expect(run.body).toEqual(expect.objectContaining({
+      status: 'spoke',
+      message: '刚看到个东西，想起你。',
+    }));
+
+    const after = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(after.body.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'assistant',
+        content: '刚看到个东西，想起你。',
+        sourceConversationId: 'initiative',
+      }),
+    ]));
+  });
+
   it('runs the memory pipeline in Core after a timeline sync', async () => {
     const memoryJson = JSON.stringify({
       conversationSummary: '用户最近在忙项目。',

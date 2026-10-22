@@ -142,6 +142,19 @@ export interface CorePluginAudit {
   createdAt: string;
 }
 
+export interface CoreCharacterSummary {
+  id: string;
+  name: string;
+}
+
+export interface CoreInitiativeResult {
+  status: 'spoke' | 'skipped' | 'failed';
+  reason?: string;
+  message?: string;
+  timelineId?: string;
+  error?: string;
+}
+
 export class CoreHttpError extends Error {
   readonly status: number;
 
@@ -306,5 +319,16 @@ export class CoreClient {
 
   pluginAudit(limit = 100): Promise<{ audit: CorePluginAudit[] }> {
     return this.request(`/v1/plugins/audit?limit=${limit}`);
+  }
+
+  listCharacters(): Promise<{ characters: CoreCharacterSummary[] }> {
+    return this.request('/v1/characters');
+  }
+
+  runInitiative(characterId?: string): Promise<CoreInitiativeResult> {
+    return this.request('/v1/initiative/run', {
+      method: 'POST',
+      body: JSON.stringify(characterId ? { characterId } : {}),
+    });
   }
 }

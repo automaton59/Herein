@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import {
   CoreClient,
+  type CoreCharacterSummary,
+  type CoreInitiativeResult,
   type CorePluginAudit,
   type CorePluginHealth,
   type CorePluginSummary,
@@ -144,6 +146,10 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
   const [status, setStatus] = React.useState<CoreStatus | null>(null);
   const [plugins, setPlugins] = React.useState<CorePluginView[]>([]);
   const [summary, setSummary] = React.useState<CorePluginSummary | null>(null);
+  const [characters, setCharacters] = React.useState<CoreCharacterSummary[]>([]);
+  const [characterId, setCharacterId] = React.useState('');
+  const [initiativeResult, setInitiativeResult] = React.useState<CoreInitiativeResult | null>(null);
+  const [initiativeBusy, setInitiativeBusy] = React.useState(false);
   const [audit, setAudit] = React.useState<CorePluginAudit[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -164,15 +170,18 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
     setLoading(true);
 
     try {
-      const [nextStatus, nextPlugins, nextAudit] = await Promise.all([
+      const [nextStatus, nextPlugins, nextAudit, nextCharacters] = await Promise.all([
         core.status(),
         core.listPlugins(),
         core.pluginAudit(12),
+        core.listCharacters(),
       ]);
       setStatus(nextStatus);
       setPlugins(nextPlugins.plugins);
       setSummary(nextPlugins.summary);
       setAudit(nextAudit.audit);
+      setCharacters(nextCharacters.characters);
+      setCharacterId(current => current || nextCharacters.characters[0]?.id || '');
       setError('');
 
       const nextWeather = nextPlugins.plugins.find(plugin => plugin.manifest.id === 'weather');
@@ -259,6 +268,23 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
       const response = await core.invokePlugin<WeatherResult>('weather', 'current');
       setWeatherResult(response.result);
     });
+  };
+
+  const runInitiative = async () => {
+    const core = createCoreClient();
+    if (!core) return;
+    setInitiativeBusy(true);
+    setError('');
+
+    try {
+      const result = await core.runInitiative(characterId || undefined);
+      setInitiativeResult(result);
+      await load();
+    } catch (initiativeError) {
+      setError(initiativeError instanceof Error ? initiativeError.message : '主动性运行失败');
+    } finally {
+      setInitiativeBusy(false);
+    }
   };
 
   return (
@@ -470,6 +496,49 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
                       {weather.enabled ? '还没有查询过。' : '插件未启用。'}
                     </div>
                   )}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="text-sky-600 dark:text-sky-300" />
+                <h2 className="text-lg font-semibold">主动性</h2>
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                手动跑一次策略：免打扰、冷却、每日预算、在场判断都在这条链路里。
+              </p>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <select
+                  value={characterId}
+                  onChange={event => setCharacterId(event.target.value)}
+                  className="min-w-0 flex-1 rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
+                >
+                  {characters.length === 0 && <option value="">没有角色</option>}
+                  {characters.map(character => (
+                    <option key={character.id} value={character.id}>{character.name}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void runInitiative()}
+                  disabled={initiativeBusy || !characterId}
+                  className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-600 disabled:opacity-50"
+                >
+                  {initiativeBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                  运行一次
+                </button>
+              </div>
+
+              {initiativeResult && (
+                <div className="mt-3 rounded-2xl bg-sky-50/70 px-4 py-3 text-xs dark:bg-sky-500/10">
+                  <div className="font-medium text-slate-700 dark:text-sky-100">
+                    {initiativeResult.status === 'spoke' ? '说了' : initiativeResult.status === 'skipped' ? '没说' : '失败'}
+                  </div>
+                  <div className="mt-1 text-slate-500 dark:text-slate-300">
+                    {initiativeResult.message || initiativeResult.reason || initiativeResult.error || '—'}
+                  </div>
                 </div>
               )}
             </section>

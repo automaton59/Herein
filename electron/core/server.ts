@@ -21,6 +21,7 @@ import {
 } from './llm';
 import { buildCoreStatus } from './status';
 import { CoreMemoryRunner } from './memory';
+import { InitiativeEngine, type InitiativePolicy } from './initiative';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
 import { BILIBILI_MANIFEST, createBilibiliPlugin } from '../plugins/builtin/bilibili';
@@ -76,6 +77,7 @@ export interface CoreServerOptions {
     enabled?: boolean;
     triggerMessageCount?: number;
   };
+  initiative?: Partial<InitiativePolicy>;
 }
 
 export interface CoreServerHandle {
@@ -270,6 +272,9 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   }));
   await pluginRegistry.initialize();
 
+  const events = new CoreEventBus();
+  const sseClients = new Set<ServerResponse>();
+
   const memoryRunner = new CoreMemoryRunner({
     repos,
     llmConfig: options.llmConfig,
@@ -279,8 +284,15 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     triggerMessageCount: options.memory?.triggerMessageCount,
   });
 
-  const events = new CoreEventBus();
-  const sseClients = new Set<ServerResponse>();
+  const initiative = new InitiativeEngine({
+    repos,
+    events,
+    llmConfig: options.llmConfig,
+    llmConfigPath: options.llmConfigPath,
+    fetchImpl: options.llmFetch,
+    policy: options.initiative,
+  });
+
   let proactiveScheduler: ProactiveShareScheduler | null = null;
   let qqListener: QQListenerHandle | null = null;
 
@@ -693,6 +705,26 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         sendJson(response, 200, {
           sessions: repos.activitySessions.listRecent(numberParam(url, 'limit', 20)),
         });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/initiative/run') {
+        const body = asRecord(await readJson(request));
+        const requested = typeof body.characterId === 'string' && body.characterId.trim()
+          ? body.characterId.trim()
+          : null;
+        const fallback = repos.settings.get<string>('activeCharacterId')
+          ?? repos.characters.list()[0]?.id
+          ?? null;
+        const characterId = requested ?? fallback;
+
+        if (!characterId) {
+          sendJson(response, 404, { error: 'no character available' });
+          return;
+        }
+
+        const result = await initiative.run({ characterId });
+        sendJson(response, 200, result);
         return;
       }
 
