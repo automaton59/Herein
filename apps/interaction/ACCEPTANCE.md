@@ -1,0 +1,48 @@
+# Agent A 独立验收
+
+软件证据和真实机器验收分开记录。当前蓝鱼是用户指定的技术验证模型；`relax` 是恒等表情，正式模型后续通过 manifest 替换。
+
+## 当前冻结版本
+
+- 分支：`codex/interaction-runtime`。
+- buildId：`b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`。
+- 独立 renderer：`tmp/interaction-blue-overnight-dist`。
+- 夜间数据：`tmp/interaction-blue-overnight-data`。
+- 夜间窗口：非透明配置、静音输出、循环合成麦克风；8 小时截止 2026-10-23 07:33:39 北京时间。
+- 透明配置的软件验证：`tmp/interaction-blue-regression-data`，同一 buildId，十轮合成输入及 alpha 页面截图；不是 Windows 桌面合成证据。
+
+## 软件关卡与证据
+
+| 要求 | 已有证据 | 仍需确认 |
+| --- | --- | --- |
+| 首声和连续十句 | 同版本合成输入十轮 1.13–1.52s；软件 TTS 十句 713–838ms | 真人句末、ASR 准确率、实际声音 |
+| 播放中插话 | 固定 fake-device 输入先取消再 ASR；播放器取消确认 0.2ms；闭嘴/待机/新句通过 | 耳机与扬声器下真实插话、AEC 和余音 |
+| 长语音 | 145/500 字 30.00/104.32s、欠供 0；末句关键词识别到；取消/替换通过 | 音质、分段衔接、逐字完整度 |
+| 身体 | 9 次表情切换/复位、4 动作、视线、模拟点拖、200 次切换通过；58/29.5fps | 实际点拖、可见大小/位置、Windows 透明合成 |
+| 模型可替换 | 同代码 Cubism 2 与 Cubism 4、manifest 索引/循环/参数/资源审计 | 后续正式模型视觉验收 |
+| 常驻与恢复 | loopback、置顶状态、窗口位置保存、模拟隐藏/恢复/worker 故障/renderer 重载 | 真热键/托盘、多屏、设备拔插、休眠与真实登录 |
+| 全天候 | 完整 health/全进程树/ASR/TTS/渲染/音轨/队列监测进行中 | 必须等真实 8 小时并人工审阅内存斜率 |
+
+## 真实 8 小时结束后
+
+在 worktree 根目录执行：
+
+```powershell
+node apps/interaction/audit-soak.mjs tmp/interaction-blue-overnight-data --require-finished
+```
+
+先确认实际 runtime/监测进程的连续性及原始样本，再审阅 `soak-audit.local.json` 的采样缺口、processMemory、supplementaryProcesses、lateGrowthReviewPids 和错误事件。进程树采样从第 13 分钟开始，不能当作全程覆盖；原 soak 从起点记录 Electron 工作集和 ASR/TTS 全树私有内存。audit 返回 0 只代表采样关卡通过，不代替人工趋势判断或真实硬件验收。
+
+## 用户主动开始真人验收后
+
+用户已约定发送“开始真人验收”；夜间不提示、不录真人声音。真人阶段只保存计时、计数、状态和简短观察结果，不保存音频、识别文字或聊天数据。
+
+1. 结束或隔离 A 自己的夜间负载，确认所有待停止 PID 的命令行属于 A 的临时目录。保留原指标，不停止用户 Core/TTS/tunnel。
+2. 从本机蓝鱼配置创建新的 `*.local.json`：`transparent:true`、`silentOutput:false`、`autoListen:false`；仍用同一冻结 renderer，随机 port 与新的验收目录。普通设备模式启动，不带 fake-device 或 fake-audio 参数。这时才选择用户同意的输入/输出设备。
+3. 用户观察实际形象；通过本 runtime UI 或本机接口启动监听，开启用户显式选择的固定回复演示。用户读十句，检查每句识别、首声和恢复。`turnId` 关联计时包含 VAD/ASR/回复/TTS/播放。
+4. 先耳机，再扬声器：播放中插话；确认旧内容立即停止、不复活，闭嘴并可接续新一句。安静环境观察误触发；核查实际 AEC 效果。
+5. 点击与拖动分别观察反应和回待机；表情 happy/excited/puzzled/sad、thinking/speaking/thinkEnd/idle 分别演示。neutral 去掉额外表情，恢复原 idle；relaxed 原素材没有独立可见变化。
+6. 验证 Ctrl+Shift+Space / X / M、关窗到托盘、托盘显示/退出、置顶、重启运行时恢复位置。并行实例可能抢占热键；单一验收实例下观察结果。
+7. 有对应硬件时检查输入/输出设备拔插、多屏移除后窗口回可见区、实际休眠唤醒。真实登录自启需要用户选择开启并在真实登录后确认；不能拿模拟 handler 测试代替。
+
+每项记录通过/失败/缺证据。未完成项继续保留，不能把交互 demo、合成输入或旧版本长测视为整体验收完成。C 的真实集成在独立验收之后；固定回复演示不决定产品的主动性或人格。

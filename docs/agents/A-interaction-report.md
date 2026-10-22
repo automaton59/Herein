@@ -126,3 +126,13 @@
 截至补充时，运行时/soak/endurance/补充采样均通过实际进程与活跃 session 确认；新版已约 13 分钟、采样 27 次、表现轮换 12 次、ASR 完成约 100 次，失败 0，帧率约 58。上述数字是阶段快照，最终以实际 deadline 后原始文件为准。
 
 最终完整验收仍须逐项证明：真人 10 句端到端延迟和识别、耳机/扬声器回声与真实插话、桌面显示/点拖/托盘/热键、多屏/设备/电源/登录周期，以及冻结版连续 8 小时与资源趋势。当前完成独立软件运行、可替换模型接入和合成/模拟验证；没有用这些结果替代剩余真机要求。
+
+## 2026-10-22 修复版语音闭环回归
+
+同冻结 buildId 的独立透明窗口、静音输出、fake-device 实例 `tmp/interaction-blue-regression-data`：十轮 AudioWorklet→VAD→Whisper CUDA→SSE 固定回复→GGUF→PCM 全部完成；endToSound 1129.6–1519.7ms、欠供 0、渲染错误 0，停止后 tracks=0/buffer=0。`synthetic-voice-verification.local.json` 只存计时、计数/长度。非真人准确率与实际声音验收。
+
+`tmp/interaction-blue-barge-data/synthetic-barge-verification.local.json`：先播放长句，再开启含 2 秒前导静音的固定插话伪麦克风；输入触发取消在 ASR 返回之前，播放器取消确认 0.2ms，2.302 秒后返回非空 ASR；旧轮次不 completed，嘴=0、动作 idle，新短句完成，欠供 0。microphone-enable-to-cancel=2.232s 含 fixture 前导静音，不能宣称它是真人人声起点到停止余音的延迟。未保存 PCM 或识别文字，也没启用真人麦克风。
+
+透明配置 capturePage 显示蓝鱼，alpha 范围 0–255（具体像素计数保留本机核查）；只能证明 renderer 透明背景，Windows 实际合成仍待真人观察。夜间 8 小时主实例沿用非透明配置，透明状态不混成 8 小时通过。补充 `apps/interaction/ACCEPTANCE.md` 将 software/hardware 证据及用户主动开始后的步骤逐项对齐。
+
+已把插话 fixture 生成收进 `make-voice-fixture.ps1 -BargeIn` 并实际复现：16kHz/单声道/9.95675 秒固定音频；第二个临时实例同 buildId，取消确认仍 0.2ms、先取消后 ASR、新句完成、欠供 0。页面透明截图 575×930，alpha=0 的像素 303,309 个；不据此确认桌面实际显示。三个临时回归实例均按 endpoint PID 与完整命令行归属回收，长测原进程保留。

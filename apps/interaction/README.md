@@ -125,3 +125,7 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 合成麦克风链路可用 `make-voice-fixture.ps1 -Output <gitignored-fixture.wav>` 生成十句固定 SAPI 音频，再用 Electron 的 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 启动独立临时运行时，配置 autoListen false、silentOutput true。立即启动 `verify-synthetic-voice.mjs <data-dir>`：先订阅 SSE、等待 worker ready，再开启伪麦克风，固定回复“听到了。”并关联 turnId；保存计时/计数，不存识别文字。它证明 AudioWorklet→VAD→ASR→SSE→TTS→PCM 的合成输入闭环，不证明真人准确率、AEC 或物理扬声器首声。
 
 真实验收还需：耳机/扬声器下连续 10 句、播放中插话、静音环境误触发、切换输入输出设备、模型替换、多屏拔插、休眠唤醒和重启自启。以实际日志和观察报告为准。进度及限制见 `docs/agents/A-interaction-report.md`。
+
+逐项验收顺序与现有/缺失证据见 [ACCEPTANCE.md](./ACCEPTANCE.md)。`verify-synthetic-barge.mjs <data-dir>` 使用 fresh autoListen=false 的静音 fake-device 实例：先播放固定长句，开启含前导静音/固定插话的伪麦克风，确认取消先于 ASR 完成、闭嘴回 idle、旧轮次不 completed、新句能播放。报告的 microphone-enable-to-cancel 包含 fixture 前导静音，不是实际人声起点到余音停止时间。
+
+插话 fixture 可运行 `powershell -NoProfile -File apps/interaction/make-voice-fixture.ps1 -Output <gitignored-barge.wav> -BargeIn`；它含 2 秒静音、一句固定 SAPI 输入、6 秒尾部静音。启动独立实例时通过 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 指定它，再运行插话 verifier。输出配置必须 silentOutput=true，不能在夜间真人麦克风实例上运行。

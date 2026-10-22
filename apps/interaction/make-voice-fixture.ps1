@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Output)
+param([Parameter(Mandatory=$true)][string]$Output, [switch]$BargeIn)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Speech
 $taskSynth = New-Object System.Speech.Synthesis.SpeechSynthesizer
@@ -7,9 +7,14 @@ $taskPcm = New-Object System.IO.MemoryStream
 try {
     $taskSynth.SelectVoice('Microsoft Huihui Desktop')
     $taskSynth.Rate = 1
-    $taskPcm.Write((New-Object byte[] (16000*2*15)), 0, 16000*2*15)
+    $taskLeadingSeconds = if ($BargeIn) { 2 } else { 15 }
+    $taskGapSeconds = if ($BargeIn) { 6 } else { 4 }
+    $taskPcm.Write((New-Object byte[] (16000*2*$taskLeadingSeconds)), 0, 16000*2*$taskLeadingSeconds)
     # ASCII JSON escapes also work in Windows PowerShell 5.1 without a UTF-8 BOM.
     $taskInputs = '["\u4f60\u597d\u3002","\u6211\u5728\u8fd9\u91cc\u3002","\u6162\u6162\u8bf4\u3002","\u4eca\u5929\u8f9b\u82e6\u4e86\u3002","\u542c\u5230\u4e86\u3002","\u8fd9\u4e2a\u4e0d\u9519\u3002","\u522b\u6025\u3002","\u4f11\u606f\u4e00\u4e0b\u5427\u3002","\u6211\u966a\u7740\u4f60\u3002","\u665a\u5b89\u3002"]' | ConvertFrom-Json
+    if ($BargeIn) {
+        $taskInputs = '["\u6211\u60f3\u8bf4\u4e00\u53e5\u8bdd\u3002"]' | ConvertFrom-Json
+    }
     foreach ($taskText in $taskInputs) {
         $taskClip = New-Object System.IO.MemoryStream
         try {
@@ -17,7 +22,7 @@ try {
             $taskSynth.Speak($taskText)
             $taskBytes = $taskClip.ToArray()
             $taskPcm.Write($taskBytes, 0, $taskBytes.Length)
-            $taskPcm.Write((New-Object byte[] (16000*2*4)), 0, 16000*2*4)
+            $taskPcm.Write((New-Object byte[] (16000*2*$taskGapSeconds)), 0, 16000*2*$taskGapSeconds)
         } finally { $taskClip.Dispose() }
     }
     $taskWave = [System.IO.File]::Create([System.IO.Path]::GetFullPath($Output))
@@ -37,5 +42,5 @@ try {
         $taskWriter.Write([uint32]$taskPcm.Length)
         $taskWriter.Write($taskPcm.ToArray())
     } finally { $taskWriter.Dispose() }
-    Write-Output 'Generated ten fixed synthetic clips; no microphone recording.'
+    Write-Output ('Generated ' + $taskInputs.Count + ' fixed synthetic clips; no microphone recording.')
 } finally { $taskSynth.Dispose(); $taskPcm.Dispose() }
