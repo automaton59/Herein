@@ -50,6 +50,8 @@ node apps/interaction/audit-soak.mjs tmp/interaction-blue-transparent-data --req
 
 同时处理 `pending/profile-isolation/main.patch`，让直接Electron/登录入口在首次await前设userData/sessionData。新launch和便携启动参数已经隔离；旧长测的GPU/网络子进程存在默认profile缺口，不把它们作为完整隔离证明。main候选直接入口与环境变量/带空格路径的子进程检查通过，仍需合并新源码后的验证。
 
+再应用 `pending/stream-failure/failure.patch`（依赖前两项）：冻结版GGUF ACK拒绝会未处理/挂起，合成进程故障未取消缓冲；组合候选机制4/4与实际SAPI故障→Worklet取消ACK0.3ms→新句通过。三项补丁仍未应用源码；合并后必须重验新build的GGUF/SAPI与稳定性，旧长测不能代替。
+
 ## 用户主动开始真人验收后
 
 用户已约定发送“开始真人验收”；夜间不提示、不录真人声音。真人阶段只保存计时、计数、状态和简短观察结果，不保存音频、识别文字或聊天数据。

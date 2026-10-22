@@ -58,6 +58,8 @@ npm start
 
 `avatarReady` 在模型完成加载后才为 true；模型配置错误时 renderer 仍可运行，但 avatarReady=false、renderErrors>0，C 与长测应检查该字段。neutral 取消额外表情立即清掉淡出队列；新 emotion 命令在 interrupted 状态也能正常显示。
 
+冻结版已复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 保留组合候选、回归与SAPI故障实测：ACK立即失败清监听器，主线程发出speech.failed后推进generation并取消播放；补丁尚未应用，须在SAPI/profile补丁之后合并，不能把已有原版本长测当故障修复证明。
+
 `avatar` 的 emotion/motion 必须存在于当前 manifest，否则 400；只传 motion 会保留表情。身体按实际 ASR/TTS/播放状态执行 thinking/speaking/idle，发声完成或取消后恢复中性。C 仍决定表达内容与情绪，也可显式传动作命令。
 
 ## 可替换身体与蓝鱼技术验证
