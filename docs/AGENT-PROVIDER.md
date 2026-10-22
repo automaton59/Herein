@@ -23,6 +23,36 @@ interface AgentProvider {
 
 `AgentOperationResult.status`：`applied` / `restart-required` / `failed`。
 
+能力描述可选字段：
+
+```ts
+{
+  installed?: boolean;
+  enabled?: boolean;
+  lifecycle?: 'managed' | 'external';
+  actions?: string[];
+  inputSchema?: unknown;
+}
+```
+
+`lifecycle: 'external'` 表示生命周期由外部系统审批，C 只做发现/调用，不显示会失败的安装/停用按钮。
+
+## DSH provider
+
+`electron/plugins/dshProvider.ts` 已接 B 的 `adapters/dsh` 桥：
+
+```powershell
+$env:HEREIN_DSH_URL = 'http://127.0.0.1:8791'
+$env:HEREIN_DSH_TOKEN = '<bridge transport token>'
+```
+
+- `GET /health` → provider 健康；
+- `GET /v1/inventory` → capability 列表（名称、描述、参数 schema）；
+- `POST /v1/call` → `invoke`；
+- 安装/启停/移除/回滚需要 DSH 侧签署审批，C 不持有审批私钥，因此标记 `lifecycle:'external'`。
+
+完整说明见 [DSH-HARNESS.md](DSH-HARNESS.md)。
+
 ## Core HTTP
 
 | Method | Path | 作用 |
@@ -47,6 +77,6 @@ interface AgentProvider {
 
 - `electron/plugins/agentProvider.ts`：registry + 契约。
 - `GET/POST /v1/agents*`：Core 路由。
-- 桌面“系统”控制台：provider 健康、capability 安装/启停/移除/action 调用、结果展示。
-- 测试：registry 生命周期、provider 健康失败、Core 端到端。
-- 还没有真实 DSH provider；B 交付后注册进 `CoreServerOptions.agentProviders` 即可。
+- 桌面“系统”控制台：provider 健康、capability 安装/启停/移除/action 调用、JSON 参数输入、结果展示。
+- DSH provider 已接入：只读发现 + `call` 调用；生命周期走 DSH 审批。
+- 测试：registry 生命周期、provider 健康失败、DSH inventory/call、Core 端到端。

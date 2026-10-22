@@ -184,7 +184,9 @@ export interface CoreAgentCapability {
   health: CoreAgentHealth;
   installed?: boolean;
   enabled?: boolean;
+  lifecycle?: 'managed' | 'external';
   actions?: string[];
+  inputSchema?: unknown;
 }
 
 export interface CoreAgentList {

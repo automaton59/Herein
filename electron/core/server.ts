@@ -26,6 +26,7 @@ import { InteractionDispatcher, HttpInteractionPort } from './interaction';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
 import { AgentProviderRegistry, type AgentProvider } from '../plugins/agentProvider';
+import { createDshAgentProvider } from '../plugins/dshProvider';
 import {
   scanBilibiliFeed,
   type BilibiliFeedSource,
@@ -84,6 +85,11 @@ export interface CoreServerOptions {
     intervalMs?: number;
   };
   agentProviders?: AgentProvider[];
+  dsh?: {
+    url?: string;
+    token?: string;
+    fetchImpl?: typeof fetch;
+  };
   relayUrl?: string;
   relayToken?: string;
   relayFetch?: typeof fetch;
@@ -314,6 +320,17 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
   for (const provider of options.agentProviders ?? []) {
     agentProviderRegistry.register(provider);
+  }
+
+  const dshUrl = options.dsh?.url ?? process.env.HEREIN_DSH_URL;
+  const dshToken = options.dsh?.token ?? process.env.HEREIN_DSH_TOKEN;
+
+  if (dshUrl && dshToken) {
+    agentProviderRegistry.register(createDshAgentProvider({
+      url: dshUrl,
+      token: dshToken,
+      fetchImpl: options.dsh?.fetchImpl,
+    }));
   }
 
   const qqEnabled = options.qqListener?.enabled ?? process.env.HEREIN_QQ_ENABLED === '1';

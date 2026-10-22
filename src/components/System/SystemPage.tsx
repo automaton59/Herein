@@ -271,6 +271,7 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
   const [characterId, setCharacterId] = React.useState('');
   const [agents, setAgents] = React.useState<CoreAgentList>({ providers: [], capabilities: [] });
   const [agentBusy, setAgentBusy] = React.useState('');
+  const [agentInputs, setAgentInputs] = React.useState<Record<string, string>>({});
   const [agentOutput, setAgentOutput] = React.useState<{ id: string; text: string } | null>(null);
   const [initiativeResult, setInitiativeResult] = React.useState<CoreInitiativeResult | null>(null);
   const [initiativeBusy, setInitiativeBusy] = React.useState(false);
@@ -435,6 +436,26 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
     } finally {
       setAgentBusy('');
     }
+  };
+
+  const invokeAgentAction = (capability: CoreAgentCapability, action: string) => {
+    let input: unknown = {};
+
+    try {
+      input = JSON.parse(agentInputs[capability.id]?.trim() || '{}') as unknown;
+    } catch {
+      setError('Agent 调用参数必须是合法 JSON');
+      return;
+    }
+
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      setError('Agent 调用参数必须是 JSON 对象');
+      return;
+    }
+
+    void runAgentAction(capability, `action:${action}`, core => (
+      core.invokeAgent(capability.providerId, capability.id, action, input)
+    ));
   };
 
   return (
@@ -759,13 +780,14 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
 
           {agents.capabilities.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-sky-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-sky-800 dark:text-slate-400">
-              还没有 agent provider。B 的 DSH 桥接入后，能力会出现在这里。
+              还没有 agent provider。配置 HEREIN_DSH_URL / HEREIN_DSH_TOKEN 后，DSH 能力会出现在这里。
             </div>
           ) : (
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
               {agents.capabilities.map(capability => {
                 const installed = capability.installed !== false;
                 const enabled = capability.enabled !== false;
+                const external = capability.lifecycle === 'external';
                 const busy = agentBusy.startsWith(`${capability.id}:`);
 
                 return (
@@ -780,6 +802,11 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
                           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">
                             {capability.providerId}
                           </span>
+                          {external && (
+                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">
+                              DSH 审批
+                            </span>
+                          )}
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             capability.health.status === 'ok'
                               ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
@@ -794,73 +821,89 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
                       </div>
                     </div>
 
+                    {external && (
+                      <div className="mt-3 rounded-xl border border-sky-100 bg-white/60 px-3 py-2 text-[11px] text-slate-500 dark:border-sky-900/40 dark:bg-white/[0.03] dark:text-slate-400">
+                        生命周期由 DSH 审批管理；C 只读发现和调用。
+                      </div>
+                    )}
+
+                    {(capability.actions?.length ?? 0) > 0 && (
+                      <label className="mt-3 block text-[11px] text-slate-500 dark:text-slate-400">
+                        调用参数（JSON）
+                        <textarea
+                          value={agentInputs[capability.id] ?? '{}'}
+                          onChange={event => setAgentInputs(current => ({
+                            ...current,
+                            [capability.id]: event.target.value,
+                          }))}
+                          rows={2}
+                          spellCheck={false}
+                          className="mt-1 w-full rounded-xl border border-sky-100 bg-white px-3 py-2 font-mono text-[11px] leading-5 text-slate-700 outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-100"
+                        />
+                      </label>
+                    )}
+
                     <div className="mt-3 flex flex-wrap gap-2">
-                      {!installed ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void runAgentAction(
-                            capability,
-                            'install',
-                            core => core.installAgent(capability.providerId, capability.id),
-                          )}
-                          className="rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                        >
-                          安装
-                        </button>
-                      ) : (
-                        <>
+                      {!external && (
+                        !installed ? (
                           <button
                             type="button"
                             disabled={busy}
                             onClick={() => void runAgentAction(
                               capability,
-                              enabled ? 'disable' : 'enable',
-                              core => enabled
-                                ? core.disableAgent(capability.providerId, capability.id)
-                                : core.enableAgent(capability.providerId, capability.id),
+                              'install',
+                              core => core.installAgent(capability.providerId, capability.id),
                             )}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-                              enabled
-                                ? 'border border-slate-200 bg-white text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
-                                : 'bg-sky-700 text-white'
-                            }`}
+                            className="rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                           >
-                            {enabled ? '停用' : '启用'}
+                            安装
                           </button>
-                          {(capability.actions ?? []).map(action => (
+                        ) : (
+                          <>
                             <button
-                              key={action}
                               type="button"
-                              disabled={busy || !enabled}
+                              disabled={busy}
                               onClick={() => void runAgentAction(
                                 capability,
-                                `action:${action}`,
-                                core => core.invokeAgent(
-                                  capability.providerId,
-                                  capability.id,
-                                  action,
-                                ),
+                                enabled ? 'disable' : 'enable',
+                                core => enabled
+                                  ? core.disableAgent(capability.providerId, capability.id)
+                                  : core.enableAgent(capability.providerId, capability.id),
                               )}
-                              className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 disabled:opacity-50 dark:border-sky-800 dark:bg-white/5 dark:text-sky-200"
+                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                                enabled
+                                  ? 'border border-slate-200 bg-white text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+                                  : 'bg-sky-700 text-white'
+                              }`}
                             >
-                              {action}
+                              {enabled ? '停用' : '启用'}
                             </button>
-                          ))}
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void runAgentAction(
-                              capability,
-                              'remove',
-                              core => core.removeAgent(capability.providerId, capability.id),
-                            )}
-                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
-                          >
-                            移除
-                          </button>
-                        </>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void runAgentAction(
+                                capability,
+                                'remove',
+                                core => core.removeAgent(capability.providerId, capability.id),
+                              )}
+                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+                            >
+                              移除
+                            </button>
+                          </>
+                        )
                       )}
+                      {(capability.actions ?? []).map(action => (
+                        <button
+                          key={action}
+                          type="button"
+                          disabled={busy || (!external && !enabled)}
+                          onClick={() => invokeAgentAction(capability, action)}
+                          className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 disabled:opacity-50 dark:border-sky-800 dark:bg-white/5 dark:text-sky-200"
+                        >
+                          {action}
+                        </button>
+                      ))}
                     </div>
 
                     {agentOutput?.id === capability.id && (

@@ -14,7 +14,7 @@
 | P0-03 | Core 启动方式 | `npm run core:serve`；`HEREIN_CORE_HOST/PORT/TOKEN`、`HEREIN_DATA_DIR`、`HEREIN_DB_PATH`；非 loopback 必须设 token |
 | P0-03 | 模型网关 | `electron/core/llm.ts` + `POST /v1/chat`：OpenAI-compatible、私钥文件、超时、usage；真实 `llm.json` 冒烟 1 次通过（3.7s，`persist:false`） |
 | P0-03 | 聊天上下文 | `buildCoreChatPrompt`：角色/关系/最近总结/记忆预算/回复形态拼进 `/v1/chat`；群聊排除 private 记忆；2 个测试 |
-| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,495,064 bytes，SHA256 `061A4749...A92E`） |
+| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,477,618 bytes，SHA256 `817AF46E...9B29`） |
 | P0-13 | Android 状态 | 聊天页系统状态芯片/抽屉；每 20s 轮询 `/v1/status`；展示 Core/DB/模型/声音/插件 |
 | P0-13 | Android SSE | 监听 `core` 事件：`chat.completed`/`timeline.synced`/`assistant.proactive` 后重拉时间线 |
 | P0-13 | Android 生命周期 | visibility/online 时暂停或重连 SSE；后台显示“后台暂停同步”；恢复后刷新 + 补发 outbox；真机 Doze 未验证 |
@@ -58,7 +58,7 @@
 | P0-08 | TTS 实测 | `D:\AI\tools\qwen_tts\venv`（torch 2.11+cu128/CUDA）+ CustomVoice 1.7B：平均 **4.8s/句，RTF 3.70**；0.6B：**4.87s/句，RTF 3.28**；能出声，未实时。详见 `docs/TTS.md` |
 | P0-08/P2 | 手机朗读 | Core `POST /v1/tts` 代理；移动端助手消息“▶ 朗读”；本地 38KB/5.1s，远端 `/herein/v1/tts` 30KB/3.9s |
 | P0-08/P2 | 手机口型 | 手机朗读时 Web Audio RMS → `PARAM_MOUTH_OPEN_Y`；tsc 通过，真机未验证 |
-| P0-12 | 插件宿主 | schema v9 `plugin_registry` / `plugin_audit`；manifest、注册表、启停/配置/健康/审计、网络权限白名单；Core `/v1/plugins*`；`plugins/weather` + 内置 `bilibili`/`netease`/`qq`；`AgentProvider` 契约 + `/v1/agents*`；15 个插件测试 |
+| P0-12 | 插件宿主 | schema v9 `plugin_registry` / `plugin_audit`；manifest、注册表、启停/配置/健康/审计、网络权限白名单；Core `/v1/plugins*`；`plugins/weather` + 内置 `bilibili`/`netease`/`qq`；`AgentProvider` 契约 + `/v1/agents*`；DSH provider（inventory/call/health）；19 个插件测试 |
 | P0-13 | 状态与控制台 | Core `/v1/status`：Core/DB/LLM/TTS/plugins/agents/relay/interaction；桌面“系统”控制台含状态、插件、weather、主动性、Agent 能力操作；Android 状态芯片/抽屉；通用插件配置表单 |
 | P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
 | P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
@@ -69,16 +69,17 @@
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **55 files / 218 tests passed**
+- `npx vitest run` → **56 files / 223 tests passed**
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run check:contrast` → 8 个关键色对全部通过（AA）
+- `npm run test:dsh` → 13/13 DSH bridge 测试通过（真实 DSH 安装/审批/回滚/崩溃恢复）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
 - `npm run core:serve` + `GET /health` 冒烟通过（临时 dataDir，未碰真实数据）
 - Core HTTP 已测：`/health`、`/v1/status`、`/v1/plugins*`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
 - Core `/v1/chat` 真实 LLM 冒烟：HTTP 200，“在的”，3.7s
 - `npm run build` → 0；vite 2241 modules
-- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,495,064 bytes），SHA256 `061A4749...A92E`
+- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,477,618 bytes），SHA256 `817AF46E...9B29`
 - Live2D 演示：`?live2d=1`，Electron 中 canvas=1，模型尺寸 624×672；截图受无显示桌面限制
 - 远程：`http://147.224.56.120/herein/health` → 无 token 401，带 token 200；`:8000` 酒馆 401
 
@@ -93,7 +94,7 @@
 | P0-10 | 真机验证 | APK 已出；还没装到手机/平板实测 |
 | P0-11 | QQ listener | 配置/连接/心跳/归一化/落库/被动回复接线已做；语音、频控、审核、默认回复策略待做，等 `qqbot.json` |
 | P1a | Core 双端一致性 | 记忆/已读/离线幂等/桌面增量 apply 已进 Core；跨端实时 read/outbox 未做；本地 IPC 仍写本地 DB，删除已能通过 apply 传播 |
-| P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；`AgentProvider` 契约已就绪，真实 DSH provider 等 B 交付 |
+| P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；DSH bridge 已合入 `adapters/dsh`，C 通过 `HEREIN_DSH_URL/TOKEN` 发现并调用 capability；生命周期仍走 DSH 审批 |
 | P0-13 | 状态完整性 | `/v1/status` 覆盖 Core/DB/LLM/TTS/plugins/agents/relay/interaction；Android visibility/online 生命周期已接；Doze/系统级后台限制未真机验证 |
 | P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy/Android 横幅/InteractionPort HTTP 已接；A 的真实语音服务、在场信号未交付 |
 | P0-15 | 设计系统 | 调色板已 sweep + 关键色对 guard；语义 token、完整 DOM 对比度审计、视觉回归/真机截图未做 |
@@ -103,7 +104,7 @@
 
 ## 下一步顺序
 
-1. P0-12：接 DSH provider（B 的工作流完成后）。
+1. P0-12：DSH bridge 真实桌面联调（当前用 fake bridge 测试；B adapter 自测 13/13）。
 2. P1a：补 SSE chat/read/outbox、删除传播；桌面从全量快照迁到增量 append。
 3. P0-14：A 实现 InteractionPort 服务；C 已留 HTTP adapter 和 env。
 4. P0-13：Agent action 的真实联调；Android Doze/系统级后台真机验证。

@@ -10,7 +10,9 @@ export interface AgentCapabilityDescriptor {
   health: PluginHealth;
   installed?: boolean;
   enabled?: boolean;
+  lifecycle?: 'managed' | 'external';
   actions?: string[];
+  inputSchema?: unknown;
 }
 
 export type AgentOperationStatus = 'applied' | 'restart-required' | 'failed';

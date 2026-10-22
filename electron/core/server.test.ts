@@ -727,6 +727,77 @@ describe('core server', () => {
     }));
   });
 
+  it('registers a DSH bridge provider from configuration', async () => {
+    const dshFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith('/health')) {
+        return new Response(JSON.stringify({
+          protocol: 1,
+          profileId: 'profile-1',
+          runtimeVersion: '0.2.1-rc.2',
+          host: 'running',
+        }), { status: 200 });
+      }
+
+      if (url.endsWith('/v1/inventory')) {
+        return new Response(JSON.stringify({
+          plugins: [],
+          bundles: [],
+          capabilities: [{
+            name: 'herein_hello',
+            description: 'Return a greeting.',
+            parameters: { name: { type: 'string', required: true } },
+          }],
+        }), { status: 200 });
+      }
+
+      if (url.endsWith('/v1/call')) {
+        return new Response(JSON.stringify({
+          content: [{ type: 'text', text: 'hello Herein' }],
+          value: 'hello Herein',
+        }), { status: 200 });
+      }
+
+      throw new Error(`unexpected DSH fetch: ${url}`);
+    }) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      dsh: {
+        url: 'http://dsh.test',
+        token: 'bridge-token',
+        fetchImpl: dshFetch,
+      },
+    });
+    handles.push(handle);
+
+    const listed = await getJson(handle, '/v1/agents');
+    expect(listed.body.providers).toEqual([
+      expect.objectContaining({ id: 'dsh', health: expect.objectContaining({ status: 'ok' }) }),
+    ]);
+    expect(listed.body.capabilities[0]).toEqual(expect.objectContaining({
+      providerId: 'dsh',
+      id: 'herein_hello',
+      lifecycle: 'external',
+    }));
+
+    const invoked = await postJson(handle, '/v1/agents/dsh/herein_hello/invoke', {
+      action: 'call',
+      input: { name: 'Herein' },
+    });
+    expect(invoked.body.result).toEqual(expect.objectContaining({
+      value: 'hello Herein',
+    }));
+
+    const install = await postJson(handle, '/v1/agents/dsh/herein_hello/install', {});
+    expect(install.body).toEqual(expect.objectContaining({
+      status: 'failed',
+      message: expect.stringContaining('signed approval'),
+    }));
+  });
+
   it('exposes agent providers and delegates lifecycle operations', async () => {
     const provider = {
       id: 'dsh',
