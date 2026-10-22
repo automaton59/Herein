@@ -5,6 +5,7 @@ import {
   CloudSun,
   Database,
   Loader2,
+  MessageCircle,
   Plug,
   RefreshCw,
   Route,
@@ -486,6 +487,7 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
           {statusCard('插件', status?.components.plugins, <Plug size={16} />, summary ? `${summary.enabled}/${summary.installed} 已启用` : undefined)}
           {statusCard('Agent', status?.components.agents, <Bot size={16} />, status?.components.agents.message)}
           {statusCard('隧道', status?.components.relay, <Route size={16} />, status?.components.relay.latencyMs ? `${status.components.relay.latencyMs}ms` : status?.components.relay.message)}
+          {statusCard('交互', status?.components.interaction, <MessageCircle size={16} />, status?.components.interaction.latencyMs ? `${status.components.interaction.latencyMs}ms` : status?.components.interaction.message)}
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">

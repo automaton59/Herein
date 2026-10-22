@@ -701,6 +701,32 @@ describe('core server', () => {
     expect(relayFetch).toHaveBeenCalledTimes(1);
   });
 
+  it('reports the interaction port health when configured', async () => {
+    const interactionFetch = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('http://interaction.test/health');
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      interaction: {
+        url: 'http://interaction.test',
+        fetchImpl: interactionFetch,
+      },
+    });
+    handles.push(handle);
+
+    const status = await getJson(handle, '/v1/status');
+    expect(status.body.components.interaction).toEqual(expect.objectContaining({
+      status: 'ok',
+      latencyMs: expect.any(Number),
+    }));
+  });
+
   it('exposes agent providers and delegates lifecycle operations', async () => {
     const provider = {
       id: 'dsh',

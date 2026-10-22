@@ -916,6 +916,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             fetchImpl: options.relayFetch,
             timeoutMs: options.relayTimeoutMs,
           },
+          interaction: interactionUrl ? interactionDispatcher : undefined,
           startedAt,
           version: CORE_SERVER_VERSION,
           ttsUrl,

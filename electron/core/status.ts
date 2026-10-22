@@ -1,6 +1,7 @@
 import type { Phase2Database } from '../data/database';
 import type { PluginRegistry } from '../plugins/registry';
 import type { AgentProviderRegistry } from '../plugins/agentProvider';
+import type { InteractionDispatcher } from './interaction';
 import { loadLlmConfig, type LlmConfig } from './llm';
 
 export interface RelayStatusOptions {
@@ -15,6 +16,7 @@ export interface CoreStatusOptions {
   pluginRegistry: PluginRegistry;
   agentRegistry?: AgentProviderRegistry;
   relay?: RelayStatusOptions;
+  interaction?: InteractionDispatcher;
   startedAt: number;
   version: string;
   ttsUrl: string;
@@ -46,6 +48,7 @@ export interface CoreStatus {
     plugins: StatusComponent;
     agents: StatusComponent;
     relay: StatusComponent;
+    interaction: StatusComponent;
   };
 }
 
@@ -126,6 +129,26 @@ async function checkRelay(options: RelayStatusOptions | undefined): Promise<Stat
   }
 }
 
+async function checkInteraction(dispatcher?: InteractionDispatcher): Promise<StatusComponent> {
+  if (!dispatcher) {
+    return {
+      status: 'unknown',
+      message: 'interaction not configured',
+    };
+  }
+
+  const health = await dispatcher.health();
+  return {
+    status: health.status === 'ok'
+      ? 'ok'
+      : health.status === 'degraded'
+        ? 'degraded'
+        : 'unavailable',
+    message: health.message,
+    latencyMs: health.latencyMs,
+  };
+}
+
 async function checkLlm(options: CoreStatusOptions): Promise<StatusComponent> {  if (options.llmConfig) {
     return {
       status: 'ok',
@@ -169,10 +192,11 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     };
   }
 
-  const [llm, tts, relay] = await Promise.all([
+  const [llm, tts, relay, interaction] = await Promise.all([
     checkLlm(options),
     checkTts(options.ttsUrl, options.ttsFetch),
     checkRelay(options.relay),
+    checkInteraction(options.interaction),
   ]);
 
   const pluginSummary = options.pluginRegistry.summary();
@@ -228,11 +252,13 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     plugins,
     agents,
     relay,
+    interaction,
   };
 
   const degraded = [dbStatus, llm, tts, plugins, agents]
     .some(component => component.status !== 'ok')
-    || (relay.status !== 'ok' && relay.status !== 'unknown');
+    || (relay.status !== 'ok' && relay.status !== 'unknown')
+    || (interaction.status !== 'ok' && interaction.status !== 'unknown');
 
   return {
     ok: true,

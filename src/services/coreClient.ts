@@ -75,6 +75,7 @@ export interface CoreStatus {
     plugins: CoreStatusComponent;
     agents: CoreStatusComponent;
     relay: CoreStatusComponent;
+    interaction: CoreStatusComponent;
   };
 }
 

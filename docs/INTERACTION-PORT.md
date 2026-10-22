@@ -62,4 +62,5 @@ $env:HEREIN_INTERACTION_TOKEN = "<token>"
 
 - `electron/core/interaction.ts`：`InteractionPort`、`InteractionDispatcher`、`HttpInteractionPort`。
 - `electron/core/server.ts`：`HEREIN_INTERACTION_URL` 接入主动消息。
-- 测试：dispatcher 软失败、HTTP speak/health、initiative `onSpoken`。
+- `/v1/status` 的 `interaction` 组件显示 A 的健康（未配置为 unknown）。
+- 测试：dispatcher 软失败、HTTP speak/health、initiative `onSpoken`、Core status。
