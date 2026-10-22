@@ -136,3 +136,11 @@
 透明配置 capturePage 显示蓝鱼，alpha 范围 0–255（具体像素计数保留本机核查）；只能证明 renderer 透明背景，Windows 实际合成仍待真人观察。夜间 8 小时主实例沿用非透明配置，透明状态不混成 8 小时通过。补充 `apps/interaction/ACCEPTANCE.md` 将 software/hardware 证据及用户主动开始后的步骤逐项对齐。
 
 已把插话 fixture 生成收进 `make-voice-fixture.ps1 -BargeIn` 并实际复现：16kHz/单声道/9.95675 秒固定音频；第二个临时实例同 buildId，取消确认仍 0.2ms、先取消后 ASR、新句完成、欠供 0。页面透明截图 575×930，alpha=0 的像素 303,309 个；不据此确认桌面实际显示。三个临时回归实例均按 endpoint PID 与完整命令行归属回收，长测原进程保留。
+
+## 2026-10-23 默认透明窗口长测补充
+
+非透明主长测保持原进程连续运行。为覆盖默认 transparent=true 的配置，另开同一冻结 buildId、同一 bundle、同一模型和 GGUF/DML 声音的透明窗口实例，Whisper CUDA + 循环合成输入，silentOutput=true。独立数据 `tmp/interaction-blue-transparent-data`；runtime PID 24872，soak PID 6824，endurance PID 25636，process sampler PID 22712。
+
+透明长测 **2026-10-23 00:03:51 北京时间**开始，预计 **08:03:51**结束；补充全树私有内存/句柄采样于 00:04:11 启动，距起点约 20 秒，fullSoakCoverage=true。最初约 58.4fps、单轨/单上下文、失败 0。它仍在真实计时，不能标通过；两个不同配置的长测不拼接。透明配置的 renderer 连续运行不代替 Windows 实际合成显示、热键、托盘、多屏或真人声音验收。
+
+启动后整机瞬时空闲物理内存约 3GiB，GPU 占用约 5927/8188MiB（含其他已在运行的实例/服务）；这些是资源余量快照，不能归为蓝鱼单实例内存或无泄漏证明。原 Shizuku 旧版本长测独立保留，未停止用户 Core/TTS/tunnel，未开启真实麦克风。

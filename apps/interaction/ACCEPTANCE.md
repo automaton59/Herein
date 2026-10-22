@@ -10,6 +10,7 @@
 - 夜间数据：`tmp/interaction-blue-overnight-data`。
 - 夜间窗口：非透明配置、静音输出、循环合成麦克风；8 小时截止 2026-10-23 07:33:39 北京时间。
 - 透明配置的软件验证：`tmp/interaction-blue-regression-data`，同一 buildId，十轮合成输入及 alpha 页面截图；不是 Windows 桌面合成证据。
+- 补充默认透明窗口长测：`tmp/interaction-blue-transparent-data`，同一 buildId、Qwen GGUF/Whisper CUDA/合成输入/静音输出，从 10-23 00:03:51 至 08:03:51 北京时间；独立保留结果，不与非透明主测拼接。
 
 ## 软件关卡与证据
 
@@ -29,6 +30,8 @@
 
 ```powershell
 node apps/interaction/audit-soak.mjs tmp/interaction-blue-overnight-data --require-finished
+# 透明窗口长测到达自己的截止时间后，单独审阅。
+node apps/interaction/audit-soak.mjs tmp/interaction-blue-transparent-data --require-finished
 ```
 
 先确认实际 runtime/监测进程的连续性及原始样本，再审阅 `soak-audit.local.json` 的采样缺口、processMemory、supplementaryProcesses、lateGrowthReviewPids 和错误事件。进程树采样从第 13 分钟开始，不能当作全程覆盖；原 soak 从起点记录 Electron 工作集和 ASR/TTS 全树私有内存。audit 返回 0 只代表采样关卡通过，不代替人工趋势判断或真实硬件验收。
