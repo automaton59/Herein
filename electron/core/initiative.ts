@@ -63,6 +63,7 @@ export interface InitiativeEngineOptions {
   policy?: Partial<InitiativePolicy>;
   now?: () => Date;
   notify?: (message: string) => Promise<void> | void;
+  onSpoken?: (message: string) => Promise<void> | void;
   logger?: {
     info?: (message: string, detail?: unknown) => void;
     warn?: (message: string, detail?: unknown) => void;
@@ -303,6 +304,7 @@ export class InitiativeEngine {
   private readonly policy: InitiativePolicy;
   private readonly now: () => Date;
   private readonly notify?: InitiativeEngineOptions['notify'];
+  private readonly onSpoken?: InitiativeEngineOptions['onSpoken'];
   private readonly logger: InitiativeEngineOptions['logger'];
 
   constructor(options: InitiativeEngineOptions) {
@@ -313,6 +315,7 @@ export class InitiativeEngine {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? (() => new Date());
     this.notify = options.notify;
+    this.onSpoken = options.onSpoken;
     this.policy = {
       ...DEFAULT_INITIATIVE_POLICY,
       ...options.policy,
@@ -414,6 +417,12 @@ export class InitiativeEngine {
         await this.notify?.(decision.message);
       } catch {
         // Notification is best-effort; the message is already in the timeline.
+      }
+
+      try {
+        await this.onSpoken?.(decision.message);
+      } catch {
+        // Interaction delivery is best-effort; text is already in the timeline.
       }
 
       this.logger?.info?.('initiative spoke', {

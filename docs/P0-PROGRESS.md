@@ -62,14 +62,14 @@
 | P0-13 | 状态与控制台 | Core `/v1/status`：Core/DB/LLM/TTS/plugins/agents/relay；桌面“系统”控制台含状态、插件、weather、主动性、Agent 能力操作；Android 状态芯片/抽屉；通用插件配置表单 |
 | P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
 | P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
-| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；可选 `InitiativeScheduler`（`HEREIN_INITIATIVE_AUTO=1`）；可选 ntfy 推送；Android 应用内横幅；桌面可手动运行；6 个测试 |
+| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；可选 `InitiativeScheduler`（`HEREIN_INITIATIVE_AUTO=1`）；可选 ntfy 推送；可选 `InteractionPort` 朗读；Android 应用内横幅；桌面可手动运行；6 个测试 |
 | P0-15 | 白蓝设计 | 全 `src` rose/cream 色系切到 sky/白/深海蓝；主按钮提高到 `sky-700`/hover `sky-800`；`rose-` 残留 0 |
 
 ## 验证
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **54 files / 214 tests passed**
+- `npx vitest run` → **55 files / 217 tests passed**
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
@@ -94,7 +94,7 @@
 | P1a | Core 双端一致性 | 记忆/已读/离线幂等/桌面增量 apply 已进 Core；跨端实时 read/outbox 未做；本地 IPC 仍写本地 DB，删除已能通过 apply 传播 |
 | P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；`AgentProvider` 契约已就绪，真实 DSH provider 等 B 交付 |
 | P0-13 | 状态完整性 | `/v1/status` 覆盖 Core/DB/LLM/TTS/plugins/agents/relay；Android visibility/online 生命周期已接；Doze/系统级后台限制未真机验证 |
-| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy/Android 应用内横幅 已有；A 的 InteractionPort、在场信号未接 |
+| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy/Android 横幅/InteractionPort HTTP 已接；A 的真实语音服务、在场信号未交付 |
 | P0-15 | 设计系统 | 调色板已 sweep；语义 token、对比度审计、视觉回归/真机截图未做 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |
@@ -104,7 +104,7 @@
 
 1. P0-12：接 DSH provider（B 的工作流完成后）。
 2. P1a：补 SSE chat/read/outbox、删除传播；桌面从全量快照迁到增量 append。
-3. P0-14：接自动调度、A 的 InteractionPort、ntfy/Android 通知和在场信号。
+3. P0-14：A 实现 InteractionPort 服务；C 已留 HTTP adapter 和 env。
 4. P0-13：Agent action 的真实联调；Android Doze/系统级后台真机验证。
 5. 真机装 APK，验证 LAN 聊天、状态芯片、天气插件。
 6. P0-08：TTS 实时化（A 的工作流）。

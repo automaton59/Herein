@@ -45,7 +45,7 @@ entry: export function createPlugin() -> { start, stop, health, invoke }
 - `electron/plugins/registry.test.ts`：发现/安装/启用/调用/停用/审计/配置/权限/失败。
 - `electron/plugins/weather.test.ts`：天气安装/配置/缓存/降级/失败。
 - `electron/core/server.test.ts`：`/v1/status` + `/v1/plugins*` 端到端。
-- 2026-10-22：54 files / 214 tests passed；`npm run build` 通过。
+- 2026-10-22：55 files / 217 tests passed；`npm run build` 通过。
 
 ## 相关文档
 

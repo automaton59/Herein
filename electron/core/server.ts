@@ -22,6 +22,7 @@ import {
 import { buildCoreStatus } from './status';
 import { CoreMemoryRunner } from './memory';
 import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
+import { InteractionDispatcher, HttpInteractionPort } from './interaction';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
 import { AgentProviderRegistry, type AgentProvider } from '../plugins/agentProvider';
@@ -87,6 +88,12 @@ export interface CoreServerOptions {
   relayToken?: string;
   relayFetch?: typeof fetch;
   relayTimeoutMs?: number;
+  interaction?: {
+    url?: string;
+    token?: string;
+    fetchImpl?: typeof fetch;
+    timeoutMs?: number;
+  };
 }
 
 export interface CoreServerHandle {
@@ -260,6 +267,19 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
   const startedAt = Date.now();
   const ntfyConfig = ntfyConfigFromEnv();
+  const interactionUrl = options.interaction?.url ?? process.env.HEREIN_INTERACTION_URL;
+  const interactionDispatcher = new InteractionDispatcher(
+    interactionUrl
+      ? new HttpInteractionPort({
+        url: interactionUrl,
+        token: options.interaction?.token
+          ?? process.env.HEREIN_INTERACTION_TOKEN
+          ?? token,
+        fetchImpl: options.interaction?.fetchImpl,
+        timeoutMs: options.interaction?.timeoutMs,
+      })
+      : undefined,
+  );
   const db: Phase2Database = openPhase2Database(dbPath);
   migratePhase1JsonData({ db, dataDir });
   const repos = createPhase2Repositories(db);
@@ -341,6 +361,14 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         tags: ['speech_balloon'],
       }).then(() => undefined)
       : undefined,
+    onSpoken: message => {
+      void interactionDispatcher.speak({
+        text: message,
+        source: 'initiative',
+        priority: 'normal',
+        interruptible: true,
+      });
+    },
   });
 
   const initiativeAutoEnabled = options.initiativeAuto?.enabled
@@ -1327,6 +1355,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     close: async () => {
       proactiveScheduler?.stop();
       initiativeScheduler?.stop();
+      await interactionDispatcher.stop();
       await memoryRunner.close();
       await pluginRegistry.close();
       for (const client of sseClients) {

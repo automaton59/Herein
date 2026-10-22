@@ -43,6 +43,7 @@ function createHarness(now = '2026-10-22T12:00:00.000Z') {
     fetchImpl?: typeof fetch;
     policy?: Partial<typeof DEFAULT_INITIATIVE_POLICY>;
     notify?: (message: string) => Promise<void> | void;
+    onSpoken?: (message: string) => Promise<void> | void;
   } = {}) {
     return new InitiativeEngine({
       repos,
@@ -51,6 +52,7 @@ function createHarness(now = '2026-10-22T12:00:00.000Z') {
       fetchImpl: overrides.fetchImpl ?? (async () => new Response('{}')) as typeof fetch,
       now: () => new Date(now),
       notify: overrides.notify,
+      onSpoken: overrides.onSpoken,
       policy: {
         quietHours: { start: '00:00', end: '00:00' },
         ...overrides.policy,
@@ -165,6 +167,7 @@ describe('InitiativeEngine', () => {
     appendUserMessage(repos, timeline.id, '2026-10-22T10:00:00.000Z');
     const fetchImpl = vi.fn(async () => decisionResponse(true, '刚看到一个东西，想起你。')) as typeof fetch;
     const notify = vi.fn();
+    const onSpoken = vi.fn();
     const emitted: string[] = [];
     events.subscribe(event => {
       if (event.type === 'assistant.proactive') {
@@ -172,13 +175,14 @@ describe('InitiativeEngine', () => {
       }
     });
 
-    const result = await engine({ fetchImpl, notify }).run({ characterId: 'char-1' });
+    const result = await engine({ fetchImpl, notify, onSpoken }).run({ characterId: 'char-1' });
     expect(result).toEqual(expect.objectContaining({
       status: 'spoke',
       message: '刚看到一个东西，想起你。',
     }));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(notify).toHaveBeenCalledWith('刚看到一个东西，想起你。');
+    expect(onSpoken).toHaveBeenCalledWith('刚看到一个东西，想起你。');
     expect(emitted).toEqual(['assistant.proactive']);
     expect(repos.messages.listRecent(timeline.id, 10)).toEqual([
       expect.objectContaining({ role: 'user' }),
