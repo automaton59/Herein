@@ -100,9 +100,9 @@ export function AppSettings() {
   };
 
   return (
-    <section className="space-y-5 rounded-2xl border border-rose-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/80 dark:shadow-none">
+    <section className="space-y-5 rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
       <div>
-        <h2 className="text-xl font-semibold text-slate-950 dark:text-rose-50">应用设置</h2>
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">应用设置</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">调整 {APP_ZH_NAME} 的本地体验。</p>
       </div>
 
@@ -122,11 +122,11 @@ export function AppSettings() {
                 onClick={() => setThemeMode(value)}
                 className={`flex min-h-24 flex-col items-start justify-between rounded-2xl border p-4 text-left transition ${
                   isActive
-                    ? 'border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-100 dark:border-rose-300/50 dark:bg-rose-300/10 dark:text-rose-100 dark:ring-rose-300/10'
-                    : 'border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                    ? 'border-sky-300 bg-sky-50 text-sky-800 ring-2 ring-sky-100 dark:border-sky-300/50 dark:bg-sky-300/10 dark:text-sky-100 dark:ring-sky-300/10'
+                    : 'border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
                 }`}
               >
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-rose-500 shadow-sm shadow-rose-100 dark:bg-white/10 dark:text-rose-200 dark:shadow-none">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm shadow-sky-100 dark:bg-white/10 dark:text-sky-200 dark:shadow-none">
                   <Icon size={18} />
                 </span>
                 <span>
@@ -139,7 +139,7 @@ export function AppSettings() {
         </div>
       </div>
 
-      <div className="grid gap-2 border-t border-rose-100 pt-5 dark:border-white/10">
+      <div className="grid gap-2 border-t border-sky-100 pt-5 dark:border-white/10">
         <div>
           <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">语音引擎</h3>
         </div>
@@ -155,11 +155,11 @@ export function AppSettings() {
                 onClick={() => updateVoiceConfig({ provider: value })}
                 className={`flex min-h-20 flex-col items-start justify-between rounded-2xl border p-4 text-left transition ${
                   isActive
-                    ? 'border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-100 dark:border-rose-300/50 dark:bg-rose-300/10 dark:text-rose-100 dark:ring-rose-300/10'
-                    : 'border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                    ? 'border-sky-300 bg-sky-50 text-sky-800 ring-2 ring-sky-100 dark:border-sky-300/50 dark:bg-sky-300/10 dark:text-sky-100 dark:ring-sky-300/10'
+                    : 'border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
                 }`}
               >
-                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-rose-500 shadow-sm shadow-rose-100 dark:bg-white/10 dark:text-rose-200 dark:shadow-none">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sky-700 shadow-sm shadow-sky-100 dark:bg-white/10 dark:text-sky-200 dark:shadow-none">
                   <Volume2 size={18} />
                 </span>
                 <span>
@@ -177,18 +177,18 @@ export function AppSettings() {
             type="text"
             value={voiceConfig.gptSovits.endpoint}
             onChange={(event) => updateVoiceConfig({ gptSovits: { endpoint: event.target.value } })}
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
           />
         </label>
 
-        <div className="grid gap-3 border-t border-rose-100 pt-3 dark:border-white/10">
+        <div className="grid gap-3 border-t border-sky-100 pt-3 dark:border-white/10">
           <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
             Qwen3-TTS endpoint
             <input
               type="text"
               value={voiceConfig.qwen3Tts.endpoint}
               onChange={(event) => updateVoiceConfig({ qwen3Tts: { endpoint: event.target.value } })}
-              className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+              className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
             />
           </label>
 
@@ -199,7 +199,7 @@ export function AppSettings() {
                 type="text"
                 value={voiceConfig.qwen3Tts.language}
                 onChange={(event) => updateVoiceConfig({ qwen3Tts: { language: event.target.value } })}
-                className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
               />
             </label>
 
@@ -209,7 +209,7 @@ export function AppSettings() {
                 type="text"
                 value={voiceConfig.qwen3Tts.speaker}
                 onChange={(event) => updateVoiceConfig({ qwen3Tts: { speaker: event.target.value } })}
-                className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
               />
             </label>
           </div>
@@ -220,18 +220,18 @@ export function AppSettings() {
               type="text"
               value={voiceConfig.qwen3Tts.defaultInstruct}
               onChange={(event) => updateVoiceConfig({ qwen3Tts: { defaultInstruct: event.target.value } })}
-              className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+              className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
             />
           </label>
 
-          <div className="grid gap-3 border-t border-rose-100 pt-3 dark:border-white/10">
+          <div className="grid gap-3 border-t border-sky-100 pt-3 dark:border-white/10">
             <label className="grid gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-300">
               Qwen3 Clone endpoint
               <input
                 type="text"
                 value={voiceConfig.qwen3VoiceClone.endpoint}
                 onChange={(event) => updateVoiceConfig({ qwen3VoiceClone: { endpoint: event.target.value } })}
-                className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
               />
             </label>
 
@@ -241,7 +241,7 @@ export function AppSettings() {
                 type="text"
                 value={voiceConfig.qwen3VoiceClone.language}
                 onChange={(event) => updateVoiceConfig({ qwen3VoiceClone: { language: event.target.value } })}
-                className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
               />
             </label>
 
@@ -250,7 +250,7 @@ export function AppSettings() {
                 type="checkbox"
                 checked={voiceConfig.qwen3VoiceClone.xVectorOnlyMode}
                 onChange={(event) => updateVoiceConfig({ qwen3VoiceClone: { xVectorOnlyMode: event.target.checked } })}
-                className="h-4 w-4 rounded border-rose-200 text-rose-500 focus:ring-rose-200"
+                className="h-4 w-4 rounded border-sky-200 text-sky-700 focus:ring-sky-200"
               />
               Clone 使用 x-vector only
             </label>
@@ -262,13 +262,13 @@ export function AppSettings() {
             type="checkbox"
             checked={voiceConfig.fallbackToSystem}
             onChange={(event) => updateVoiceConfig({ fallbackToSystem: event.target.checked })}
-            className="h-4 w-4 rounded border-rose-200 text-rose-500 focus:ring-rose-200"
+            className="h-4 w-4 rounded border-sky-200 text-sky-700 focus:ring-sky-200"
           />
           失败时回退系统 TTS
         </label>
       </div>
 
-      <div className="grid gap-3 border-t border-rose-100 pt-4 dark:border-white/10">
+      <div className="grid gap-3 border-t border-sky-100 pt-4 dark:border-white/10">
         <div>
           <h3 className="text-sm font-medium text-slate-700 dark:text-slate-300">Core 服务（可选）</h3>
           <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
@@ -283,7 +283,7 @@ export function AppSettings() {
             value={coreUrl}
             onChange={(event) => setCoreUrl(event.target.value)}
             placeholder="http://127.0.0.1:8787"
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
           />
         </label>
 
@@ -294,7 +294,7 @@ export function AppSettings() {
             value={coreToken}
             onChange={(event) => setCoreToken(event.target.value)}
             placeholder="HEREIN_CORE_TOKEN（可留空）"
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
           />
         </label>
 
@@ -302,7 +302,7 @@ export function AppSettings() {
           <button
             type="button"
             onClick={saveCoreSettings}
-            className="rounded-xl bg-rose-500 px-4 py-2 text-sm font-medium text-white hover:bg-rose-600"
+            className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-600"
           >
             保存 Core 设置
           </button>

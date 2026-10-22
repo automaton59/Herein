@@ -157,7 +157,7 @@ export function Live2DStage({ modelUrl, coreUrl, emotion, mouthOpen = 0 }: Live2
     <div className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
       {error && (
-        <div className="absolute inset-x-4 bottom-4 rounded-xl bg-black/60 px-3 py-2 text-xs text-rose-100/80">
+        <div className="absolute inset-x-4 bottom-4 rounded-xl bg-black/60 px-3 py-2 text-xs text-sky-100/80">
           {error}
         </div>
       )}

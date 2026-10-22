@@ -16,7 +16,7 @@ export function Live2DDemo() {
   const [emotion, setEmotion] = React.useState<string>('neutral');
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#130d14] text-rose-50">
+    <div className="flex h-[100dvh] flex-col bg-[#04101a] text-sky-50">
       <header className="flex shrink-0 items-center gap-2 border-b border-white/10 px-3 py-2">
         <input
           value={draft}
@@ -29,7 +29,7 @@ export function Live2DDemo() {
             setCoreUrl(next);
             localStorage.setItem(CORE_URL_KEY, next);
           }}
-          className="rounded-xl bg-rose-300 px-3 py-2 text-xs font-semibold text-[#2a1420]"
+          className="rounded-xl bg-sky-300 px-3 py-2 text-xs font-semibold text-[#04101a]"
         >
           加载
         </button>
@@ -49,7 +49,7 @@ export function Live2DDemo() {
             key={item}
             onClick={() => setEmotion(item)}
             className={`rounded-xl px-3 py-2 text-xs ${
-              emotion === item ? 'bg-rose-300 text-[#2a1420]' : 'bg-white/10 text-rose-100'
+              emotion === item ? 'bg-sky-300 text-[#04101a]' : 'bg-white/10 text-sky-100'
             }`}
           >
             {item}

@@ -86,9 +86,9 @@ export function CharacterSettings() {
   };
 
   return (
-    <section className="space-y-5 rounded-2xl border border-rose-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/80 dark:shadow-none">
+    <section className="space-y-5 rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
       <div>
-        <h2 className="text-xl font-semibold text-slate-950 dark:text-rose-50">角色卡</h2>
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">角色卡</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">共 {characters.length} 个角色，当前角色：{characterConfig.name}</p>
       </div>
 
@@ -124,14 +124,14 @@ export function CharacterSettings() {
           <button
             type="button"
             onClick={handleCreate}
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
           >
             新建
           </button>
           <button
             type="button"
             onClick={handleDuplicate}
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
           >
             复制
           </button>
@@ -153,7 +153,7 @@ export function CharacterSettings() {
             type="text"
             value={localCharacter.name}
             onChange={(event) => updateField('name', event.target.value)}
-            className="h-11 w-full rounded-xl border border-rose-100 px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+            className="h-11 w-full rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
           />
         </label>
 
@@ -163,7 +163,7 @@ export function CharacterSettings() {
             value={localCharacter.description}
             onChange={(event) => updateField('description', event.target.value)}
             rows={4}
-            className="min-h-28 w-full resize-y rounded-xl border border-rose-100 px-3 py-2 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+            className="min-h-28 w-full resize-y rounded-xl border border-sky-100 px-3 py-2 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
           />
         </label>
 
@@ -173,14 +173,14 @@ export function CharacterSettings() {
             value={localCharacter.firstMessage}
             onChange={(event) => updateField('firstMessage', event.target.value)}
             rows={2}
-            className="min-h-20 w-full resize-y rounded-xl border border-rose-100 px-3 py-2 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+            className="min-h-20 w-full resize-y rounded-xl border border-sky-100 px-3 py-2 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
           />
         </label>
 
         <button
           type="button"
           onClick={handleSave}
-          className="h-11 rounded-xl bg-slate-950 px-4 font-medium text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300 dark:focus:ring-rose-300/20"
+          className="h-11 rounded-xl bg-slate-950 px-4 font-medium text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:focus:ring-sky-300/20"
         >
           保存角色卡
         </button>

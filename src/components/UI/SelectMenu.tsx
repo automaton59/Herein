@@ -76,7 +76,7 @@ export function SelectMenu({
         aria-controls={menuId}
         disabled={disabled}
         onClick={() => setIsOpen(open => !open)}
-        className={`flex h-11 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-rose-100 bg-white px-3 text-left text-slate-950 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-100 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10 dark:disabled:text-slate-600 ${buttonClassName}`}
+        className={`flex h-11 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-100 bg-white px-3 text-left text-slate-950 outline-none transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10 dark:disabled:text-slate-600 ${buttonClassName}`}
       >
         <span className="min-w-0">
           <span className="block truncate font-medium">
@@ -98,7 +98,7 @@ export function SelectMenu({
         <div
           id={menuId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-rose-100 bg-white p-1 shadow-xl shadow-rose-100/60 dark:border-white/10 dark:bg-[#201820] dark:shadow-black/30"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-sky-100 bg-white p-1 shadow-xl shadow-sky-100/60 dark:border-white/10 dark:bg-[#0b1b2b] dark:shadow-black/30"
         >
           {options.length === 0 ? (
             <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
@@ -118,8 +118,8 @@ export function SelectMenu({
                   onClick={() => handleSelect(option)}
                   className={`flex w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
                     isSelected
-                      ? 'bg-rose-50 text-rose-700 dark:bg-rose-300/15 dark:text-rose-100'
-                      : 'text-slate-700 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-rose-100'
+                      ? 'bg-sky-50 text-sky-800 dark:bg-sky-300/15 dark:text-sky-100'
+                      : 'text-slate-700 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-200 dark:hover:bg-white/10 dark:hover:text-sky-100'
                   }`}
                 >
                   <span className="grid h-5 w-5 shrink-0 place-items-center">

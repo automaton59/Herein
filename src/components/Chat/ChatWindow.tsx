@@ -91,7 +91,7 @@ function ContactAvatar({
   const sizeClass = size === 'lg' ? 'h-14 w-14 rounded-2xl text-xl' : size === 'sm' ? 'h-10 w-10 rounded-xl text-base' : 'h-12 w-12 rounded-2xl text-lg';
 
   return (
-    <div className={`grid shrink-0 place-items-center overflow-hidden bg-gradient-to-br from-rose-400 to-fuchsia-400 font-semibold text-white shadow-sm shadow-rose-200 dark:from-rose-300 dark:to-fuchsia-300 dark:text-[#1b1018] dark:shadow-none ${sizeClass}`}>
+    <div className={`grid shrink-0 place-items-center overflow-hidden bg-gradient-to-br from-sky-400 to-cyan-400 font-semibold text-white shadow-sm shadow-sky-200 dark:from-sky-300 dark:to-fuchsia-300 dark:text-[#04101a] dark:shadow-none ${sizeClass}`}>
       {src ? (
         <img src={src} alt="" className="h-full w-full object-cover" />
       ) : (
@@ -175,17 +175,17 @@ function ContactProfilePanel({
   };
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-l border-white/70 bg-white/80 backdrop-blur dark:border-white/10 dark:bg-[#171018]/85">
+    <aside className="flex h-full min-h-0 flex-col border-l border-white/70 bg-white/80 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/85">
       <div className="flex shrink-0 items-center justify-between border-b border-white/70 px-4 py-3 dark:border-white/10">
         <div>
-          <p className="text-xs font-medium text-rose-400 dark:text-rose-300">联系人资料</p>
-          <h2 className="truncate text-lg font-semibold text-slate-950 dark:text-rose-50">{displayName}</h2>
+          <p className="text-xs font-medium text-sky-400 dark:text-sky-300">联系人资料</p>
+          <h2 className="truncate text-lg font-semibold text-slate-950 dark:text-sky-50">{displayName}</h2>
         </div>
         <button
           type="button"
           aria-label="关闭联系人资料"
           onClick={onClose}
-          className="grid h-9 w-9 place-items-center rounded-full border border-rose-100 text-slate-500 hover:bg-rose-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
+          className="grid h-9 w-9 place-items-center rounded-full border border-sky-100 text-slate-500 hover:bg-sky-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
         >
           <X size={16} />
         </button>
@@ -195,12 +195,12 @@ function ContactProfilePanel({
         <section className="flex items-center gap-3">
           <ContactAvatar character={character} src={avatarSrc} size="lg" />
           <div className="min-w-0 flex-1">
-            <div className="truncate text-base font-semibold text-slate-950 dark:text-rose-50">{displayName}</div>
+            <div className="truncate text-base font-semibold text-slate-950 dark:text-sky-50">{displayName}</div>
             <div className="truncate text-sm text-slate-500 dark:text-slate-400">角色名：{character.name}</div>
           </div>
         </section>
 
-        <label className="mt-4 inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10">
+        <label className="mt-4 inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10">
           <Camera size={15} />
           {isUploading ? '上传中...' : '上传头像'}
           <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleAvatarChange} className="sr-only" />
@@ -215,14 +215,14 @@ function ContactProfilePanel({
               value={remarkDraft}
               onChange={(event) => setRemarkDraft(event.target.value)}
               placeholder={character.name}
-              className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+              className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
             />
           </label>
           <button
             type="button"
             aria-label="保存备注"
             onClick={() => onSaveRemark(remarkDraft)}
-            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-rose-500 px-3 text-sm font-medium text-white hover:bg-rose-600 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300"
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
           >
             <Check size={15} />
             保存备注
@@ -247,12 +247,12 @@ function ContactProfilePanel({
           onUpdateProfile={onUpdatePresentationProfile}
         />
 
-        <div className="mt-5 grid gap-2 border-t border-rose-100 pt-5 dark:border-white/10">
+        <div className="mt-5 grid gap-2 border-t border-sky-100 pt-5 dark:border-white/10">
           {onEditCharacter && (
             <button
               type="button"
               onClick={onEditCharacter}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
             >
               <Settings size={15} />
               角色卡设置
@@ -816,10 +816,10 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
   };
 
   return (
-    <div className="flex h-full min-h-0 bg-[radial-gradient(circle_at_top_left,#ffe4e6_0,#fff7ed_34%,#f8fafc_82%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,#3a1728_0,#1b1018_34%,#0d1118_82%)] dark:text-rose-50">
-      <aside className="hidden w-80 shrink-0 flex-col border-r border-white/70 bg-white/55 backdrop-blur dark:border-white/10 dark:bg-[#171018]/70 md:flex">
+    <div className="flex h-full min-h-0 bg-[radial-gradient(circle_at_top_left,#e6f7ff_0,#f6fbff_34%,#f8fafc_82%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,#082036_0,#04101a_34%,#02070c_82%)] dark:text-sky-50">
+      <aside className="hidden w-80 shrink-0 flex-col border-r border-white/70 bg-white/55 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/70 md:flex">
         <div className="shrink-0 border-b border-white/70 p-4 dark:border-white/10">
-          <div className="text-sm font-semibold text-slate-700 dark:text-rose-100">联系人</div>
+          <div className="text-sm font-semibold text-slate-700 dark:text-sky-100">联系人</div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -833,11 +833,11 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
                   type="button"
                   aria-label={`选择联系人：${displayName}`}
                   onClick={() => selectContact(character.id)}
-                  className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border bg-white/80 px-3 py-3 text-left shadow-sm transition dark:bg-white/5 dark:shadow-none ${isActive ? 'border-rose-200 ring-2 ring-rose-100 dark:border-rose-300/40 dark:ring-rose-300/10' : 'border-white/80 hover:border-rose-100 dark:border-white/10 dark:hover:border-rose-300/30'}`}
+                  className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border bg-white/80 px-3 py-3 text-left shadow-sm transition dark:bg-white/5 dark:shadow-none ${isActive ? 'border-sky-200 ring-2 ring-sky-100 dark:border-sky-300/40 dark:ring-sky-300/10' : 'border-white/80 hover:border-sky-100 dark:border-white/10 dark:hover:border-sky-300/30'}`}
                 >
                   <ContactAvatar character={character} src={avatarSrc} size="sm" />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-slate-950 dark:text-rose-50">{displayName}</span>
+                    <span className="block truncate text-sm font-semibold text-slate-950 dark:text-sky-50">{displayName}</span>
                   </span>
                   <span className="text-xs text-slate-400 dark:text-slate-500">{formatConversationTime(conversation)}</span>
                 </button>
@@ -848,7 +848,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-white/70 bg-white/60 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#171018]/65">
+        <div className="shrink-0 border-b border-white/70 bg-white/60 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/65">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
@@ -858,7 +858,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
             >
               <ContactAvatar character={currentCharacter} src={currentAvatarSrc} />
               <span className="min-w-0">
-                <span className="block truncate text-xl font-semibold text-slate-950 dark:text-rose-50">{currentDisplayName}</span>
+                <span className="block truncate text-xl font-semibold text-slate-950 dark:text-sky-50">{currentDisplayName}</span>
                 <span className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                   <span
                     aria-label={`在线状态：${getStatusLabel(connectionStatus)}`}
@@ -874,14 +874,14 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
                 aria-label="发起视频通话"
                 title="发起视频通话"
                 onClick={() => startCallForCharacter(currentCharacter.id)}
-                className="grid h-9 w-9 place-items-center rounded-full border border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+                className="grid h-9 w-9 place-items-center rounded-full border border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
               >
                 <Video size={16} />
               </button>
               <button
                 type="button"
                 onClick={openMemoryPanel}
-                className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
               >
                 <Brain size={15} />
                 记忆
@@ -896,7 +896,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
                 type="button"
                 tabIndex={-1}
                 onClick={() => selectContact(character.id)}
-                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${character.id === currentCharacter.id ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-300/40 dark:bg-rose-300/10 dark:text-rose-100' : 'border-white/80 bg-white/70 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'}`}
+                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${character.id === currentCharacter.id ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-300/40 dark:bg-sky-300/10 dark:text-sky-100' : 'border-white/80 bg-white/70 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'}`}
               >
                 <ContactAvatar character={character} src={avatarSrc} size="sm" />
                 {displayName}
@@ -1020,8 +1020,8 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
 
       {pendingCallCharacterId && activeCallCharacter && pendingCallCharacter && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/30 px-4 backdrop-blur-sm">
-          <section className="w-full max-w-sm rounded-2xl border border-white/70 bg-white p-5 shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-[#171018] dark:shadow-black/40">
-            <h2 className="text-base font-semibold text-slate-950 dark:text-rose-50">切换通话对象</h2>
+          <section className="w-full max-w-sm rounded-2xl border border-white/70 bg-white p-5 shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-[#07131f] dark:shadow-black/40">
+            <h2 className="text-base font-semibold text-slate-950 dark:text-sky-50">切换通话对象</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
               当前正在和 {activeCallCharacter.name} 通话。
             </p>
@@ -1029,14 +1029,14 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
               <button
                 type="button"
                 onClick={confirmSecondCall}
-                className="h-10 rounded-xl bg-rose-500 px-3 text-sm font-medium text-white hover:bg-rose-600 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300"
+                className="h-10 rounded-xl bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
               >
                 结束当前通话并拨给 {pendingCallCharacter.name}
               </button>
               <button
                 type="button"
                 onClick={() => setPendingCallCharacterId(null)}
-                className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+                className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
               >
                 取消
               </button>

@@ -274,22 +274,22 @@ export function CharacterAppearanceSettings({
   };
 
   return (
-    <section className="mt-5 border-t border-rose-100 pt-5 dark:border-white/10">
+    <section className="mt-5 border-t border-sky-100 pt-5 dark:border-white/10">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-rose-50">形象与表情</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-sky-50">形象与表情</h3>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">默认立绘使用 neutral，差分立绘跟随回复情绪切换。</p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-xl border border-rose-100 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
+      <div className="mt-4 grid gap-3 rounded-xl border border-sky-100 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
         <label className="grid gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
           默认立绘
           <select
             aria-label="默认立绘"
             value={profile.defaultAssetId ?? ''}
             onChange={(event) => updateProfile({ defaultAssetId: event.target.value || null })}
-            className="h-9 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50 dark:focus:ring-sky-300/10"
           >
             <option value="">自动选择</option>
             {expressionAssets.map(asset => (
@@ -304,7 +304,7 @@ export function CharacterAppearanceSettings({
             aria-label="回退情绪"
             value={profile.fallbackEmotion}
             onChange={(event) => updateProfile({ fallbackEmotion: event.target.value as PresentationEmotion })}
-            className="h-9 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50 dark:focus:ring-sky-300/10"
           >
             {PRESENTATION_EMOTIONS.map(emotion => (
               <option key={emotion} value={emotion}>{EMOTION_LABELS[emotion]}</option>
@@ -313,14 +313,14 @@ export function CharacterAppearanceSettings({
         </label>
       </div>
 
-      <div className="mt-4 grid gap-3 rounded-xl border border-rose-100 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
+      <div className="mt-4 grid gap-3 rounded-xl border border-sky-100 bg-white/60 p-3 dark:border-white/10 dark:bg-white/5">
         <label className="grid gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
           动态形象
           <select
             aria-label="动态形象"
             value={profile.dynamicAssetId ?? ''}
             onChange={(event) => updateProfile({ dynamicAssetId: event.target.value || null })}
-            className="h-9 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50 dark:focus:ring-sky-300/10"
           >
             <option value="">未选择</option>
             {sortedDynamicAssets.map(asset => (
@@ -337,7 +337,7 @@ export function CharacterAppearanceSettings({
             aria-label="渲染偏好"
             value={profile.preferredRenderer ?? 'auto'}
             onChange={(event) => updateProfile({ preferredRenderer: event.target.value as PresentationRenderer })}
-            className="h-9 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50 dark:focus:ring-sky-300/10"
           >
             {(Object.keys(RENDERER_LABELS) as PresentationRenderer[]).map(renderer => (
               <option key={renderer} value={renderer}>{RENDERER_LABELS[renderer]}</option>
@@ -351,12 +351,12 @@ export function CharacterAppearanceSettings({
             value={dynamicLabel}
             onChange={(event) => setDynamicLabel(event.target.value)}
             placeholder="视频动态形象"
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
           />
         </label>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10">
+          <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10">
             <Video size={15} />
             {isDynamicBusy ? '处理中...' : '上传视频动态形象'}
             <input
@@ -368,7 +368,7 @@ export function CharacterAppearanceSettings({
             />
           </label>
 
-          <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10">
+          <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10">
             <Box size={15} />
             {isDynamicBusy ? '处理中...' : '导入 Live2D'}
             <input
@@ -385,7 +385,7 @@ export function CharacterAppearanceSettings({
 
         <div className="grid gap-2">
           {sortedDynamicAssets.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-rose-100 px-3 py-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+            <p className="rounded-xl border border-dashed border-sky-100 px-3 py-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
               还没有动态形象。
             </p>
           ) : sortedDynamicAssets.map(asset => {
@@ -397,9 +397,9 @@ export function CharacterAppearanceSettings({
               <div
                 key={asset.id}
                 aria-label={`动态资产：${labelText}`}
-                className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-rose-100 bg-white/70 p-2 dark:border-white/10 dark:bg-white/5"
+                className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-sky-100 bg-white/70 p-2 dark:border-white/10 dark:bg-white/5"
               >
-                <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-rose-50 text-xs text-slate-400 dark:bg-white/10 dark:text-slate-500">
+                <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-sky-50 text-xs text-slate-400 dark:bg-white/10 dark:text-slate-500">
                   {videoSrc ? (
                     <video
                       aria-label={`${labelText}预览`}
@@ -413,7 +413,7 @@ export function CharacterAppearanceSettings({
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-rose-50">{labelText}</div>
+                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-sky-50">{labelText}</div>
                   <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     {dynamicAssetKindLabel(asset)}{isSelected ? ' · 当前使用' : ''}
                   </div>
@@ -447,8 +447,8 @@ export function CharacterAppearanceSettings({
                 onClick={() => setSelectedEmotion(emotion)}
                 className={`h-8 rounded-full border px-3 text-xs font-medium transition ${
                   selectedEmotion === emotion
-                    ? 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-300/50 dark:bg-rose-300/15 dark:text-rose-100'
-                    : 'border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                    ? 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-300/50 dark:bg-sky-300/15 dark:text-sky-100'
+                    : 'border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
                 }`}
               >
                 {EMOTION_LABELS[emotion]}
@@ -463,11 +463,11 @@ export function CharacterAppearanceSettings({
             value={label}
             onChange={(event) => setLabel(event.target.value)}
             placeholder={EMOTION_LABELS[selectedEmotion]}
-            className="h-10 rounded-xl border border-rose-100 bg-white px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+            className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
           />
         </label>
 
-        <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10">
+        <label className="inline-flex h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10">
           <ImagePlus size={15} />
           {isBusy ? '上传中...' : '上传立绘'}
           <input
@@ -484,7 +484,7 @@ export function CharacterAppearanceSettings({
 
       <div className="mt-4 grid gap-2">
         {expressionAssets.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-rose-100 px-3 py-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+          <p className="rounded-xl border border-dashed border-sky-100 px-3 py-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
             还没有立绘差分。
           </p>
         ) : expressionAssets.map(asset => {
@@ -502,9 +502,9 @@ export function CharacterAppearanceSettings({
             <div
               key={asset.id}
               aria-label={`表情资产：${labelText}`}
-              className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-start gap-3 rounded-xl border border-rose-100 bg-white/70 p-2 dark:border-white/10 dark:bg-white/5"
+              className="grid grid-cols-[4rem_minmax(0,1fr)_auto] items-start gap-3 rounded-xl border border-sky-100 bg-white/70 p-2 dark:border-white/10 dark:bg-white/5"
             >
-              <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-rose-50 text-xs text-slate-400 dark:bg-white/10 dark:text-slate-500">
+              <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-lg bg-sky-50 text-xs text-slate-400 dark:bg-white/10 dark:text-slate-500">
                 {src ? (
                   <img src={src} alt={`${labelText}预览`} className="h-full w-full object-contain" />
                 ) : (
@@ -512,7 +512,7 @@ export function CharacterAppearanceSettings({
                 )}
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-slate-900 dark:text-rose-50">{labelText}</div>
+                <div className="truncate text-sm font-semibold text-slate-900 dark:text-sky-50">{labelText}</div>
                 <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                   {EMOTION_LABELS[emotion]} · priority {assetPriority(asset)}
                 </div>
@@ -521,14 +521,14 @@ export function CharacterAppearanceSettings({
                     aria-label={`编辑 ${labelText} 名称`}
                     value={draft.label}
                     onChange={(event) => setAssetDraft(asset.id, { label: event.target.value })}
-                    className="h-8 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50"
+                    className="h-8 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50"
                   />
                   <div className="grid grid-cols-[minmax(0,1fr)_5rem] gap-2">
                     <select
                       aria-label={`设置 ${labelText} 情绪`}
                       value={draft.emotion}
                       onChange={(event) => setAssetDraft(asset.id, { emotion: event.target.value as PresentationEmotion })}
-                      className="h-8 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50"
+                      className="h-8 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50"
                     >
                       {PRESENTATION_EMOTIONS.map(item => (
                         <option key={item} value={item}>{EMOTION_LABELS[item]}</option>
@@ -539,7 +539,7 @@ export function CharacterAppearanceSettings({
                       type="number"
                       value={draft.priority}
                       onChange={(event) => setAssetDraft(asset.id, { priority: event.target.value })}
-                      className="h-8 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 dark:border-white/10 dark:bg-[#211722] dark:text-rose-50"
+                      className="h-8 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 dark:border-white/10 dark:bg-[#0b1b2b] dark:text-sky-50"
                     />
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -547,7 +547,7 @@ export function CharacterAppearanceSettings({
                       type="button"
                       aria-label={`保存 ${labelText}`}
                       onClick={() => void saveAssetDraft(asset)}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-100 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-sky-100 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
                     >
                       <Check size={13} />
                       保存
@@ -558,8 +558,8 @@ export function CharacterAppearanceSettings({
                       onClick={() => bindAssetToDraftEmotion(asset)}
                       className={`h-8 rounded-lg border px-2 text-xs font-medium ${
                         isMapped
-                          ? 'border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-300/40 dark:bg-rose-300/15 dark:text-rose-100'
-                          : 'border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                          ? 'border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-300/40 dark:bg-sky-300/15 dark:text-sky-100'
+                          : 'border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
                       }`}
                     >
                       {isMapped ? '已绑定' : '绑定'}

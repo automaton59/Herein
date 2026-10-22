@@ -66,7 +66,7 @@ function statusTone(component: CoreStatusComponent | undefined) {
     case 'degraded':
       return 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20';
     case 'unavailable':
-      return 'text-rose-700 bg-rose-50 border-rose-100 dark:text-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20';
+      return 'text-sky-800 bg-sky-50 border-sky-100 dark:text-sky-200 dark:bg-sky-600/10 dark:border-sky-500/20';
     case 'unconfigured':
       return 'text-slate-600 bg-slate-50 border-slate-200 dark:text-slate-300 dark:bg-white/5 dark:border-white/10';
     default:
@@ -324,7 +324,7 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
         </header>
 
         {error && (
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
+          <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-500/20 dark:bg-sky-600/10 dark:text-sky-200">
             {error}
           </div>
         )}
@@ -384,7 +384,7 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
                         {plugin.manifest.description || '没有描述'}
                       </p>
                       {plugin.lastError && (
-                        <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">{plugin.lastError}</p>
+                        <p className="mt-2 text-xs text-sky-700 dark:text-sky-300">{plugin.lastError}</p>
                       )}
                     </div>
 
@@ -417,7 +417,7 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
                               type="button"
                               onClick={() => void removePlugin(plugin.manifest.id)}
                               disabled={busyId === plugin.manifest.id}
-                              className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition hover:text-rose-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
+                              className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition hover:text-sky-700 disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
                               aria-label={`卸载 ${plugin.manifest.name}`}
                             >
                               <Trash2 size={14} />

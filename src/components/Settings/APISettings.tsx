@@ -235,10 +235,10 @@ export function APISettings() {
   };
 
   return (
-    <section className="rounded-2xl border border-rose-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/80 dark:shadow-none">
+    <section className="rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-950 dark:text-rose-50">API 设置</h2>
+          <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">API 设置</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {isConfigured ? `当前状态：${getStatusLabel(connectionStatus)}` : '请先补全 API 配置'}
           </p>
@@ -296,7 +296,7 @@ export function APISettings() {
             <button
               type="button"
               onClick={handleCreateProfile}
-              className="inline-flex h-11 items-center gap-1 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
+              className="inline-flex h-11 items-center gap-1 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
             >
               <Plus size={16} />
               新建
@@ -318,7 +318,7 @@ export function APISettings() {
           <input
             value={profileName}
             onChange={(event) => setProfileName(event.target.value)}
-            className="h-11 w-full rounded-xl border border-rose-100 px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+            className="h-11 w-full rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
           />
         </label>
 
@@ -336,7 +336,7 @@ export function APISettings() {
 
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">API Key</span>
-          <div className="flex min-w-0 rounded-xl border border-rose-100 bg-white focus-within:border-rose-300 focus-within:ring-2 focus-within:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:focus-within:border-rose-300/60 dark:focus-within:ring-rose-300/10">
+          <div className="flex min-w-0 rounded-xl border border-sky-100 bg-white focus-within:border-sky-300 focus-within:ring-2 focus-within:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:focus-within:border-sky-300/60 dark:focus-within:ring-sky-300/10">
             <input
               type={showKey ? 'text' : 'password'}
               value={localConfig.apiKey}
@@ -346,12 +346,12 @@ export function APISettings() {
               }}
               placeholder="sk-..."
               spellCheck={false}
-              className="min-w-0 flex-1 rounded-l-xl bg-transparent px-3 py-2 text-slate-950 outline-none dark:text-rose-50"
+              className="min-w-0 flex-1 rounded-l-xl bg-transparent px-3 py-2 text-slate-950 outline-none dark:text-sky-50"
             />
             <button
               type="button"
               onClick={() => setShowKey((value) => !value)}
-              className="shrink-0 border-l border-rose-100 px-3 text-slate-500 hover:bg-rose-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
+              className="shrink-0 border-l border-sky-100 px-3 text-slate-500 hover:bg-sky-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
               title={showKey ? '隐藏 API Key' : '显示 API Key'}
             >
               {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -379,14 +379,14 @@ export function APISettings() {
                 value={localConfig.model}
                 onChange={(event) => setLocalConfig({ ...localConfig, model: event.target.value })}
                 placeholder="先获取模型，或手动输入模型 id"
-                className="h-11 min-w-0 flex-1 rounded-xl border border-rose-100 px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:placeholder:text-slate-500 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+                className="h-11 min-w-0 flex-1 rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:placeholder:text-slate-500 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
               />
             )}
             <button
               type="button"
               onClick={handleLoadModels}
               disabled={isLoadingModels}
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-4 font-medium text-slate-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-4 font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
             >
               <RefreshCw size={16} className={isLoadingModels ? 'animate-spin' : ''} />
               {isLoadingModels ? '获取中' : '获取模型'}
@@ -409,7 +409,7 @@ export function APISettings() {
                 setModels([]);
               }}
               placeholder="https://api.example.com/v1"
-              className="h-11 w-full rounded-xl border border-rose-100 px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:placeholder:text-slate-500 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+              className="h-11 w-full rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:placeholder:text-slate-500 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
             />
           </label>
         )}
@@ -419,7 +419,7 @@ export function APISettings() {
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-rose-500 px-4 font-medium text-white shadow-sm shadow-rose-200 hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-rose-400 dark:text-[#1b1018] dark:shadow-none dark:hover:bg-rose-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 font-medium text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
           >
             <Save size={17} />
             {isSaving ? '保存中' : '保存 Profile'}
@@ -428,7 +428,7 @@ export function APISettings() {
             type="button"
             onClick={handleTest}
             disabled={isTesting}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-4 font-medium text-slate-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-4 font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
           >
             <Wifi size={17} />
             {isTesting ? '测试中' : '测试连接'}

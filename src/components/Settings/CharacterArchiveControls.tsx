@@ -62,9 +62,9 @@ export function CharacterArchiveControls({
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-rose-100 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+    <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 dark:border-white/10 dark:bg-white/5">
       <div>
-        <h3 className="text-sm font-semibold text-slate-800 dark:text-rose-50">角色导入/导出</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-sky-50">角色导入/导出</h3>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">角色档案默认不包含私人记忆；完整归档用于自己的迁移和备份。</p>
       </div>
 
@@ -84,7 +84,7 @@ export function CharacterArchiveControls({
           type="button"
           onClick={() => void handleExport('profile')}
           disabled={isWorking}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
         >
           <Download size={16} />
           导出角色档案
@@ -93,7 +93,7 @@ export function CharacterArchiveControls({
           type="button"
           onClick={() => void handleExport('full')}
           disabled={isWorking}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-500 px-3 text-sm font-medium text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
         >
           <Download size={16} />
           导出完整归档
@@ -107,14 +107,14 @@ export function CharacterArchiveControls({
           value={archivePath}
           onChange={(event) => setArchivePath(event.target.value)}
           placeholder="D:/backup/herein-character.zip"
-          className="h-10 w-full rounded-xl border border-rose-100 px-3 text-sm text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:placeholder:text-slate-500 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+          className="h-10 w-full rounded-xl border border-sky-100 px-3 text-sm text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:placeholder:text-slate-500 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
         />
       </label>
       <button
         type="button"
         onClick={() => void handleImport()}
         disabled={isWorking}
-        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-rose-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
       >
         <Upload size={16} />
         导入角色归档

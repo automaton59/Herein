@@ -14,7 +14,7 @@
 | P0-03 | Core 启动方式 | `npm run core:serve`；`HEREIN_CORE_HOST/PORT/TOKEN`、`HEREIN_DATA_DIR`、`HEREIN_DB_PATH`；非 loopback 必须设 token |
 | P0-03 | 模型网关 | `electron/core/llm.ts` + `POST /v1/chat`：OpenAI-compatible、私钥文件、超时、usage；真实 `llm.json` 冒烟 1 次通过（3.7s，`persist:false`） |
 | P0-03 | 聊天上下文 | `buildCoreChatPrompt`：角色/关系/最近总结/记忆预算/回复形态拼进 `/v1/chat`；群聊排除 private 记忆；2 个测试 |
-| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,472,527 bytes，SHA256 `53B13CC4...23D6`） |
+| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,490,913 bytes，SHA256 `8D3FCD3C...363B`） |
 | P0-13 | Android 状态 | 聊天页系统状态芯片/抽屉；每 20s 轮询 `/v1/status`；展示 Core/DB/模型/声音/插件 |
 | P0-10 | 连接页 UX | “换地址”不再清 Token；保留地址/Token；粘贴 Token、显示/隐藏、清除记录（显式确认）；关闭自动大写/纠错 |
 | P1b | 移动聊天基础版 | 手机填 `http://192.168.1.3:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
@@ -58,6 +58,7 @@
 | P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
 | P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
 | P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；桌面可手动运行；5 个测试 |
+| P0-15 | 白蓝设计 | 全 `src` rose/cream 色系切到 sky/白/深海蓝；body/暗色背景、聊天气泡、设置、记忆、通话、Android 统一；`rose-` 残留 0 |
 
 ## 验证
 
@@ -71,7 +72,7 @@
 - Core HTTP 已测：`/health`、`/v1/status`、`/v1/plugins*`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
 - Core `/v1/chat` 真实 LLM 冒烟：HTTP 200，“在的”，3.7s
 - `npm run build` → 0；vite 2241 modules
-- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,472,527 bytes），SHA256 `53B13CC4...23D6`
+- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,490,913 bytes），SHA256 `8D3FCD3C...363B`
 - Live2D 演示：`?live2d=1`，Electron 中 canvas=1，模型尺寸 624×672；截图受无显示桌面限制
 - 远程：`http://147.224.56.120/herein/health` → 无 token 401，带 token 200；`:8000` 酒馆 401
 
@@ -89,6 +90,7 @@
 | P0-12 | 插件接入面 | `weather`/`bilibili`/`netease` 已是 native plugin；QQ 仍是独立 listener，未包成 channel plugin；DSH provider 未接（B 的工作流） |
 | P0-13 | 状态完整性 | `/v1/status` 只覆盖 Core/DB/LLM/TTS/plugins；relay/隧道状态、Android 后台限制、跨端 outbox 还没接 |
 | P0-14 | 主动性 | 策略/手动运行/时间线/SSE 已有；自动调度、A 的 InteractionPort、ntfy/Android 通知、在场信号未接 |
+| P0-15 | 设计系统 | 调色板已 sweep；语义 token、对比度审计、视觉回归/真机截图未做 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |
 | P4 | 推荐打磨 | 歌卡/反馈/服务端冷却已有；还缺中文候选过滤、反馈影响排序 |

@@ -68,9 +68,9 @@ function renderSection(section: SettingsSection) {
 
 export function SettingsPage({ activeSection, onSectionChange }: SettingsPageProps) {
   return (
-    <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,#ffe4e6_0,#fff7ed_38%,#f8fafc_88%)] dark:bg-[radial-gradient(circle_at_top_left,#3a1728_0,#1b1018_38%,#0d1118_88%)]">
+    <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,#e6f7ff_0,#f6fbff_38%,#f8fafc_88%)] dark:bg-[radial-gradient(circle_at_top_left,#082036_0,#04101a_38%,#02070c_88%)]">
       <div className="mx-auto grid w-full max-w-6xl gap-5 px-5 py-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className="rounded-2xl border border-rose-100 bg-white/65 p-2 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/70 dark:shadow-none lg:sticky lg:top-6 lg:self-start">
+        <aside className="rounded-2xl border border-sky-100 bg-white/65 p-2 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/70 dark:shadow-none lg:sticky lg:top-6 lg:self-start">
           <nav className="grid gap-1 sm:grid-cols-5 lg:grid-cols-1">
             {SECTIONS.map(({ id, label, description, Icon }) => {
               const isActive = activeSection === id;
@@ -82,8 +82,8 @@ export function SettingsPage({ activeSection, onSectionChange }: SettingsPagePro
                   onClick={() => onSectionChange(id)}
                   className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
                     isActive
-                      ? 'bg-rose-500 text-white shadow-sm shadow-rose-200 dark:bg-rose-300 dark:text-[#1b1018] dark:shadow-none'
-                      : 'text-slate-600 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-rose-100'
+                      ? 'bg-sky-600 text-white shadow-sm shadow-sky-200 dark:bg-sky-300 dark:text-[#04101a] dark:shadow-none'
+                      : 'text-slate-600 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-sky-100'
                   }`}
                 >
                   <Icon size={18} className="shrink-0" />

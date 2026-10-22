@@ -151,9 +151,9 @@ function componentTone(component: SystemStatusComponent | undefined) {
     case 'degraded':
       return 'text-amber-300';
     case 'unavailable':
-      return 'text-rose-300';
+      return 'text-sky-300';
     default:
-      return 'text-rose-200/50';
+      return 'text-sky-200/50';
   }
 }
 
@@ -211,15 +211,15 @@ function ConnectionScreen({ onConnect }: { onConnect: (config: CoreConfig) => vo
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col justify-center bg-[#130d14] px-6 text-rose-50">
+    <div className="flex min-h-[100dvh] flex-col justify-center bg-[#04101a] px-6 text-sky-50">
       <div className="mx-auto w-full max-w-sm">
-        <p className="text-sm tracking-[0.3em] text-rose-300/70">HEREIN</p>
+        <p className="text-sm tracking-[0.3em] text-sky-300/70">HEREIN</p>
         <h1 className="mt-3 text-3xl font-semibold">蓝蓝在等你</h1>
-        <p className="mt-2 text-sm leading-6 text-rose-100/60">
+        <p className="mt-2 text-sm leading-6 text-sky-100/60">
           手机和电脑连同一个 Wi-Fi，填电脑的局域网地址。默认端口 8787。
         </p>
 
-        <label className="mt-8 block text-xs text-rose-200/60">Core 地址</label>
+        <label className="mt-8 block text-xs text-sky-200/60">Core 地址</label>
         <input
           value={url}
           onChange={event => setUrl(event.target.value)}
@@ -228,10 +228,10 @@ function ConnectionScreen({ onConnect }: { onConnect: (config: CoreConfig) => vo
           autoCorrect="off"
           spellCheck={false}
           inputMode="url"
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-rose-100/30 focus:border-rose-300/50"
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-sky-100/30 focus:border-sky-300/50"
         />
 
-        <label className="mt-4 block text-xs text-rose-200/60">Token（Core 开了 token 就必填）</label>
+        <label className="mt-4 block text-xs text-sky-200/60">Token（Core 开了 token 就必填）</label>
         <input
           value={token}
           onChange={event => setToken(event.target.value)}
@@ -240,34 +240,34 @@ function ConnectionScreen({ onConnect }: { onConnect: (config: CoreConfig) => vo
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-rose-100/30 focus:border-rose-300/50"
+          className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-sky-100/30 focus:border-sky-300/50"
         />
 
         <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => void pasteToken()}
-            className="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-rose-100"
+            className="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-sky-100"
           >
             粘贴 Token
           </button>
           <button
             type="button"
             onClick={() => setShowToken(value => !value)}
-            className="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-rose-100"
+            className="rounded-lg bg-white/10 px-2.5 py-1 text-[11px] text-sky-100"
           >
             {showToken ? '隐藏' : '显示'}
           </button>
           <button
             type="button"
             onClick={clearSaved}
-            className="ml-auto text-[11px] text-rose-200/40"
+            className="ml-auto text-[11px] text-sky-200/40"
           >
             清除记录
           </button>
         </div>
 
-        <p className="mt-3 text-[11px] leading-5 text-rose-200/35">
+        <p className="mt-3 text-[11px] leading-5 text-sky-200/35">
           点聊天页的“换地址”只返回这里，不会清除已保存的 Token。
         </p>
 
@@ -276,7 +276,7 @@ function ConnectionScreen({ onConnect }: { onConnect: (config: CoreConfig) => vo
         <button
           onClick={() => void connect()}
           disabled={busy}
-          className="mt-6 w-full rounded-2xl bg-rose-300 py-3 text-sm font-semibold text-[#2a1420] disabled:opacity-50"
+          className="mt-6 w-full rounded-2xl bg-sky-300 py-3 text-sm font-semibold text-[#04101a] disabled:opacity-50"
         >
           {busy ? '连接中…' : '连接'}
         </button>
@@ -667,30 +667,30 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-[#130d14] text-rose-50">
+    <div className="flex h-[100dvh] flex-col bg-[#04101a] text-sky-50">
       <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
         <div>
           <div className="text-base font-semibold">海拾香</div>
-          <div className="mt-0.5 text-[11px] text-rose-200/50">{status}</div>
+          <div className="mt-0.5 text-[11px] text-sky-200/50">{status}</div>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setStatusOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-white/5 px-2.5 py-2 text-[11px] text-rose-100/75"
+            className="flex items-center gap-1.5 rounded-xl bg-white/5 px-2.5 py-2 text-[11px] text-sky-100/75"
           >
             <span className={`h-1.5 w-1.5 rounded-full ${
               systemStatusError || !systemStatus
-                ? 'bg-rose-400'
+                ? 'bg-sky-400'
                 : systemStatus.degraded
                   ? 'bg-amber-300'
                   : 'bg-emerald-400'
             }`} />
             {systemStatusError || !systemStatus ? '系统离线' : systemStatus.degraded ? '系统降级' : '系统正常'}
           </button>
-          <button onClick={() => setShowAvatar(true)} className="rounded-xl px-3 py-2 text-xs text-rose-200/70">
+          <button onClick={() => setShowAvatar(true)} className="rounded-xl px-3 py-2 text-xs text-sky-200/70">
             形象
           </button>
-          <button onClick={onDisconnect} className="rounded-xl px-3 py-2 text-xs text-rose-200/60">
+          <button onClick={onDisconnect} className="rounded-xl px-3 py-2 text-xs text-sky-200/60">
             换地址
           </button>
         </div>
@@ -698,7 +698,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
 
       <main className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.length === 0 && (
-          <div className="mx-auto mt-16 max-w-xs text-center text-sm leading-6 text-rose-100/40">
+          <div className="mx-auto mt-16 max-w-xs text-center text-sm leading-6 text-sky-100/40">
             这里还是空的。说句“在吗”试试。
           </div>
         )}
@@ -711,8 +711,8 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
             <div
               className={`max-w-[82%] rounded-2xl px-4 py-2.5 text-sm leading-6 ${
                 message.role === 'user'
-                  ? 'rounded-br-md bg-rose-300 text-[#2a1420]'
-                  : 'rounded-bl-md border border-white/10 bg-white/[0.06] text-rose-50'
+                  ? 'rounded-br-md bg-sky-300 text-[#04101a]'
+                  : 'rounded-bl-md border border-white/10 bg-white/[0.06] text-sky-50'
               }`}
             >
               {message.recommendation ? (
@@ -727,19 +727,19 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                         className="h-10 w-10 shrink-0 rounded-lg object-cover"
                       />
                     ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-rose-200/70">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/10 text-sky-200/70">
                         ♪
                       </div>
                     )}
                     <div className="min-w-0">
                       <div className="truncate font-medium">{message.recommendation.title}</div>
                       {message.recommendation.creator && (
-                        <div className="truncate text-xs text-rose-100/50">
+                        <div className="truncate text-xs text-sky-100/50">
                           {message.recommendation.creator}
                         </div>
                       )}
                     </div>
-                    <div className="ml-auto pr-1 text-rose-200/40">♪</div>
+                    <div className="ml-auto pr-1 text-sky-200/40">♪</div>
                   </div>
                 </div>
               ) : (
@@ -749,7 +749,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                     <button
                       type="button"
                       onClick={() => void toggleSpeak(message)}
-                      className="mt-1 rounded-lg bg-white/10 px-2 py-1 text-[11px] text-rose-100/80"
+                      className="mt-1 rounded-lg bg-white/10 px-2 py-1 text-[11px] text-sky-100/80"
                     >
                       {speakingId === message.id ? '■ 停止' : '▶ 朗读'}
                     </button>
@@ -768,13 +768,13 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
           onClick={() => setStatusOpen(false)}
         >
           <div
-            className="w-full rounded-3xl border border-white/10 bg-[#171018] p-4 text-rose-50 shadow-2xl"
+            className="w-full rounded-3xl border border-white/10 bg-[#07131f] p-4 text-sky-50 shadow-2xl"
             onClick={event => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold">系统状态</div>
-                <div className="mt-1 text-[11px] text-rose-200/45">
+                <div className="mt-1 text-[11px] text-sky-200/45">
                   {systemStatus
                     ? `v${systemStatus.version} · 更新于 ${new Date(systemStatus.now).toLocaleTimeString('zh-CN')}`
                     : systemStatusError || '还没有状态'}
@@ -782,7 +782,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
               </div>
               <button
                 onClick={() => setStatusOpen(false)}
-                className="rounded-xl bg-white/10 px-3 py-1.5 text-xs text-rose-100"
+                className="rounded-xl bg-white/10 px-3 py-1.5 text-xs text-sky-100"
               >
                 关闭
               </button>
@@ -801,8 +801,8 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                   return (
                     <div key={label as string} className="flex items-start justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5">
                       <div className="min-w-0">
-                        <div className="text-xs font-medium text-rose-50">{label as string}</div>
-                        <div className="mt-0.5 truncate text-[11px] text-rose-200/40">
+                        <div className="text-xs font-medium text-sky-50">{label as string}</div>
+                        <div className="mt-0.5 truncate text-[11px] text-sky-200/40">
                           {value.message || '—'}
                         </div>
                       </div>
@@ -814,13 +814,13 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                   );
                 })
               ) : (
-                <div className="rounded-2xl bg-rose-500/10 px-3 py-4 text-xs leading-5 text-rose-200/70">
+                <div className="rounded-2xl bg-sky-600/10 px-3 py-4 text-xs leading-5 text-sky-200/70">
                   {systemStatusError || 'Core 状态不可用。检查地址、Token，或 Core 是否在运行。'}
                 </div>
               )}
             </div>
 
-            <div className="mt-3 text-center text-[10px] text-rose-200/30">
+            <div className="mt-3 text-center text-[10px] text-sky-200/30">
               每 20 秒自动刷新
             </div>
           </div>
@@ -828,15 +828,15 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
       )}
 
       {showAvatar && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-[#130d14]">
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#04101a]">
           <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
             <div>
               <div className="text-sm font-semibold">形象演示</div>
-              <div className="mt-0.5 text-[11px] text-rose-200/40">Shizuku · 技术验证</div>
+              <div className="mt-0.5 text-[11px] text-sky-200/40">Shizuku · 技术验证</div>
             </div>
             <button
               onClick={() => setShowAvatar(false)}
-              className="rounded-xl bg-white/10 px-3 py-2 text-xs text-rose-100"
+              className="rounded-xl bg-white/10 px-3 py-2 text-xs text-sky-100"
             >
               关闭
             </button>
@@ -852,7 +852,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
         </div>
       )}
 
-      <footer className="shrink-0 border-t border-white/10 bg-[#171018] px-3 py-3">
+      <footer className="shrink-0 border-t border-white/10 bg-[#07131f] px-3 py-3">
         <div className="flex items-end gap-2">
           <textarea
             value={input}
@@ -865,12 +865,12 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
             }}
             rows={1}
             placeholder="说点什么…"
-            className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-rose-100/30 focus:border-rose-300/50"
+            className="max-h-28 min-h-11 flex-1 resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-sky-100/30 focus:border-sky-300/50"
           />
           <button
             onClick={() => void send()}
             disabled={sending || !input.trim()}
-            className="h-11 shrink-0 rounded-2xl bg-rose-300 px-4 text-sm font-semibold text-[#2a1420] disabled:opacity-40"
+            className="h-11 shrink-0 rounded-2xl bg-sky-300 px-4 text-sm font-semibold text-[#04101a] disabled:opacity-40"
           >
             发送
           </button>

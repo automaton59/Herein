@@ -11,7 +11,7 @@ body,
 body {
   margin: 0;
   overflow: hidden;
-  background: #fff7ed;
+  background: #f6fbff;
 }
 
 * {
@@ -19,7 +19,7 @@ body {
 }
 
 .dark body {
-  background: #130d14;
+  background: #04101a;
 }
 
 .dark input,
@@ -29,19 +29,19 @@ body {
 }
 
 .dark option {
-  background: #171018;
-  color: #fff1f2;
+  background: #07131f;
+  color: #eff8ff;
 }
 
 .dark ::selection {
-  background: rgba(251, 113, 133, 0.35);
+  background: rgba(56, 189, 248, 0.35);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(244, 63, 94, 0.35) transparent;
+  scrollbar-color: rgba(14, 165, 233, 0.35) transparent;
 }
 
 .dark * {
-  scrollbar-color: rgba(251, 113, 133, 0.35) transparent;
+  scrollbar-color: rgba(56, 189, 248, 0.35) transparent;
 }

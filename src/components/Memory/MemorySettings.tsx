@@ -47,10 +47,10 @@ export function MemorySettings({ value, apiProfiles, onChange }: MemorySettingsP
   };
 
   return (
-    <section className="space-y-5 rounded-2xl border border-rose-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/80 dark:shadow-none">
+    <section className="space-y-5 rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-950 dark:text-rose-50">记忆设置</h2>
+          <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">记忆设置</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">调整总结、抽取和上下文记忆的全局行为。</p>
         </div>
         <button
@@ -78,8 +78,8 @@ export function MemorySettings({ value, apiProfiles, onChange }: MemorySettingsP
               onClick={selectFollowChat}
               className={`flex min-h-20 items-start gap-3 rounded-xl border p-3 text-left transition ${
                 current.memoryProfileMode === 'follow-chat'
-                  ? 'border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-100 dark:border-rose-300/50 dark:bg-rose-300/10 dark:text-rose-100 dark:ring-rose-300/10'
-                  : 'border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                  ? 'border-sky-300 bg-sky-50 text-sky-800 ring-2 ring-sky-100 dark:border-sky-300/50 dark:bg-sky-300/10 dark:text-sky-100 dark:ring-sky-300/10'
+                  : 'border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
               }`}
             >
               <MessageSquare size={18} className="mt-0.5 shrink-0" />
@@ -95,8 +95,8 @@ export function MemorySettings({ value, apiProfiles, onChange }: MemorySettingsP
               onClick={selectCustomProfile}
               className={`flex min-h-20 items-start gap-3 rounded-xl border p-3 text-left transition ${
                 current.memoryProfileMode === 'custom'
-                  ? 'border-rose-300 bg-rose-50 text-rose-700 ring-2 ring-rose-100 dark:border-rose-300/50 dark:bg-rose-300/10 dark:text-rose-100 dark:ring-rose-300/10'
-                  : 'border-rose-100 bg-white text-slate-600 hover:bg-rose-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                  ? 'border-sky-300 bg-sky-50 text-sky-800 ring-2 ring-sky-100 dark:border-sky-300/50 dark:bg-sky-300/10 dark:text-sky-100 dark:ring-sky-300/10'
+                  : 'border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
               }`}
             >
               <Brain size={18} className="mt-0.5 shrink-0" />
@@ -135,7 +135,7 @@ export function MemorySettings({ value, apiProfiles, onChange }: MemorySettingsP
             max={200}
             value={current.summaryTriggerMessageCount}
             onChange={(event) => update({ summaryTriggerMessageCount: clampTriggerCount(Number(event.target.value)) })}
-            className="h-11 w-full rounded-xl border border-rose-100 px-3 text-slate-950 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:border-rose-300/60 dark:focus:ring-rose-300/10"
+            className="h-11 w-full rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
           />
         </label>
       </div>

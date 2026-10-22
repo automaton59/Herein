@@ -363,8 +363,8 @@ export function MemoryPanel({
   };
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-l border-white/70 bg-white/80 text-slate-900 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#171018]/85 dark:text-rose-50">
-      <div className="shrink-0 border-b border-rose-100 px-4 py-3 dark:border-white/10">
+    <aside className="flex h-full min-h-0 flex-col border-l border-white/70 bg-white/80 text-slate-900 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/85 dark:text-sky-50">
+      <div className="shrink-0 border-b border-sky-100 px-4 py-3 dark:border-white/10">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-semibold">记忆</h2>
@@ -376,7 +376,7 @@ export function MemoryPanel({
               aria-label="关闭"
               title="关闭"
               onClick={onClose}
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-rose-100"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-sky-100"
             >
               <X size={16} />
             </button>
@@ -386,7 +386,7 @@ export function MemoryPanel({
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {feedback && (
-          <div className="border-l-4 border-rose-400 bg-rose-50 px-3 py-2 text-sm text-rose-800 dark:bg-rose-400/10 dark:text-rose-100">
+          <div className="border-l-4 border-sky-400 bg-sky-50 px-3 py-2 text-sm text-sky-900 dark:bg-sky-400/10 dark:text-sky-100">
             {feedback}
           </div>
         )}
@@ -401,7 +401,7 @@ export function MemoryPanel({
                   aria-label="编辑当前总结"
                   title="编辑当前总结"
                   onClick={startEditingSummary}
-                  className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-rose-100"
+                  className="grid h-7 w-7 place-items-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-sky-100"
                 >
                   <Pencil size={14} />
                 </button>
@@ -410,7 +410,7 @@ export function MemoryPanel({
                 type="button"
                 aria-label={summaryOpen ? '收起当前总结' : '展开当前总结'}
                 onClick={() => setSummaryOpen(open => !open)}
-                className="rounded-md px-2 py-1 text-xs font-medium text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-rose-100"
+                className="rounded-md px-2 py-1 text-xs font-medium text-slate-400 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-500 dark:hover:bg-white/10 dark:hover:text-sky-100"
               >
                 {summaryOpen ? '收起' : '展开'}
               </button>
@@ -418,7 +418,7 @@ export function MemoryPanel({
           </div>
           {summaryOpen && (
             editingSummary ? (
-              <div className="grid gap-2 rounded-lg border border-rose-100 bg-white p-3 dark:border-white/10 dark:bg-white/5">
+              <div className="grid gap-2 rounded-lg border border-sky-100 bg-white p-3 dark:border-white/10 dark:bg-white/5">
                 <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                   编辑当前总结内容
                   <textarea
@@ -428,14 +428,14 @@ export function MemoryPanel({
                       setFeedback(null);
                     }}
                     rows={5}
-                    className="min-h-32 resize-y rounded-lg border border-rose-100 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                    className="min-h-32 resize-y rounded-lg border border-sky-100 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
                   />
                 </label>
                 <div className="flex gap-2">
                   <button
                     type="button"
                     onClick={() => void saveSummary()}
-                    className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-rose-500 px-3 text-sm font-medium text-white hover:bg-rose-600 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300"
+                    className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
                   >
                     <Check size={15} />
                     保存总结
@@ -447,7 +447,7 @@ export function MemoryPanel({
                       setSummaryDraft(loadedSummary?.content ?? '');
                       setFeedback(null);
                     }}
-                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-rose-100 px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
+                    className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-sky-100 px-3 text-sm font-medium text-slate-500 hover:bg-sky-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
                   >
                     <X size={15} />
                     取消
@@ -455,7 +455,7 @@ export function MemoryPanel({
                 </div>
               </div>
             ) : (
-              <p className="rounded-lg border border-rose-100 bg-white px-3 py-2 text-sm leading-6 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
+              <p className="rounded-lg border border-sky-100 bg-white px-3 py-2 text-sm leading-6 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
                 {loadedSummary?.content || '还没有生成总结。'}
               </p>
             )
@@ -468,7 +468,7 @@ export function MemoryPanel({
             <span className="text-xs text-slate-400 dark:text-slate-500">{visibleMemories.length} / {structuredMemories.length} 条</span>
           </div>
 
-          <div className="grid grid-cols-3 rounded-lg border border-rose-100 bg-white/70 p-1 text-xs font-medium dark:border-white/10 dark:bg-white/5">
+          <div className="grid grid-cols-3 rounded-lg border border-sky-100 bg-white/70 p-1 text-xs font-medium dark:border-white/10 dark:bg-white/5">
             {([
               ['context', '下次参考'],
               ['all', '全部'],
@@ -481,8 +481,8 @@ export function MemoryPanel({
                 onClick={() => setMemoryView(view)}
                 className={`h-8 rounded-md px-2 transition ${
                   memoryView === view
-                    ? 'bg-rose-500 text-white shadow-sm dark:bg-rose-300 dark:text-[#1b1018]'
-                    : 'text-slate-500 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-rose-100'
+                    ? 'bg-sky-600 text-white shadow-sm dark:bg-sky-300 dark:text-[#04101a]'
+                    : 'text-slate-500 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-sky-100'
                 }`}
               >
                 {label}
@@ -491,7 +491,7 @@ export function MemoryPanel({
           </div>
 
           {visibleMemories.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-rose-100 px-3 py-3 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+            <div className="rounded-lg border border-dashed border-sky-100 px-3 py-3 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
               {memoryView === 'context'
                 ? '暂无会进入下次回复的记忆。'
                 : memoryView === 'disabled'
@@ -505,9 +505,9 @@ export function MemoryPanel({
                 const inContext = isContextMemory(memory);
 
                 return (
-                  <article key={memory.id} className="space-y-2 rounded-lg border border-rose-100 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5">
+                  <article key={memory.id} className="space-y-2 rounded-lg border border-sky-100 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/5">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="font-medium text-rose-600 dark:text-rose-200">{KIND_LABELS[memory.kind]}</span>
+                      <span className="font-medium text-sky-700 dark:text-sky-200">{KIND_LABELS[memory.kind]}</span>
                       <span className="text-slate-400 dark:text-slate-500">{SCOPE_LABELS[memory.scope]}</span>
                       <span className={`rounded-full border px-2 py-0.5 ${badgeClass(memory)}`}>
                         {memory.status === 'disabled' ? '已禁用' : inContext ? '进入上下文' : '不进上下文'}
@@ -520,7 +520,7 @@ export function MemoryPanel({
                             aria-label="编辑记忆"
                             title="编辑记忆"
                             onClick={() => startEditing(memory)}
-                            className="grid h-6 w-6 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-rose-100"
+                            className="grid h-6 w-6 place-items-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-sky-100"
                           >
                             <Pencil size={13} />
                           </button>
@@ -529,7 +529,7 @@ export function MemoryPanel({
                             aria-label={memory.pinned ? '取消置顶' : '置顶'}
                             title={memory.pinned ? '取消置顶' : '置顶'}
                             onClick={() => void updateMemory(memory.id, { pinned: !memory.pinned })}
-                            className={`grid h-6 w-6 place-items-center rounded-md hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-white/10 dark:hover:text-rose-100 ${memory.pinned ? 'text-rose-500 dark:text-rose-200' : 'text-slate-400 dark:text-slate-400'}`}
+                            className={`grid h-6 w-6 place-items-center rounded-md hover:bg-sky-50 hover:text-sky-700 dark:hover:bg-white/10 dark:hover:text-sky-100 ${memory.pinned ? 'text-sky-700 dark:text-sky-200' : 'text-slate-400 dark:text-slate-400'}`}
                           >
                             <Pin size={13} />
                           </button>
@@ -540,7 +540,7 @@ export function MemoryPanel({
                             onClick={() => void updateMemory(memory.id, inContext
                               ? { includeInContext: false }
                               : { status: 'active', includeInContext: true })}
-                            className="grid h-6 w-6 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-rose-100"
+                            className="grid h-6 w-6 place-items-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-sky-100"
                           >
                             {inContext ? <EyeOff size={13} /> : <Eye size={13} />}
                           </button>
@@ -551,7 +551,7 @@ export function MemoryPanel({
                             onClick={() => void updateMemory(memory.id, memory.status === 'disabled'
                               ? { status: 'active', includeInContext: true }
                               : { status: 'disabled', includeInContext: false })}
-                            className="grid h-6 w-6 place-items-center rounded-md text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-rose-100"
+                            className="grid h-6 w-6 place-items-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-sky-700 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-sky-100"
                           >
                             {memory.status === 'disabled' ? <RotateCcw size={13} /> : <Ban size={13} />}
                           </button>
@@ -576,7 +576,7 @@ export function MemoryPanel({
                             <select
                               value={editDraft.kind}
                               onChange={(event) => setEditDraft(current => ({ ...current, kind: event.target.value as MemoryKind }))}
-                              className="h-9 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                              className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
                             >
                               {KIND_OPTIONS.map(option => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -588,7 +588,7 @@ export function MemoryPanel({
                             <select
                               value={editDraft.scope}
                               onChange={(event) => setEditDraft(current => ({ ...current, scope: event.target.value as MemoryScope }))}
-                              className="h-9 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                              className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
                             >
                               {SCOPE_OPTIONS.map(option => (
                                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -602,14 +602,14 @@ export function MemoryPanel({
                             value={editDraft.content}
                             onChange={(event) => setEditDraft(current => ({ ...current, content: event.target.value }))}
                             rows={3}
-                            className="min-h-20 resize-y rounded-lg border border-rose-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                            className="min-h-20 resize-y rounded-lg border border-sky-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
                           />
                         </label>
                         <div className="flex gap-2">
                           <button
                             type="button"
                             onClick={() => void saveEditingMemory()}
-                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-rose-500 px-3 text-sm font-medium text-white hover:bg-rose-600 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300"
+                            className="inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
                           >
                             <Check size={15} />
                             保存修改
@@ -617,7 +617,7 @@ export function MemoryPanel({
                           <button
                             type="button"
                             onClick={() => setEditingMemoryId(null)}
-                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-rose-100 px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
+                            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-sky-100 px-3 text-sm font-medium text-slate-500 hover:bg-sky-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
                           >
                             <X size={15} />
                             取消
@@ -646,7 +646,7 @@ export function MemoryPanel({
         </section>
       </div>
 
-      <div className="shrink-0 border-t border-rose-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_-4px_rgba(244,63,94,0.18)] dark:border-white/15 dark:bg-[#171018]/95 dark:shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.5)]">
+      <div className="shrink-0 border-t border-sky-200 bg-white/95 px-4 py-3 shadow-[0_-4px_12px_-4px_rgba(244,63,94,0.18)] dark:border-white/15 dark:bg-[#07131f]/95 dark:shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.5)]">
         {composerOpen ? (
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
@@ -655,7 +655,7 @@ export function MemoryPanel({
                 <select
                   value={newDraft.kind}
                   onChange={(event) => setNewDraft(current => ({ ...current, kind: event.target.value as MemoryKind }))}
-                  className="h-10 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                  className="h-10 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
                 >
                   {KIND_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -667,7 +667,7 @@ export function MemoryPanel({
                 <select
                   value={newDraft.scope}
                   onChange={(event) => setNewDraft(current => ({ ...current, scope: event.target.value as MemoryScope }))}
-                  className="h-10 rounded-lg border border-rose-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                  className="h-10 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
                 >
                   {SCOPE_OPTIONS.map(option => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -684,14 +684,14 @@ export function MemoryPanel({
                   setFeedback(null);
                 }}
                 rows={3}
-                className="min-h-24 resize-y rounded-lg border border-rose-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 dark:border-white/10 dark:bg-white/5 dark:text-rose-50 dark:focus:ring-rose-300/10"
+                className="min-h-24 resize-y rounded-lg border border-sky-100 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
               />
             </label>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => void handleCreateMemory()}
-                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-rose-500 px-3 text-sm font-medium text-white hover:bg-rose-600 dark:bg-rose-400 dark:text-[#1b1018] dark:hover:bg-rose-300"
+                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-sky-600 px-3 text-sm font-medium text-white hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
               >
                 <Plus size={16} />
                 保存记忆
@@ -699,7 +699,7 @@ export function MemoryPanel({
               <button
                 type="button"
                 onClick={() => { setComposerOpen(false); setNewDraft(emptyDraft); }}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-rose-100 px-3 text-sm font-medium text-slate-500 hover:bg-rose-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-sky-100 px-3 text-sm font-medium text-slate-500 hover:bg-sky-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/10"
               >
                 <X size={16} />
                 取消
@@ -710,7 +710,7 @@ export function MemoryPanel({
           <button
             type="button"
             onClick={() => setComposerOpen(true)}
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-rose-200 bg-white/60 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-300/30 dark:bg-white/5 dark:text-rose-200 dark:hover:bg-white/10"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-sky-200 bg-white/60 text-sm font-medium text-sky-700 hover:bg-sky-50 dark:border-sky-300/30 dark:bg-white/5 dark:text-sky-200 dark:hover:bg-white/10"
           >
             <Plus size={16} />
             添加记忆
