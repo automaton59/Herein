@@ -13,8 +13,9 @@ import {
 } from './types';
 
 export interface DiscoveredPlugin {
-  dir: string;
+  dir?: string;
   manifest: PluginManifest;
+  create?: () => Promise<PluginInstance> | PluginInstance;
 }
 
 async function isDirectory(target: string) {

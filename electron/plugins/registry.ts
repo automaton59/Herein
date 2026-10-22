@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { Phase2Database } from '../data/database';
 import { discoverPlugins, loadPluginInstance, type DiscoveredPlugin } from './loader';
-import { defaultPluginConfig, validatePluginConfig } from './manifest';
+import { defaultPluginConfig, validatePluginConfig, validatePluginManifest } from './manifest';
 import {
   PluginError,
   type PluginAuditRecord,
@@ -119,6 +119,7 @@ export class PluginRegistry {
   private readonly healthTimeoutMs: number;
   private readonly startTimeoutMs: number;
   private readonly discovered = new Map<string, DiscoveredPlugin>();
+  private readonly builtins = new Map<string, DiscoveredPlugin>();
   private readonly loaded = new Map<string, LoadedPlugin>();
   private readonly health = new Map<string, PluginHealth>();
 
@@ -158,6 +159,19 @@ export class PluginRegistry {
     }
   }
 
+  registerBuiltin(
+    manifest: PluginManifest,
+    create: () => Promise<PluginInstance> | PluginInstance,
+  ): PluginManifest {
+    const normalized = validatePluginManifest(manifest);
+    this.builtins.set(normalized.id, {
+      manifest: normalized,
+      create,
+    });
+
+    return normalized;
+  }
+
   async close() {
     for (const [pluginId] of this.loaded) {
       await this.stopLoaded(pluginId);
@@ -184,7 +198,7 @@ export class PluginRegistry {
       views.set(row.plugin_id, this.viewFromRow(row));
     }
 
-    for (const [pluginId, plugin] of this.discovered) {
+    for (const [pluginId, plugin] of this.availablePlugins()) {
       if (views.has(pluginId)) {
         continue;
       }
@@ -462,7 +476,13 @@ export class PluginRegistry {
       await this.stopLoaded(pluginId);
     }
 
-    const instance = await loadPluginInstance(discovered.dir, discovered.manifest);
+    const instance = discovered.create
+      ? await discovered.create()
+      : discovered.dir
+        ? await loadPluginInstance(discovered.dir, discovered.manifest)
+        : (() => {
+          throw new PluginError('plugin_failed', `plugin has no loadable entry: ${pluginId}`, 500);
+        })();
     const context = this.createContext(discovered.manifest, config);
 
     if (instance.start) {
@@ -605,7 +625,7 @@ export class PluginRegistry {
   }
 
   private requireDiscovered(pluginId: string): DiscoveredPlugin {
-    const plugin = this.discovered.get(pluginId);
+    const plugin = this.builtins.get(pluginId) ?? this.discovered.get(pluginId);
 
     if (!plugin) {
       throw new PluginError('not_found', `plugin not found: ${pluginId}`, 404);
@@ -614,8 +634,12 @@ export class PluginRegistry {
     return plugin;
   }
 
+  private availablePlugins(): Map<string, DiscoveredPlugin> {
+    return new Map([...this.builtins, ...this.discovered]);
+  }
+
   private viewFromRow(row: PluginRow): PluginView {
-    const discovered = this.discovered.get(row.plugin_id);
+    const discovered = this.builtins.get(row.plugin_id) ?? this.discovered.get(row.plugin_id);
     const storedManifest = parseJson<PluginManifest | null>(row.manifest_json, null);
     const manifest = discovered?.manifest
       ?? storedManifest

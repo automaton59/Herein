@@ -23,6 +23,8 @@ import { buildCoreStatus } from './status';
 import { CoreMemoryRunner } from './memory';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
+import { BILIBILI_MANIFEST, createBilibiliPlugin } from '../plugins/builtin/bilibili';
+import { NETEASE_MANIFEST, createNeteasePlugin } from '../plugins/builtin/netease';
 import {
   scanBilibiliFeed,
   type BilibiliFeedSource,
@@ -259,6 +261,13 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     pluginsDir,
     fetchImpl: options.pluginFetch,
   });
+  pluginRegistry.registerBuiltin(BILIBILI_MANIFEST, () => createBilibiliPlugin({
+    repos,
+    source: options.bilibiliSource,
+  }));
+  pluginRegistry.registerBuiltin(NETEASE_MANIFEST, () => createNeteasePlugin({
+    source: options.neteaseSource,
+  }));
   await pluginRegistry.initialize();
 
   const memoryRunner = new CoreMemoryRunner({
@@ -619,6 +628,14 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         const limit = typeof body.limit === 'number' ? body.limit : 10;
 
         try {
+          const plugin = pluginRegistry.get('netease');
+
+          if (plugin?.enabled) {
+            const result = await pluginRegistry.invoke('netease', 'candidates', { query, limit });
+            sendJson(response, 200, result);
+            return;
+          }
+
           const candidates = await getNeteaseCandidates({
             query,
             limit,
@@ -637,24 +654,25 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
       if (request.method === 'POST' && url.pathname === '/v1/bilibili/scan') {
         const body = asRecord(await readJson(request));
         const limit = typeof body.limit === 'number' ? body.limit : 20;
-        let source = options.bilibiliSource;
 
-        if (!source) {
-          try {
+        try {
+          const plugin = pluginRegistry.get('bilibili');
+
+          if (plugin?.enabled) {
+            const result = await pluginRegistry.invoke('bilibili', 'scan', { limit });
+            sendJson(response, 200, result);
+            return;
+          }
+
+          let source = options.bilibiliSource;
+
+          if (!source) {
             const adapter = await import('../../adapters/bilibili/dist/index.js' as string) as {
               BilibiliClient: new (options?: { minIntervalMs?: number }) => BilibiliFeedSource;
             };
             source = new adapter.BilibiliClient({ minIntervalMs: 1200 });
-          } catch (error) {
-            sendJson(response, 503, {
-              error: 'Bilibili adapter is not built',
-              detail: error instanceof Error ? error.message : 'run npm run build:bilibili',
-            });
-            return;
           }
-        }
 
-        try {
           const result = await scanBilibiliFeed({
             repos,
             source,
@@ -663,9 +681,9 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           });
           sendJson(response, 200, result);
         } catch (error) {
-          sendJson(response, 502, {
+          sendJson(response, 503, {
             error: 'Bilibili scan failed',
-            detail: error instanceof Error ? error.message : 'unknown error',
+            detail: error instanceof Error ? error.message : 'run npm run build:bilibili',
           });
         }
         return;
