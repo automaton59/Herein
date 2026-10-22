@@ -146,6 +146,8 @@ if (new Set(samples.map(row => (row.workers || []).map(item => item.pid).sort((a
   problems.push("worker_process_tree_changed");
 const lateGrowth = processMemory.filter(record => record.lateWindowHours >= 1 &&
   (record.lateWorkingSetSlopeMiBPerHour > 10 || record.latePrivateSlopeMiBPerHour > 10));
+const lateHalfGrowth = processMemory.filter(record =>
+  record.lateHalfWorkingSetSlopeMiBPerHour > 10 || record.lateHalfPrivateSlopeMiBPerHour > 10);
 const supplementarySeries = new Map();
 for (const sample of supplementary.rows.filter(row => !row.failure)) {
   for (const item of sample.processes || []) {
@@ -182,6 +184,8 @@ if (supplementaryTimes.some((time, i) => i && time <= supplementaryTimes[i - 1])
   problems.push("supplementary_non_monotonic_samples");
 const supplementaryGrowth = supplementaryProcesses.filter(record =>
   record.latePrivateSlopeMiBPerHour > 10 || record.lateHandleSlopePerHour > 10);
+const supplementaryLateHalfGrowth = supplementaryProcesses.filter(record =>
+  record.lateHalfPrivateSlopeMiBPerHour > 10 || record.lateHalfHandleSlopePerHour > 10);
 const performanceBuckets = new Map();
 for (const row of metrics) {
   const hour = Math.floor((Date.parse(row.at) - started) / 3600000);
@@ -223,6 +227,7 @@ const report = {
     underruns: stats(samples.map(row => row.metrics?.underruns)) },
   gpuMemoryMiB: stats(samples.map(row => row.gpu ? Number(row.gpu.split(",")[0]) : NaN)),
   processMemory, lateGrowthReviewPids: lateGrowth.map(record => record.pid),
+  lateHalfGrowthReviewPids: lateHalfGrowth.map(record => record.pid),
   supplementaryProcesses,
   supplementaryCoverageStart: supplementary.rows[0]?.at,
   supplementaryCoverage: {
@@ -233,8 +238,10 @@ const report = {
     sampleGapsSeconds: stats(supplementaryGaps),
   },
   supplementaryGrowthReviewPids: supplementaryGrowth.map(record => record.pid),
+  supplementaryLateHalfGrowthReviewPids: supplementaryLateHalfGrowth.map(record => record.pid),
   memoryReviewThresholdMiBPerHour: 10,
-  memoryAssessment: lateGrowth.length || supplementaryGrowth.length ? "review_late_growth" : finished ? "review_trends_before_acceptance" : "insufficient_duration",
+  memoryAssessment: lateGrowth.length || supplementaryGrowth.length || lateHalfGrowth.length || supplementaryLateHalfGrowth.length
+    ? "review_late_growth" : finished ? "review_trends_before_acceptance" : "insufficient_duration",
   metricsCoverageStart: metrics[0]?.at,
   hourlyPerformance,
   performanceSemantics: "software_timing_only_missing_values_are_not_zero",
@@ -252,5 +259,7 @@ const report = {
 await fs.writeFile(path.join(dir, "soak-audit.local.json"), JSON.stringify(report, null, 2));
 console.log(JSON.stringify({ outcome: report.outcome, actualEightHoursFinished: finished,
   samples: samples.length, sampledSpanHours: report.sampledSpanHours,
-  problems, lateGrowthReviewPids: report.lateGrowthReviewPids }));
+  problems, lateGrowthReviewPids: report.lateGrowthReviewPids,
+  lateHalfGrowthReviewPids: report.lateHalfGrowthReviewPids,
+  supplementaryLateHalfGrowthReviewPids: report.supplementaryLateHalfGrowthReviewPids }));
 if (problems.length || (requireFinished && !finished)) process.exitCode = 1;

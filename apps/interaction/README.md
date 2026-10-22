@@ -135,6 +135,8 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 
 审计的每个进程带 `hourlyWindows`（按起点小时的 min/median/max、样本数和覆盖分钟）与预热后时间窗后半段的斜率，帮助检查增长是否趋稳。补充采样单独报告起点/截止覆盖与采样缺口，超过 90 秒的缺口列为问题；句柄或私有内存增长即使未反映在工作集也会列入人工复查。单个小时仍可能含预热或活动波动，斜率/统计不自动作泄漏结论。
 
+`lateHalfGrowthReviewPids` 与 `supplementaryLateHalfGrowthReviewPids` 单列后半段增长，即使整个后期窗口被前段下降抵消也进入memoryAssessment。该指标仍只提出复查，需比较小时峰值/周期回落/句柄与完整时间覆盖，不自动认定泄漏。
+
 `hourlyPerformance` 按同一起点汇总 ASR、VAD 后识别完成、合成首包、软件首声、软件取消确认、RTF 与 fps 的样本数/min/median/p95/max。没有测到的指标是 count=0/null，不能当作零延迟；ASR 的主进程与 renderer 记录不重复计数。长测固定语音没有关联合成输入回复，因此没有端到端首声样本；闭环另看对应合成/真人验收报告。软件首声/取消确认不代表扬声器或真人人声起点延迟，少量 TTS 样本的 p95 只作描述。
 
 `metrics.jsonl` 只保存允许字段的计时、计数和状态，8MiB 轮转，写队列上限 256；不保存输入音频、识别文本、发声文本、任意错误消息、token 或聊天记录。辅助 benchmark 可生成**固定测试音频**到 gitignored `tmp/`。`diagnostics:true` 可启用页面截图和模拟 lifecycle 接口；截图留在本机私有验收目录，关闭时不可调用。

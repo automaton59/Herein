@@ -120,3 +120,15 @@ test("hourly timings separate ASR, software sound and unmeasured endpoint latenc
   assert.equal(first.softwareEndToSoundMs.median, null);
   assert.equal(second.softwareEndToSoundMs.median, 1500);
 }));
+
+test("late-half growth remains visible when earlier decline masks the full late slope", async () => fixture(async ({ dir, rows, summary }) => {
+  rows.forEach((row, i) => {
+    const hours = i / 120;
+    row.workers[0].privateMiB = hours < 4.5 ? 1700 - 120 * hours : 1160 + 30 * (hours - 4.5);
+  });
+  const { report } = await run(dir, rows, summary);
+  assert.deepEqual(report.lateGrowthReviewPids, []);
+  assert.deepEqual(report.lateHalfGrowthReviewPids, [4]);
+  assert.ok(report.processMemory.find(p => p.pid === 4).lateHalfPrivateSlopeMiBPerHour > 29);
+  assert.equal(report.memoryAssessment, "review_late_growth");
+}));

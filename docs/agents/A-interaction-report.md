@@ -261,3 +261,9 @@ GGUF ASR小时0/1/2中位延迟：非透明345/343/348ms（计数511/514/324）�
 组合候选先应用SAPI/profile两补丁，再加流式故障修复：捕获当前Qwen worker对象、settled清监听器、ACK续期/失败立即拒绝/关闭/阻止后续emit；main先publish speech.failed(旧generation)，再cancel并推进generation，speech.error通知用新generation。buildId `94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca`，同冻结renderer。SAPI故障临时runtime12496（18:49:18.218191Z）原buffer3487.17ms，杀归属确认的worker后gen1→2，Worklet取消ACK0.3ms，tts.error→ACK1ms；下一新renderer采样buffer0，新句与取消/晚结束无复活通过。原始报告 `tmp/interaction-worker-failure-fixed-data/worker-failure-{probe,correlation}.local.json`；不保存PCM，不验证物理余音。health缓冲在下个5秒采样前可保留旧值，立即取消证据来自worklet ACK。
 
 两个短实例随后完整命令行/data/config/创建身份核对，各回收11个身份。三条原长测12个runtime/monitor/load/sampler仍原身份，未改冻结源与bundle；重算15源文件+main.js的build仍b3ffe698...4925d。三项补丁待原长测结束审阅后依次应用、记录新build、复验与重新打包；候选故障短测不等于最终全天候通过。
+
+## 2026-10-23 02:55：后半段趋势与恢复采样空窗
+
+SAPI第4次固定取消后新的worker.recovery先于下一补充进程快照，临时review报告recovery_without_observed_replacement；没有重启、终止或豁免该实例。随后原采样器记录新powershell30072（18:52:56.910068Z），重新关联完成：4次转换，peakWorkerCount1，8个已观察旧worker/conhost身份全机不存在。仍保留严格恢复/树变化标记，不作8小时结论。
+
+GGUF主ASR实际PID7780的全后期私有斜率约0.58MiB/h，但后半段约20.12MiB/h；独立一分钟采样也触发后半段复查。此前audit虽记录后半段数值，却未让它进入memoryAssessment，可能被前段下降掩盖。新增lateHalfGrowthReviewPids/supplementaryLateHalfGrowthReviewPids，仍按增长提出人工审阅而不自动判泄漏；反例“前段降/后半段升”通过，总审计9/9。主小时峰值尚未抬高，不能仅因周期波动就删复查。完整8小时资源审阅仍必须进行。
