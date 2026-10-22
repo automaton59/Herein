@@ -50,6 +50,7 @@ describe('openPhase2Database', () => {
       'plugin_registry',
       'plugin_audit',
       'timeline_read_state',
+      'chat_idempotency',
     ]) {
       const tableName = db
         .prepare("select name from sqlite_master where type = 'table' and name = ?")

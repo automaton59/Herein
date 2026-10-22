@@ -29,12 +29,54 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp?: string;
+  status?: 'pending' | 'sent' | 'failed';
+  clientMessageId?: string;
   recommendation?: {
     itemId: string;
     title: string;
     creator?: string;
     coverUrl?: string;
   };
+}
+
+interface PendingOutboxItem {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
+const OUTBOX_KEY = 'herein-mobile-outbox';
+
+function readOutbox(): PendingOutboxItem[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(OUTBOX_KEY) ?? '[]') as unknown;
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((item): item is PendingOutboxItem => (
+      typeof item === 'object'
+      && item !== null
+      && typeof (item as PendingOutboxItem).id === 'string'
+      && typeof (item as PendingOutboxItem).content === 'string'
+    )).slice(-20);
+  } catch {
+    return [];
+  }
+}
+
+function writeOutbox(items: PendingOutboxItem[]) {
+  try {
+    localStorage.setItem(OUTBOX_KEY, JSON.stringify(items.slice(-20)));
+  } catch {
+    // Storage may be unavailable; the in-memory pending message still exists.
+  }
+}
+
+function enqueueOutbox(item: PendingOutboxItem) {
+  const items = readOutbox().filter(existing => existing.id !== item.id);
+  writeOutbox([...items, item]);
 }
 
 interface SystemStatusComponent {
@@ -294,9 +336,12 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   const [systemStatusError, setSystemStatusError] = React.useState('');
   const [statusOpen, setStatusOpen] = React.useState(false);
   const [sending, setSending] = React.useState(false);
+  const [outboxCount, setOutboxCount] = React.useState(() => readOutbox().length);
   const [speakingId, setSpeakingId] = React.useState<string | null>(null);
   const [showAvatar, setShowAvatar] = React.useState(false);
   const [mouthOpen, setMouthOpen] = React.useState(0);
+  const messagesRef = React.useRef<ChatMessage[]>([]);
+  const flushingRef = React.useRef(false);
   const bottomRef = React.useRef<HTMLDivElement | null>(null);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = React.useRef<string | null>(null);
@@ -377,6 +422,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   }, []);
 
   React.useEffect(() => {
+    messagesRef.current = messages;
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -436,7 +482,14 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
         config,
         `/v1/timeline/${CHARACTER_ID}/messages?limit=50`,
       );
-      setMessages(data.messages);
+      setMessages(current => {
+        const pending = current.filter(message => (
+          message.status === 'pending' && Boolean(message.clientMessageId)
+        ));
+
+        return [...data.messages, ...pending];
+      });
+      setOutboxCount(readOutbox().length);
       setStatus('已连接');
 
       const lastMessage = data.messages[data.messages.length - 1];
@@ -644,42 +697,110 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
     }
   };
 
+  const postChat = React.useCallback(async (text: string, clientMessageId: string) => {
+    const history = [
+      ...messagesRef.current.filter(message => message.status !== 'pending'),
+      { role: 'user' as const, content: text },
+    ].slice(-20);
+
+    return coreRequest<{ message: ChatMessage; latencyMs: number }>(config, '/v1/chat', {
+      method: 'POST',
+      body: JSON.stringify({
+        characterId: CHARACTER_ID,
+        clientMessageId,
+        messages: history.map(message => ({ role: message.role, content: message.content })),
+        maxTokens: 120,
+        persist: true,
+      }),
+    });
+  }, [config]);
+
+  const flushOutbox = React.useCallback(async () => {
+    if (flushingRef.current) {
+      return;
+    }
+
+    const items = readOutbox();
+
+    if (items.length === 0) {
+      setOutboxCount(0);
+      return;
+    }
+
+    flushingRef.current = true;
+    let remaining = items;
+
+    try {
+      for (const item of items) {
+        try {
+          const data = await postChat(item.content, item.id);
+          remaining = remaining.filter(candidate => candidate.id !== item.id);
+          writeOutbox(remaining);
+          setOutboxCount(remaining.length);
+          setMessages(current => current.filter(message => message.clientMessageId !== item.id));
+          setStatus(`已补发 · ${data.latencyMs}ms`);
+        } catch (error) {
+          setStatus(error instanceof Error ? `还有 ${remaining.length} 条待发送：${error.message}` : '还有消息待发送');
+          break;
+        }
+      }
+    } finally {
+      flushingRef.current = false;
+    }
+
+    if (remaining.length === 0) {
+      await refreshMessages();
+    }
+  }, [postChat, refreshMessages]);
+
+  React.useEffect(() => {
+    void flushOutbox();
+    const onOnline = () => {
+      void flushOutbox();
+    };
+    window.addEventListener('online', onOnline);
+
+    return () => window.removeEventListener('online', onOnline);
+  }, [flushOutbox]);
+
   const send = async () => {
     const text = input.trim();
     if (!text || sending) {
       return;
     }
 
+    const clientMessageId = `mobile-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
     const userMessage: ChatMessage = {
-      id: `local-${Date.now()}`,
+      id: `local-${clientMessageId}`,
       role: 'user',
       content: text,
+      status: 'pending',
+      clientMessageId,
     };
-    const history = [...messages, userMessage].slice(-20);
     setMessages(current => [...current, userMessage]);
     setInput('');
     setSending(true);
     setStatus('她在想…');
 
     try {
-      const data = await coreRequest<{ message: ChatMessage; latencyMs: number }>(config, '/v1/chat', {
-        method: 'POST',
-        body: JSON.stringify({
-          characterId: CHARACTER_ID,
-          messages: history.map(message => ({ role: message.role, content: message.content })),
-          maxTokens: 120,
-          persist: true,
-        }),
-      });
-      setMessages(current => [...current, {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: data.message.content,
-      }]);
+      const data = await postChat(text, clientMessageId);
       setStatus(`已连接 · ${data.latencyMs}ms`);
       void maybeRecommend(text);
+      setMessages(current => current.filter(message => message.clientMessageId !== clientMessageId));
+      await refreshMessages();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : '发送失败');
+      enqueueOutbox({
+        id: clientMessageId,
+        content: text,
+        createdAt: new Date().toISOString(),
+      });
+      setOutboxCount(readOutbox().length);
+      setMessages(current => current.map(message => (
+        message.clientMessageId === clientMessageId
+          ? { ...message, status: 'pending' as const }
+          : message
+      )));
+      setStatus(error instanceof Error ? `网络不稳，已排队：${error.message}` : '网络不稳，已排队');
     } finally {
       setSending(false);
     }
@@ -691,6 +812,9 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
         <div>
           <div className="text-base font-semibold">海拾香</div>
           <div className="mt-0.5 text-[11px] text-sky-200/50">{status}</div>
+          {outboxCount > 0 && (
+            <div className="mt-0.5 text-[11px] text-amber-300/80">待发送 {outboxCount}</div>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -764,6 +888,9 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
               ) : (
                 <div>
                   <div>{message.content}</div>
+                  {message.status === 'pending' && (
+                    <div className="mt-1 text-[10px] text-amber-300/80">待发送</div>
+                  )}
                   {message.role === 'assistant' && message.content && (
                     <button
                       type="button"

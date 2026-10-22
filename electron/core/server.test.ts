@@ -215,6 +215,42 @@ describe('core server', () => {
     expect(read.body.readState.lastReadMessageId).toBe('msg-1');
   });
 
+  it('deduplicates a retried chat by clientMessageId', async () => {
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{ message: { role: 'assistant', content: '在。' } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    const body = {
+      characterId: 'herein-default',
+      clientMessageId: 'offline-1',
+      messages: [{ role: 'user', content: '在吗' }],
+    };
+    const first = await postJson(handle, '/v1/chat', body);
+    const second = await postJson(handle, '/v1/chat', body);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(second.body.message).toEqual(first.body.message);
+    expect(llmFetch).toHaveBeenCalledTimes(1);
+
+    const messages = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(messages.body.messages).toHaveLength(2);
+  });
+
   it('runs the initiative engine through Core HTTP', async () => {
     const llmFetch = vi.fn(async () => new Response(JSON.stringify({
       model: 'fake-model',

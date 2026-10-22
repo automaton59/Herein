@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
 
 export interface SchemaMigration {
   version: number;
@@ -386,6 +386,17 @@ export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
         last_read_message_id text,
         last_read_at text,
         updated_at text not null
+      );
+    `,
+  },
+  {
+    version: 11,
+    name: 'chat_idempotency',
+    sql: `
+      create table if not exists chat_idempotency (
+        key text primary key,
+        response_json text not null,
+        created_at text not null
       );
     `,
   },

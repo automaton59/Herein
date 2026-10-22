@@ -482,6 +482,20 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
         const timeline = repos.timelines.getPrimaryForCharacter(characterId)
           ?? repos.timelines.ensurePrimaryForCharacter(characterId, character.name);
+        const clientMessageId = typeof body.clientMessageId === 'string' && body.clientMessageId.trim()
+          ? body.clientMessageId.trim().slice(0, 200)
+          : null;
+        const idempotencyKey = clientMessageId ? `chat:${characterId}:${clientMessageId}` : null;
+
+        if (idempotencyKey) {
+          const cached = repos.chatIdempotency.get(idempotencyKey);
+
+          if (cached) {
+            sendJson(response, 200, cached);
+            return;
+          }
+        }
+
         const rawMessages = Array.isArray(body.messages) ? body.messages : [];
         const llmMessages: LlmMessage[] = rawMessages.map(item => {
           const message = asRecord(item);
@@ -571,7 +585,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           });
         }
 
-        sendJson(response, 200, {
+        const chatResponse = {
           message: {
             role: 'assistant',
             content: completion.content,
@@ -581,7 +595,13 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           latencyMs: completion.latencyMs,
           persisted: persist,
           timelineId: timeline.id,
-        });
+        };
+
+        if (idempotencyKey) {
+          repos.chatIdempotency.put(idempotencyKey, chatResponse);
+        }
+
+        sendJson(response, 200, chatResponse);
         return;
       }
 

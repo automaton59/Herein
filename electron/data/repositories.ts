@@ -1107,6 +1107,28 @@ export function createPhase2Repositories(db: Phase2Database) {
       },
     },
 
+    chatIdempotency: {
+      get(key: string): unknown | null {
+        const row = db
+          .prepare('select response_json from chat_idempotency where key = ?')
+          .get(key) as { response_json: string } | undefined;
+
+        return row ? parseJson<unknown>(row.response_json, null) : null;
+      },
+
+      put(key: string, response: unknown) {
+        db
+          .prepare(`
+            insert into chat_idempotency (key, response_json, created_at)
+            values (?, ?, ?)
+            on conflict(key) do update set
+              response_json = excluded.response_json,
+              created_at = excluded.created_at
+          `)
+          .run(key, stringifyJson(response as JsonValue), nowIso());
+      },
+    },
+
     memories: {
       create(memory: MemoryRecord) {
         const timestamp = nowIso();
