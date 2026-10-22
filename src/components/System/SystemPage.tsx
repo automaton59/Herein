@@ -143,6 +143,122 @@ function statusCard(
   );
 }
 
+function PluginConfigEditor({
+  plugin,
+  busy,
+  onSave,
+}: {
+  plugin: CorePluginView;
+  busy: boolean;
+  onSave: (config: Record<string, unknown>) => Promise<void>;
+}) {
+  const properties = plugin.manifest.configSchema?.properties ?? {};
+  const entries = Object.entries(properties);
+  const [draft, setDraft] = React.useState<Record<string, unknown>>({ ...plugin.config });
+
+  React.useEffect(() => {
+    setDraft({ ...plugin.config });
+  }, [plugin.manifest.id, plugin.updatedAt]);
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const update = (key: string, value: unknown) => {
+    setDraft(current => {
+      const next = { ...current };
+
+      if (value === undefined) {
+        delete next[key];
+      } else {
+        next[key] = value;
+      }
+
+      return next;
+    });
+  };
+
+  return (
+    <details className="mt-3 rounded-xl border border-sky-100 bg-white/70 px-3 py-2 dark:border-sky-900/40 dark:bg-white/[0.03]">
+      <summary className="cursor-pointer text-xs font-medium text-sky-700 dark:text-sky-200">
+        配置
+      </summary>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {entries.map(([key, property]) => {
+          const value = draft[key];
+          const label = property.title || key;
+
+          if (property.enum) {
+            return (
+              <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
+                {label}
+                <select
+                  value={String(value ?? '')}
+                  onChange={event => update(key, event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-sky-100 bg-white px-2 py-1.5 text-xs outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
+                >
+                  {property.enum.map(option => (
+                    <option key={String(option)} value={String(option)}>{String(option)}</option>
+                  ))}
+                </select>
+              </label>
+            );
+          }
+
+          if (property.type === 'boolean') {
+            return (
+              <label key={key} className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={Boolean(value)}
+                  onChange={event => update(key, event.target.checked)}
+                  className="h-4 w-4 rounded border-sky-200 text-sky-600"
+                />
+                {label}
+              </label>
+            );
+          }
+
+          if (property.type === 'number') {
+            return (
+              <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
+                {label}
+                <input
+                  type="number"
+                  value={typeof value === 'number' ? value : ''}
+                  min={property.minimum}
+                  max={property.maximum}
+                  onChange={event => update(key, event.target.value === '' ? undefined : Number(event.target.value))}
+                  className="mt-1 w-full rounded-lg border border-sky-100 bg-white px-2 py-1.5 text-xs outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
+                />
+              </label>
+            );
+          }
+
+          return (
+            <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
+              {label}
+              <input
+                value={typeof value === 'string' ? value : ''}
+                onChange={event => update(key, event.target.value)}
+                className="mt-1 w-full rounded-lg border border-sky-100 bg-white px-2 py-1.5 text-xs outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
+              />
+            </label>
+          );
+        })}
+      </div>
+      <button
+        type="button"
+        onClick={() => void onSave(draft)}
+        disabled={busy}
+        className="mt-3 rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-700 disabled:opacity-50"
+      >
+        {busy ? '保存中…' : '保存配置'}
+      </button>
+    </details>
+  );
+}
+
 export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) {
   const [status, setStatus] = React.useState<CoreStatus | null>(null);
   const [plugins, setPlugins] = React.useState<CorePluginView[]>([]);
@@ -387,6 +503,19 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
                       </p>
                       {plugin.lastError && (
                         <p className="mt-2 text-xs text-sky-700 dark:text-sky-300">{plugin.lastError}</p>
+                      )}
+                      {plugin.installed && plugin.manifest.id !== 'weather' && (
+                        <PluginConfigEditor
+                          plugin={plugin}
+                          busy={busyId === plugin.manifest.id}
+                          onSave={async config => {
+                            const core = createCoreClient();
+                            if (!core) return;
+                            await runPluginAction(plugin.manifest.id, () => (
+                              core.updatePluginConfig(plugin.manifest.id, config)
+                            ));
+                          }}
+                        />
                       )}
                     </div>
 

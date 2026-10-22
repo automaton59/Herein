@@ -37,7 +37,7 @@ entry: export function createPlugin() -> { start, stop, health, invoke }
 
 - `weather`、`bilibili`、`netease`、`qq` 已是 native plugin。
 - DSH 通过 `AgentProvider` 契约接入；C 的注册表只做聚合/策略/UI/审计，B 尚未交付真实 provider。
-- 桌面控制台目前只对 weather 做了完整操作 UI；B 站/网易云/QQ 可以通过插件启停，调用入口仍走原有 Core 路由或后续通用插件 UI。
+- 桌面控制台：weather 有专用配置/查询卡；其他插件按 manifest `configSchema` 渲染通用配置表单。
 - Android 状态只覆盖 Core 侧组件；relay/隧道状态、离线 outbox 待补。
 
 ## 验证
