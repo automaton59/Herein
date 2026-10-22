@@ -53,6 +53,15 @@ async function postJson(handle: CoreServerHandle, pathname: string, body: unknow
   return { status: response.status, body: await response.json() };
 }
 
+async function patchJson(handle: CoreServerHandle, pathname: string, body: unknown) {
+  const response = await fetch(url(handle, pathname), {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { status: response.status, body: await response.json() };
+}
+
 describe('core server', () => {
   it('serves health and syncs a timeline through HTTP', async () => {
     const handle = await start();
@@ -104,6 +113,47 @@ describe('core server', () => {
     expect(after.body.timeline.title).toBe('测试聊天');
   });
 
+  it('only prunes later messages when the client explicitly asks for it', async () => {
+    const handle = await start();
+    const before = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    const timeline = before.body.timeline;
+    const messages = [
+      {
+        id: 'prune-1',
+        timelineId: timeline.id,
+        role: 'user',
+        content: '一',
+        timestamp: '2026-10-22T12:00:00.000Z',
+      },
+      {
+        id: 'prune-2',
+        timelineId: timeline.id,
+        role: 'assistant',
+        content: '二',
+        timestamp: '2026-10-22T12:00:01.000Z',
+      },
+    ];
+
+    await postJson(handle, '/v1/timeline/herein-default/sync', { messages });
+
+    const safeSnapshot = await postJson(handle, '/v1/timeline/herein-default/sync', {
+      messages: [messages[0]],
+    });
+    expect(safeSnapshot.body.result).toEqual({ inserted: 0, updated: 0, deleted: 0 });
+
+    const afterSafe = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(afterSafe.body.messages.map((message: { id: string }) => message.id)).toEqual([
+      'prune-1',
+      'prune-2',
+    ]);
+
+    const pruned = await postJson(handle, '/v1/timeline/herein-default/sync', {
+      messages: [messages[0]],
+      prune: true,
+    });
+    expect(pruned.body.result).toEqual({ inserted: 0, updated: 0, deleted: 1 });
+  });
+
   it('chats through the LLM gateway and persists the turn', async () => {
     const llmFetch = vi.fn(async () => new Response(JSON.stringify({
       model: 'fake-model',
@@ -138,6 +188,71 @@ describe('core server', () => {
     expect(messages.body.messages.map((message: { content: string }) => message.content)).toEqual([
       '在吗',
       '在。',
+    ]);
+  });
+
+  it('runs the memory pipeline in Core after a timeline sync', async () => {
+    const memoryJson = JSON.stringify({
+      conversationSummary: '用户最近在忙项目。',
+      memoryItems: [{
+        kind: 'preference',
+        scope: 'character',
+        content: '用户喜欢短句回复。',
+        confidence: 0.8,
+        sourceMessageIds: ['sync-1'],
+      }],
+    });
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{ message: { role: 'assistant', content: memoryJson } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      memory: { enabled: true, triggerMessageCount: 20 },
+    });
+    handles.push(handle);
+
+    const before = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    const timeline = before.body.timeline;
+    const messages = Array.from({ length: 20 }, (_, index) => ({
+      id: `sync-${index + 1}`,
+      timelineId: timeline.id,
+      role: index % 2 === 0 ? 'user' : 'assistant',
+      content: `消息 ${index + 1}`,
+      timestamp: `2026-10-22T12:00:${String(index).padStart(2, '0')}.000Z`,
+    }));
+
+    const synced = await postJson(handle, '/v1/timeline/herein-default/sync', {
+      title: '记忆测试',
+      messages,
+    });
+    expect(synced.status).toBe(200);
+
+    let memories: Array<{ content: string; origin: string }> = [];
+
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, 25));
+      const listed = await getJson(handle, '/v1/memory?characterId=herein-default');
+      memories = listed.body.memories;
+      if (memories.length > 0) {
+        break;
+      }
+    }
+
+    expect(llmFetch).toHaveBeenCalled();
+    expect(memories).toEqual([
+      expect.objectContaining({
+        content: '用户喜欢短句回复。',
+        origin: 'summary',
+      }),
     ]);
   });
 
@@ -405,5 +520,114 @@ describe('core server', () => {
       headers: { authorization: 'Bearer secret-token' },
     });
     expect(authorized.status).toBe(200);
+  });
+
+  it('exposes status and manages the weather plugin end to end', async () => {
+    const pluginFetch = vi.fn(async (input: RequestInfo | URL) => {
+      const requestUrl = String(input);
+
+      if (requestUrl.startsWith('https://geocoding-api.open-meteo.com/')) {
+        return new Response(JSON.stringify({
+          results: [{ name: '杭州', country: '中国', latitude: 30.2741, longitude: 120.1551 }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      if (requestUrl.startsWith('https://api.open-meteo.com/')) {
+        return new Response(JSON.stringify({
+          current: {
+            temperature_2m: 22.3,
+            apparent_temperature: 21.1,
+            relative_humidity_2m: 70,
+            wind_speed_10m: 8.2,
+            weather_code: 61,
+            time: '2026-10-22T20:00',
+          },
+        }), { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+
+    const ttsFetch = vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch;
+
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      pluginsDir: path.resolve(process.cwd(), 'plugins'),
+      pluginFetch,
+      ttsUrl: 'http://tts.test',
+      ttsFetch,
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+    });
+    handles.push(handle);
+
+    const status = await getJson(handle, '/v1/status');
+    expect(status.status).toBe(200);
+    expect(status.body.components).toEqual(expect.objectContaining({
+      core: expect.objectContaining({ status: 'ok' }),
+      db: expect.objectContaining({ status: 'ok' }),
+      llm: expect.objectContaining({ status: 'ok' }),
+      tts: expect.objectContaining({ status: 'ok' }),
+      plugins: expect.objectContaining({ status: 'ok' }),
+    }));
+
+    const listed = await getJson(handle, '/v1/plugins');
+    expect(listed.body.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        manifest: expect.objectContaining({ id: 'weather', kind: 'tool' }),
+        installed: false,
+      }),
+    ]));
+
+    const installed = await postJson(handle, '/v1/plugins/install', { id: 'weather' });
+    expect(installed.status).toBe(200);
+    expect(installed.body.plugin).toEqual(expect.objectContaining({ installed: true }));
+
+    const configured = await patchJson(handle, '/v1/plugins/weather/config', {
+      config: { city: '杭州' },
+    });
+    expect(configured.status).toBe(200);
+    expect(configured.body.plugin.config).toEqual(expect.objectContaining({ city: '杭州' }));
+
+    const enabled = await postJson(handle, '/v1/plugins/weather/enable', {});
+    expect(enabled.status).toBe(200);
+    expect(enabled.body.plugin.enabled).toBe(true);
+
+    const invoked = await postJson(handle, '/v1/plugins/weather/invoke', {
+      action: 'current',
+    });
+    expect(invoked.status).toBe(200);
+    expect(invoked.body.result).toEqual(expect.objectContaining({
+      current: expect.objectContaining({
+        weather: '小雨',
+        temperatureC: 22.3,
+      }),
+    }));
+
+    const audit = await getJson(handle, '/v1/plugins/audit?limit=20');
+    expect(audit.body.audit.map((entry: { action: string }) => entry.action))
+      .toEqual(expect.arrayContaining(['install', 'config', 'enable', 'invoke:current']));
+
+    const disabled = await postJson(handle, '/v1/plugins/weather/disable', {});
+    expect(disabled.body.plugin.enabled).toBe(false);
+
+    const removed = await fetch(url(handle, '/v1/plugins/weather'), { method: 'DELETE' });
+    expect(removed.status).toBe(200);
+
+    const after = await getJson(handle, '/v1/plugins');
+    expect(after.body.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        manifest: expect.objectContaining({ id: 'weather' }),
+        installed: false,
+      }),
+    ]));
   });
 });

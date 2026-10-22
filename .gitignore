@@ -28,8 +28,8 @@ dist-electron
 .env.local
 .env.*.local
 *.local.json
-data/
-secrets/
+/data/
+/secrets/
 api-profiles*.json
 config.local.json
 chat-history.local.json
@@ -38,10 +38,10 @@ chat-history.local.json
 *.db-wal
 *.sqlite
 *.sqlite3
-assets/
-backups/
-exports/
-restore-snapshots/
+/assets/
+/backups/
+/exports/
+/restore-snapshots/
 
 # Build outputs
 out
@@ -62,7 +62,7 @@ android/local.properties
 android/.idea/
 
 # Private layer (persona, prompts, assets, credentials)
-private/
+/private/
 
 # Local-only third-party research evidence snapshots
 docs/research/**/_evidence/

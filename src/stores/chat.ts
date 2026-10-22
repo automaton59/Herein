@@ -238,6 +238,7 @@ async function requestAssistantReply(
 
   try {
     let response: ChatResponse | null = null;
+    let usedCore = false;
 
     if (core) {
       try {
@@ -250,6 +251,7 @@ async function requestAssistantReply(
           { maxTokens: 160, persist: false },
         );
         const parsed = parseAssistantMetadata(coreResult.message.content);
+        usedCore = true;
         response = {
           content: parsed.text,
           emotion: parsed.emotion,
@@ -304,7 +306,7 @@ async function requestAssistantReply(
     await useSettingsStore.getState().markConnectionOnline();
 
     const finalConversation = conversations.find(item => item.id === conversationId);
-    if (finalConversation) {
+    if (finalConversation && !usedCore) {
       void maybeRunMemoryUpdate(character, finalConversation.messages);
     }
   } catch (error) {

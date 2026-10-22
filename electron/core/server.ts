@@ -19,6 +19,10 @@ import {
   type LlmConfig,
   type LlmMessage,
 } from './llm';
+import { buildCoreStatus } from './status';
+import { CoreMemoryRunner } from './memory';
+import { PluginRegistry } from '../plugins/registry';
+import { PluginError } from '../plugins/types';
 import {
   scanBilibiliFeed,
   type BilibiliFeedSource,
@@ -46,6 +50,8 @@ export interface CoreServerOptions {
   dataDir?: string;
   dbPath?: string;
   assetsDir?: string;
+  pluginsDir?: string;
+  pluginFetch?: typeof fetch;
   token?: string;
   ttsUrl?: string;
   ttsFetch?: typeof fetch;
@@ -63,6 +69,10 @@ export interface CoreServerOptions {
     enabled: boolean;
     configPath?: string;
     autoReply?: boolean;
+  };
+  memory?: {
+    enabled?: boolean;
+    triggerMessageCount?: number;
   };
 }
 
@@ -107,7 +117,7 @@ function sendJson(response: ServerResponse, status: number, payload: unknown) {
 
 function setCors(response: ServerResponse) {
   response.setHeader('access-control-allow-origin', '*');
-  response.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
+  response.setHeader('access-control-allow-methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   response.setHeader('access-control-allow-headers', 'content-type,authorization');
 }
 
@@ -235,10 +245,30 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
   await mkdir(dataDir, { recursive: true });
 
+  const startedAt = Date.now();
   const db: Phase2Database = openPhase2Database(dbPath);
   migratePhase1JsonData({ db, dataDir });
   const repos = createPhase2Repositories(db);
   ensureDefaultCharacter(repos);
+
+  const pluginsDir = path.resolve(
+    options.pluginsDir ?? process.env.HEREIN_PLUGINS_DIR ?? path.join(process.cwd(), 'plugins'),
+  );
+  const pluginRegistry = new PluginRegistry({
+    db,
+    pluginsDir,
+    fetchImpl: options.pluginFetch,
+  });
+  await pluginRegistry.initialize();
+
+  const memoryRunner = new CoreMemoryRunner({
+    repos,
+    llmConfig: options.llmConfig,
+    llmConfigPath: options.llmConfigPath,
+    fetchImpl: options.llmFetch,
+    enabled: options.memory?.enabled,
+    triggerMessageCount: options.memory?.triggerMessageCount,
+  });
 
   const events = new CoreEventBus();
   const sseClients = new Set<ServerResponse>();
@@ -419,6 +449,10 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             characterId,
             timelineId: timeline.id,
             model: completion.model,
+          });
+          void memoryRunner.run({
+            characterId,
+            timelineId: timeline.id,
           });
         }
 
@@ -665,6 +699,113 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         return;
       }
 
+      if (request.method === 'GET' && url.pathname === '/v1/status') {
+        const status = await buildCoreStatus({
+          db,
+          pluginRegistry,
+          startedAt,
+          version: CORE_SERVER_VERSION,
+          ttsUrl,
+          ttsFetch,
+          llmConfig: options.llmConfig,
+          llmConfigPath: options.llmConfigPath,
+        });
+        sendJson(response, 200, status);
+        return;
+      }
+
+      if (segments[0] === 'v1' && segments[1] === 'plugins') {
+        try {
+          if (request.method === 'GET' && segments.length === 2) {
+            sendJson(response, 200, {
+              plugins: pluginRegistry.list(),
+              summary: pluginRegistry.summary(),
+            });
+            return;
+          }
+
+          if (request.method === 'GET' && segments[2] === 'audit') {
+            sendJson(response, 200, {
+              audit: pluginRegistry.audit(numberParam(url, 'limit', 100)),
+            });
+            return;
+          }
+
+          if (request.method === 'POST' && segments[2] === 'install') {
+            const body = asRecord(await readJson(request));
+            const pluginId = requireString(body, 'id');
+            const plugin = await pluginRegistry.install(pluginId);
+            sendJson(response, 200, { plugin });
+            return;
+          }
+
+          const pluginId = segments[2] ? decodeURIComponent(segments[2]) : '';
+
+          if (!pluginId) {
+            sendJson(response, 404, { error: 'plugin not found' });
+            return;
+          }
+
+          if (request.method === 'GET' && segments.length === 3) {
+            const plugin = pluginRegistry.get(pluginId);
+
+            if (!plugin) {
+              sendJson(response, 404, { error: 'plugin not found' });
+              return;
+            }
+
+            sendJson(response, 200, { plugin });
+            return;
+          }
+
+          if (request.method === 'DELETE' && segments.length === 3) {
+            const result = await pluginRegistry.remove(pluginId);
+            sendJson(response, 200, result);
+            return;
+          }
+
+          if (request.method === 'POST' && segments[3] === 'enable') {
+            const plugin = await pluginRegistry.enable(pluginId);
+            sendJson(response, 200, { plugin });
+            return;
+          }
+
+          if (request.method === 'POST' && segments[3] === 'disable') {
+            const plugin = await pluginRegistry.disable(pluginId);
+            sendJson(response, 200, { plugin });
+            return;
+          }
+
+          if (request.method === 'POST' && segments[3] === 'invoke') {
+            const body = asRecord(await readJson(request));
+            const action = requireString(body, 'action');
+            const result = await pluginRegistry.invoke(pluginId, action, body.input);
+            sendJson(response, 200, { result });
+            return;
+          }
+
+          if (request.method === 'PATCH' && segments[3] === 'config') {
+            const body = asRecord(await readJson(request));
+            const plugin = await pluginRegistry.updateConfig(pluginId, body.config);
+            sendJson(response, 200, { plugin });
+            return;
+          }
+
+          sendJson(response, 405, { error: 'method not allowed' });
+          return;
+        } catch (error) {
+          if (error instanceof PluginError) {
+            sendJson(response, error.status, {
+              error: error.code,
+              detail: error.message,
+            });
+            return;
+          }
+
+          throw error;
+        }
+      }
+
       if (request.method === 'GET' && url.pathname === '/v1/events') {
         response.writeHead(200, {
           'content-type': 'text/event-stream; charset=utf-8',
@@ -719,11 +860,20 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             ...(item as MessageRecord),
             timelineId: timeline.id,
           }));
-          const result = repos.messages.sync(timeline.id, normalized, title);
+          const result = repos.messages.sync(timeline.id, normalized, title, {
+            // Ordinary client snapshots must not prune messages that another
+            // device wrote after the sender's last known message. A deliberate
+            // delete must send prune:true.
+            prune: body.prune === true,
+          });
           events.publish('timeline.synced', {
             characterId,
             timelineId: timeline.id,
             result,
+          });
+          void memoryRunner.run({
+            characterId,
+            timelineId: timeline.id,
           });
           sendJson(response, 200, { timeline: { ...timeline, title }, result });
           return;
@@ -923,6 +1073,8 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     close: async () => {
       qqListener?.stop();
       proactiveScheduler?.stop();
+      await memoryRunner.close();
+      await pluginRegistry.close();
       for (const client of sseClients) {
         client.end();
       }

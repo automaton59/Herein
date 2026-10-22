@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { ChatWindow } from './components/Chat/ChatWindow';
 import { SettingsPage, type SettingsSection } from './components/Settings/SettingsPage';
+import { SystemPage } from './components/System/SystemPage';
 import { useSettingsStore } from './stores/settings';
 import { applyThemeMode, watchSystemTheme } from './services/theme';
 
-type Tab = 'chat' | 'settings';
+type Tab = 'system' | 'chat' | 'settings';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('chat');
+  const [activeTab, setActiveTab] = useState<Tab>('system');
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('app');
   const { isConfigured, isHydrated, themeMode } = useSettingsStore();
 
@@ -33,21 +34,31 @@ function App() {
   };
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-rose-50 text-slate-950 transition-colors dark:bg-[#130d14] dark:text-rose-50">
-      <div className="shrink-0 border-b border-white/70 bg-white/75 backdrop-blur dark:border-white/10 dark:bg-[#171018]/85">
+    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#f6fbff] text-slate-950 transition-colors dark:bg-[#04101a] dark:text-sky-50">
+      <div className="shrink-0 border-b border-sky-100 bg-white/80 backdrop-blur dark:border-sky-900/40 dark:bg-[#07131f]/90">
         <div className="flex items-center justify-between px-3">
           <div className="flex">
+            <button
+              onClick={() => setActiveTab('system')}
+              className={`px-5 py-3 font-medium border-b-2 transition-colors ${
+                activeTab === 'system'
+                  ? 'border-sky-500 text-sky-700 dark:border-sky-300 dark:text-sky-200'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-sky-100'
+              }`}
+            >
+              系统
+            </button>
             <button
               onClick={() => setActiveTab('chat')}
               className={`px-5 py-3 font-medium border-b-2 transition-colors ${
                 activeTab === 'chat'
-                  ? 'border-rose-500 text-rose-600 dark:border-rose-300 dark:text-rose-200'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-rose-100'
+                  ? 'border-sky-500 text-sky-700 dark:border-sky-300 dark:text-sky-200'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-sky-100'
               }`}
             >
               聊天
               {!isConfigured && (
-                <span className="ml-2 rounded bg-yellow-100 px-2 py-0.5 text-xs text-yellow-800 dark:bg-yellow-500/20 dark:text-yellow-100">
+                <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
                   未配置
                 </span>
               )}
@@ -56,8 +67,8 @@ function App() {
               onClick={() => setActiveTab('settings')}
               className={`px-5 py-3 font-medium border-b-2 transition-colors ${
                 activeTab === 'settings'
-                  ? 'border-rose-500 text-rose-600 dark:border-rose-300 dark:text-rose-200'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-rose-100'
+                  ? 'border-sky-500 text-sky-700 dark:border-sky-300 dark:text-sky-200'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-sky-100'
               }`}
             >
               设置
@@ -72,18 +83,20 @@ function App() {
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab === 'chat' ? (
+        {activeTab === 'system' ? (
+          <SystemPage onOpenSettings={() => openSettingsSection('app')} />
+        ) : activeTab === 'chat' ? (
           isConfigured ? (
             <ChatWindow onEditCharacter={() => openSettingsSection('characters')} />
           ) : (
-            <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,#ffe4e6_0,#fff7ed_42%,#f8fafc_90%)] px-5 dark:bg-[radial-gradient(circle_at_top_left,#3a1728_0,#1b1018_42%,#0d1118_90%)]">
+            <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,#e6f7ff_0,#f8fcff_42%,#ffffff_90%)] px-5 dark:bg-[radial-gradient(circle_at_top_left,#082036_0,#06111d_42%,#02070c_90%)]">
               <div className="text-center">
                 <p className="mb-4 text-slate-600 dark:text-slate-300">
                   请先完成 API 设置
                 </p>
                 <button
                   onClick={() => openSettingsSection('api')}
-                  className="rounded-full bg-rose-500 px-5 py-2 text-white shadow-sm shadow-rose-200 hover:bg-rose-600 dark:bg-rose-400 dark:text-[#1b1018] dark:shadow-none dark:hover:bg-rose-300"
+                  className="rounded-full bg-sky-500 px-5 py-2 text-white shadow-sm shadow-sky-200 hover:bg-sky-600 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300"
                 >
                   打开设置
                 </button>

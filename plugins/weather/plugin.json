@@ -1,0 +1,55 @@
+{
+  "id": "weather",
+  "name": "天气",
+  "version": "0.1.0",
+  "kind": "tool",
+  "description": "查询当前天气，作为聊天和主动性的环境上下文。使用 Open-Meteo，不需要 API key。",
+  "entry": "index.mjs",
+  "permissions": [
+    {
+      "kind": "network",
+      "value": "api.open-meteo.com",
+      "reason": "读取当前天气"
+    },
+    {
+      "kind": "network",
+      "value": "geocoding-api.open-meteo.com",
+      "reason": "把城市名解析成经纬度"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "city": {
+        "type": "string",
+        "title": "城市",
+        "description": "例如：杭州。和经纬度二选一。"
+      },
+      "latitude": {
+        "type": "number",
+        "title": "纬度",
+        "minimum": -90,
+        "maximum": 90
+      },
+      "longitude": {
+        "type": "number",
+        "title": "经度",
+        "minimum": -180,
+        "maximum": 180
+      },
+      "locationName": {
+        "type": "string",
+        "title": "显示名",
+        "description": "可选；覆盖城市名，例如“家”。"
+      },
+      "refreshMinutes": {
+        "type": "number",
+        "title": "缓存分钟",
+        "default": 15,
+        "minimum": 1,
+        "maximum": 180
+      }
+    },
+    "additionalProperties": false
+  }
+}

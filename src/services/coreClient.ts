@@ -53,6 +53,95 @@ export interface CoreRecommendationResult {
   blockedByGate?: string;
 }
 
+export interface CoreStatusComponent {
+  status: 'ok' | 'degraded' | 'unavailable' | 'unconfigured' | 'unknown';
+  message?: string;
+  latencyMs?: number;
+  detail?: Record<string, unknown>;
+}
+
+export interface CoreStatus {
+  ok: boolean;
+  degraded: boolean;
+  version: string;
+  startedAt: string;
+  uptimeMs: number;
+  now: string;
+  components: {
+    core: CoreStatusComponent;
+    db: CoreStatusComponent;
+    llm: CoreStatusComponent;
+    tts: CoreStatusComponent;
+    plugins: CoreStatusComponent;
+  };
+}
+
+export interface CorePluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  kind: 'source' | 'channel' | 'tool' | 'agent';
+  description?: string;
+  entry: string;
+  permissions: Array<{
+    kind: 'network' | 'credentials' | 'send' | 'install' | 'filesystem';
+    value?: string;
+    reason?: string;
+  }>;
+  configSchema?: {
+    type: 'object';
+    properties: Record<string, {
+      type: 'string' | 'number' | 'boolean' | 'object' | 'array';
+      title?: string;
+      description?: string;
+      default?: unknown;
+      enum?: Array<string | number>;
+      minimum?: number;
+      maximum?: number;
+    }>;
+    required?: string[];
+    additionalProperties?: boolean;
+  };
+}
+
+export interface CorePluginHealth {
+  status: 'ok' | 'degraded' | 'failed' | 'unknown';
+  message?: string;
+  checkedAt: string;
+  lastSuccessAt?: string;
+  latencyMs?: number;
+}
+
+export interface CorePluginView {
+  manifest: CorePluginManifest;
+  available: boolean;
+  installed: boolean;
+  enabled: boolean;
+  config: Record<string, unknown>;
+  health: CorePluginHealth;
+  lastError: string | null;
+  installedAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface CorePluginSummary {
+  total: number;
+  installed: number;
+  enabled: number;
+  healthy: number;
+  degraded: number;
+  failed: number;
+}
+
+export interface CorePluginAudit {
+  id: string;
+  pluginId: string;
+  action: string;
+  status: string;
+  detail: Record<string, unknown>;
+  createdAt: string;
+}
+
 export class CoreHttpError extends Error {
   readonly status: number;
 
@@ -160,5 +249,62 @@ export class CoreClient {
       method: 'POST',
       body: JSON.stringify(input),
     });
+  }
+
+  status(): Promise<CoreStatus> {
+    return this.request('/v1/status');
+  }
+
+  listPlugins(): Promise<{ plugins: CorePluginView[]; summary: CorePluginSummary }> {
+    return this.request('/v1/plugins');
+  }
+
+  installPlugin(id: string): Promise<{ plugin: CorePluginView }> {
+    return this.request('/v1/plugins/install', {
+      method: 'POST',
+      body: JSON.stringify({ id }),
+    });
+  }
+
+  enablePlugin(id: string): Promise<{ plugin: CorePluginView }> {
+    return this.request(`/v1/plugins/${encodeURIComponent(id)}/enable`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  disablePlugin(id: string): Promise<{ plugin: CorePluginView }> {
+    return this.request(`/v1/plugins/${encodeURIComponent(id)}/disable`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  updatePluginConfig(id: string, config: Record<string, unknown>): Promise<{ plugin: CorePluginView }> {
+    return this.request(`/v1/plugins/${encodeURIComponent(id)}/config`, {
+      method: 'PATCH',
+      body: JSON.stringify({ config }),
+    });
+  }
+
+  invokePlugin<T = unknown>(
+    id: string,
+    action: string,
+    input?: unknown,
+  ): Promise<{ result: T }> {
+    return this.request(`/v1/plugins/${encodeURIComponent(id)}/invoke`, {
+      method: 'POST',
+      body: JSON.stringify({ action, input }),
+    });
+  }
+
+  removePlugin(id: string): Promise<{ removed: boolean }> {
+    return this.request(`/v1/plugins/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  pluginAudit(limit = 100): Promise<{ audit: CorePluginAudit[] }> {
+    return this.request(`/v1/plugins/audit?limit=${limit}`);
   }
 }

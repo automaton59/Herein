@@ -37,6 +37,28 @@ interface ChatMessage {
   };
 }
 
+interface SystemStatusComponent {
+  status: string;
+  message?: string;
+  latencyMs?: number;
+  detail?: Record<string, unknown>;
+}
+
+interface SystemStatus {
+  ok: boolean;
+  degraded: boolean;
+  version: string;
+  uptimeMs: number;
+  now: string;
+  components: {
+    core: SystemStatusComponent;
+    db: SystemStatusComponent;
+    llm: SystemStatusComponent;
+    tts: SystemStatusComponent;
+    plugins: SystemStatusComponent;
+  };
+}
+
 function loadConfig(): CoreConfig | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -105,6 +127,34 @@ async function coreRequest<T>(config: CoreConfig, pathname: string, init?: Reque
   }
 
   return JSON.parse(text) as T;
+}
+
+function componentLabel(component: SystemStatusComponent | undefined) {
+  switch (component?.status) {
+    case 'ok':
+      return '正常';
+    case 'degraded':
+      return '降级';
+    case 'unavailable':
+      return '不可用';
+    case 'unconfigured':
+      return '未配置';
+    default:
+      return '未知';
+  }
+}
+
+function componentTone(component: SystemStatusComponent | undefined) {
+  switch (component?.status) {
+    case 'ok':
+      return 'text-emerald-300';
+    case 'degraded':
+      return 'text-amber-300';
+    case 'unavailable':
+      return 'text-rose-300';
+    default:
+      return 'text-rose-200/50';
+  }
 }
 
 function ConnectionScreen({ onConnect }: { onConnect: (config: CoreConfig) => void }) {
@@ -239,6 +289,9 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [input, setInput] = React.useState('');
   const [status, setStatus] = React.useState('连接中…');
+  const [systemStatus, setSystemStatus] = React.useState<SystemStatus | null>(null);
+  const [systemStatusError, setSystemStatusError] = React.useState('');
+  const [statusOpen, setStatusOpen] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const [speakingId, setSpeakingId] = React.useState<string | null>(null);
   const [showAvatar, setShowAvatar] = React.useState(false);
@@ -460,6 +513,35 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
     };
   }, [config]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      try {
+        const data = await coreRequest<SystemStatus>(config, '/v1/status');
+        if (!cancelled) {
+          setSystemStatus(data);
+          setSystemStatusError('');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setSystemStatus(null);
+          setSystemStatusError(error instanceof Error ? error.message : '状态不可用');
+        }
+      }
+    };
+
+    void loadStatus();
+    const timer = setInterval(() => {
+      void loadStatus();
+    }, 20000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [config]);
+
   const maybeRecommend = async (text: string) => {
     const explicit = wantsRecommendation(text);
     const now = new Date();
@@ -592,6 +674,19 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
           <div className="mt-0.5 text-[11px] text-rose-200/50">{status}</div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setStatusOpen(true)}
+            className="flex items-center gap-1.5 rounded-xl bg-white/5 px-2.5 py-2 text-[11px] text-rose-100/75"
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${
+              systemStatusError || !systemStatus
+                ? 'bg-rose-400'
+                : systemStatus.degraded
+                  ? 'bg-amber-300'
+                  : 'bg-emerald-400'
+            }`} />
+            {systemStatusError || !systemStatus ? '系统离线' : systemStatus.degraded ? '系统降级' : '系统正常'}
+          </button>
           <button onClick={() => setShowAvatar(true)} className="rounded-xl px-3 py-2 text-xs text-rose-200/70">
             形象
           </button>
@@ -666,6 +761,71 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
         ))}
         <div ref={bottomRef} />
       </main>
+
+      {statusOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/60 p-3"
+          onClick={() => setStatusOpen(false)}
+        >
+          <div
+            className="w-full rounded-3xl border border-white/10 bg-[#171018] p-4 text-rose-50 shadow-2xl"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">系统状态</div>
+                <div className="mt-1 text-[11px] text-rose-200/45">
+                  {systemStatus
+                    ? `v${systemStatus.version} · 更新于 ${new Date(systemStatus.now).toLocaleTimeString('zh-CN')}`
+                    : systemStatusError || '还没有状态'}
+                </div>
+              </div>
+              <button
+                onClick={() => setStatusOpen(false)}
+                className="rounded-xl bg-white/10 px-3 py-1.5 text-xs text-rose-100"
+              >
+                关闭
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-2">
+              {systemStatus ? (
+                [
+                  ['Core', systemStatus.components.core],
+                  ['数据库', systemStatus.components.db],
+                  ['模型', systemStatus.components.llm],
+                  ['声音', systemStatus.components.tts],
+                  ['插件', systemStatus.components.plugins],
+                ].map(([label, component]) => {
+                  const value = component as SystemStatusComponent;
+                  return (
+                    <div key={label as string} className="flex items-start justify-between gap-3 rounded-2xl bg-white/[0.04] px-3 py-2.5">
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-rose-50">{label as string}</div>
+                        <div className="mt-0.5 truncate text-[11px] text-rose-200/40">
+                          {value.message || '—'}
+                        </div>
+                      </div>
+                      <div className={`shrink-0 text-xs font-medium ${componentTone(value)}`}>
+                        {componentLabel(value)}
+                        {value.latencyMs ? ` · ${value.latencyMs}ms` : ''}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="rounded-2xl bg-rose-500/10 px-3 py-4 text-xs leading-5 text-rose-200/70">
+                  {systemStatusError || 'Core 状态不可用。检查地址、Token，或 Core 是否在运行。'}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 text-center text-[10px] text-rose-200/30">
+              每 20 秒自动刷新
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAvatar && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#130d14]">

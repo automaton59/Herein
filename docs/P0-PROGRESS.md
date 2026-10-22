@@ -52,19 +52,23 @@
 | P0-08 | TTS 实测 | `D:\AI\tools\qwen_tts\venv`（torch 2.11+cu128/CUDA）+ CustomVoice 1.7B：平均 **4.8s/句，RTF 3.70**；0.6B：**4.87s/句，RTF 3.28**；能出声，未实时。详见 `docs/TTS.md` |
 | P0-08/P2 | 手机朗读 | Core `POST /v1/tts` 代理；移动端助手消息“▶ 朗读”；本地 38KB/5.1s，远端 `/herein/v1/tts` 30KB/3.9s |
 | P0-08/P2 | 手机口型 | 手机朗读时 Web Audio RMS → `PARAM_MOUTH_OPEN_Y`；tsc 通过，真机未验证 |
+| P0-12 | 插件宿主 | schema v9 `plugin_registry` / `plugin_audit`；manifest、注册表、启停/配置/健康/审计、网络权限白名单；Core `/v1/plugins*`；`plugins/weather`；9 个插件测试 |
+| P0-13 | 状态与控制台 | Core `/v1/status`：Core/DB/LLM/TTS/plugins；桌面新增“系统”控制台；Android 状态芯片/抽屉；天气插件 E2E 通过 |
+| P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
+| P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
 
 ## 验证
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **47 files / 177 tests passed**
-- `npm run check:core` → core boundary ok（6 files）
+- `npx vitest run` → **50 files / 192 tests passed**
+- `npm run check:core` → core boundary ok（10 files）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
 - `npm run core:serve` + `GET /health` 冒烟通过（临时 dataDir，未碰真实数据）
-- Core HTTP 已测：`/health`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
+- Core HTTP 已测：`/health`、`/v1/status`、`/v1/plugins*`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
 - Core `/v1/chat` 真实 LLM 冒烟：HTTP 200，“在的”，3.7s
-- `npm run build` + `npx cap sync android` → 0
+- `npm run build` → 0；vite 2241 modules
 - Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,484,515 bytes），SHA256 `0D291066...3E18`
 - Live2D 演示：`?live2d=1`，Electron 中 canvas=1，模型尺寸 624×672；截图受无显示桌面限制
 - 远程：`http://147.224.56.120/herein/health` → 无 token 401，带 token 200；`:8000` 酒馆 401
@@ -79,20 +83,23 @@
 | P2 | 实时语音/Live2D | Live2D 渲染已通；手机朗读口型已接；桌面口型、正式模型、TTS 实时化未做 |
 | P0-10 | 真机验证 | APK 已出；还没装到手机/平板实测 |
 | P0-11 | QQ listener | 配置/连接/心跳/归一化/落库/被动回复接线已做；语音、频控、审核、默认回复策略待做，等 `qqbot.json` |
-| P1a | Core 双端一致性 | 桌面/手机都走 Core，但桌面本地记忆更新仍走 IPC；跨端实时同步未做 |
+| P1a | Core 双端一致性 | 记忆已在 Core 触发；跨端实时 SSE chat/read/outbox 未做；桌面仍是全量快照 sync（Core 默认不 prune，删除传播未做） |
+| P0-12 | 插件接入面 | 目前只有 weather 是 native plugin；B 站/网易云/QQ 仍是独立服务/端点，尚未包成插件；DSH provider 未接（B 的工作流） |
+| P0-13 | 状态完整性 | `/v1/status` 只覆盖 Core/DB/LLM/TTS/plugins；relay/隧道状态、Android 后台限制、跨端 outbox 还没接 |
+| P0-14 | 主动性 | 仍只有 90 分钟歌曲分享；通用 InitiativeEngine、免打扰、预算、A 的 InteractionPort 未接 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |
 | P4 | 推荐打磨 | 歌卡/反馈/服务端冷却已有；还缺中文候选过滤、反馈影响排序 |
 
 ## 下一步顺序
 
-1. 真机装 APK，验证 LAN 聊天。
-2. P3：B 站 Experience + UI“她今天看了什么”。
-3. P4：聊天内推荐/反馈。
-4. P1a：桌面聊天/上下文全走 Core。
-5. P0-08：用现成 venv 接 batch TTS 到回复；再测 0.6B/流式/C 引擎。
-6. P1c：隧道开机自启/断线重连 + TLS/Tailscale。
-7. P0-11：QQ listener（凭据到位后）。
+1. P0-12：把 B 站/网易云/QQ 包成 native plugin；接 DSH provider（B 的工作流完成后）。
+2. P1a：补 SSE chat/read/outbox、删除传播；桌面从全量快照迁到增量 append。
+3. P0-14：InitiativeEngine + 免打扰/预算；接 A 的 InteractionPort。
+4. P0-13：relay/隧道状态、Android 离线队列/后台限制；控制台补通用插件配置 UI。
+5. 真机装 APK，验证 LAN 聊天、状态芯片、天气插件。
+6. P0-08：TTS 实时化（A 的工作流）。
+7. P1c：隧道开机自启/断线重连 + TLS/Tailscale。
 
 ## Core HTTP
 
@@ -118,6 +125,14 @@ npm run core:serve
 | GET | `/v1/experiences?limit=20` | Experience 列表 |
 | GET/POST | `/v1/sync/ops` | E2EE oplog 读写 |
 | GET | `/v1/events` | SSE 事件流 |
+| GET | `/v1/status` | Core/DB/LLM/TTS/plugins 健康状态 |
+| GET | `/v1/plugins` | 插件清单 + 汇总 |
+| POST | `/v1/plugins/install` | 安装插件 `{id}` |
+| POST | `/v1/plugins/:id/enable` / `disable` | 启停插件 |
+| PATCH | `/v1/plugins/:id/config` | 更新插件配置 `{config}` |
+| POST | `/v1/plugins/:id/invoke` | 调用插件 `{action,input}` |
+| DELETE | `/v1/plugins/:id` | 卸载插件 |
+| GET | `/v1/plugins/audit?limit=100` | 插件审计 |
 
 非 loopback 绑定必须设置 `HEREIN_CORE_TOKEN`，请求带 `Authorization: Bearer <token>`。
 
