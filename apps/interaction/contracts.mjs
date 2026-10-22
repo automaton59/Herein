@@ -7,7 +7,33 @@ export function validateManifest(manifest) {
   for (const key of ["entry", "core"]) assetPath(manifest.root, manifest[key]);
   if (!manifest.parameters || typeof manifest.parameters.mouth !== "string")
     throw new Error("Avatar mouth parameter is required");
+  for (const [name, value] of Object.entries(manifest.motions || {})) {
+    const spec = typeof value === "string" ? { group: value } : value;
+    if (!spec || typeof spec.group !== "string" || !spec.group ||
+        (spec.index !== undefined && (!Number.isInteger(spec.index) || spec.index < 0)) ||
+        (spec.loop !== undefined && typeof spec.loop !== "boolean"))
+      throw new Error(`Invalid avatar motion: ${name}`);
+  }
+  for (const value of Object.values(manifest.expressions || {}))
+    if (value !== null && typeof value !== "string")
+      throw new Error("Invalid avatar expression");
+  for (const name of Object.values(manifest.states || {}))
+    if (!Object.hasOwn(manifest.motions || {}, name))
+      throw new Error("Avatar state refers to unknown motion");
+  for (const value of Object.values(manifest.interactions || {}))
+    if (!Object.hasOwn(manifest.motions || {}, value?.motion) ||
+        (value.emotion !== undefined && !Object.hasOwn(manifest.expressions || {}, value.emotion)))
+      throw new Error("Avatar interaction refers to unknown action");
   return manifest;
+}
+export function avatarCommand(value, manifest) {
+  if (!value || (value.emotion === undefined && value.motion === undefined))
+    throw new Error("Invalid avatar command");
+  for (const [key, entries] of [["emotion", manifest.expressions], ["motion", manifest.motions]])
+    if (value[key] !== undefined &&
+        (typeof value[key] !== "string" || !Object.hasOwn(entries || {}, value[key])))
+      throw new Error(`Unknown avatar ${key}`);
+  return { emotion: value.emotion, motion: value.motion };
 }
 export function assetPath(root, entry) {
   if (

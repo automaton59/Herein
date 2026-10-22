@@ -16,7 +16,7 @@ $env:HEREIN_INTERACTION_DATA_DIR = '<absolute-path>\temporary-interaction-data'
 npm start
 ```
 
-也可 `npm start -- --config=<absolute-config-path>`。模型只从本机 manifest 指定的目录加载。构建产物在仓库 `tmp/interaction-dist`；不会打包或复制模型。配置模板没有真实模型或凭据。
+也可 `npm start -- --config=<absolute-config-path>`。模型只从本机 manifest 指定的目录加载。构建产物在仓库 `tmp/interaction-dist`；不会打包或复制模型。配置模板没有真实模型或凭据。并行验证可用 `node apps/interaction/build.mjs --out-dir=tmp/<isolated-dist>`，在本地配置设置绝对 `rendererDir`，避免覆盖长测版本的静态资源。`silentOutput:true` 保持 PCM/口型链路运行但将最终输出 gain 设为 0；这种验证不证明扬声器发声。
 
 首次点“开始监听”后会保存监听偏好；下一次运行自动监听。配置 `autoListen:true` 可用于无人值守验收。`Ctrl+Shift+Space` 显示/隐藏、`Ctrl+Shift+X` 打断、`Ctrl+Shift+M` 切换监听。关闭窗口隐藏到托盘，托盘“退出运行时”才退出。拖形象移动位置，点击触发 manifest 的 tap 动作。窗口会保存位置并在屏幕配置变化后收回可见区域。
 
@@ -29,7 +29,7 @@ npm start
 - `tts.provider=qwen-gguf`：可选本地 Vulkan llama.cpp + ONNX DirectML 路径。冻结版本的十句文本→软件首声 571–974ms、RTF 0.37–0.77，欠供 0；扬声器回环首声 924ms、停止余音 50ms。它依赖另行安装的私有推理代码、模型和 DLL；详细步骤见下文。固定 fixture 静默预热后才报告 TTS ready。不同长文本、1.7B 与模型情绪需另测，不能把十句短测当全天候通过。
 - ASR：faster-whisper 离线识别，单 worker、有限请求、最长 15 秒语音；内存中处理 PCM。浏览器 AEC/降噪用于扬声器回声抑制，设备能力不等于实测通过。
 - 播放：AudioWorklet 4 秒环形缓冲、主线程 3.5 秒水位与 ACK 背压；自然音色起播缓冲 240ms，SAPI 60ms。取消同时静音 gain、清空环形缓冲、丢弃过期 generation 并取消合成。
-- 身体：Cubism 2/4 按 manifest 选择，口型在 `beforeModelUpdate` 写入；库原生 idle/眨眼/视线配合 manifest 参数、表情、点击/拖动动作。正式模型需要自带授权 core、贴图与动作。
+- 身体：Cubism 2/4 按 manifest 选择，确定动作索引、循环/单次动作和执行状态映射；动作预加载，PCM 开合平滑，取消立即闭嘴；待机表情的嘴不被 PCM 覆盖。点击与拖动分开触发，单次反应后回到当前执行状态；指针离开后视线回中。正式模型需要自带授权 core、贴图与动作。
 - 显示时 60fps，手工可降至 30fps；隐藏时 10fps。实际帧率记录在 metrics。禁用 Electron 遮挡节流以保持桌面在场。
 
 ## 本机接口
@@ -49,6 +49,24 @@ npm start
 `transcript` 内容 `{type:"transcript",text,final:true,generation,turnId}`。C 自行选择是否回复与回复内容，将 `turnId` 回传给 speech/text 命令；运行时据此记录用户停止说话到首个非静音输出采样的延迟。文本在 SSE 内存传递，默认不落盘。`begin` 替换当前轮次；过期 turn 的 delta/end 被忽略。C 应等待 ASR/TTS ready，维护自己的重连与主动性策略。
 
 `health`/endpoint 带 `apiVersion:1` 与 `buildId`。长测必须匹配同一 buildId；`ready` 表示 renderer 接口已启动，C 还需检查 `asr`、`tts`。`POST /v1/speech` 返回接收的 generation，发声是异步的；SSE `speech.started`、`speech.completed`（合成完成，播放器可能仍有缓冲）、`speech.failed` 带 generation/turnId，错误只给固定类别。重启 token/port 变化，必须重新读 endpoint。
+
+`avatarReady` 在模型完成加载后才为 true；模型配置错误时 renderer 仍可运行，但 avatarReady=false、renderErrors>0，C 与长测应检查该字段。neutral 取消额外表情立即清掉淡出队列；新 emotion 命令在 interrupted 状态也能正常显示。
+
+`avatar` 的 emotion/motion 必须存在于当前 manifest，否则 400；只传 motion 会保留表情。身体按实际 ASR/TTS/播放状态执行 thinking/speaking/idle，发声完成或取消后恢复中性。C 仍决定表达内容与情绪，也可显式传动作命令。
+
+## 可替换身体与蓝鱼技术验证
+
+用户指定的 [dsh-live2d](https://github.com/lrplrplrp/dsh-live2d) 提交 `1ba6522a18408716a5c71a81575503ddad9b96be` 包含 Cubism 4 蓝鱼模型。它只用来跑通技术路线和积累经验，后续会替换。无需安装 DSH 插件；把 checkout 放在本机 `private/` 或 gitignored `tmp/`，从 `avatar.dsh.example.json` 创建自己的 manifest，并将 root 改为 checkout 的绝对路径。项目标注 MIT；checkout 中 Cubism Core 文件头另列 Live2D 专有许可，保留原许可。模型、贴图、core 与原始截图均不纳入提交或打包。
+
+manifest 的 `motions` 兼容旧字符串组名，也可使用 `{group,index,loop}`。例如 `thinking:{group:"Anima",index:2,loop:true}` 与 `speaking:{group:"Anima",index:0,loop:true}` 共享组但固定不同索引；`thinkEnd` 使用 index 1、loop false。`states` 将运行状态映射到动作键；`interactions` 配置 tap/drag 的 `{motion,emotion?}`；`expressions` 的 `neutral:null` 表示恢复默认表情，其他值为模型中的表情名。不同模型只调整 manifest 和本地资源。
+
+蓝鱼已有 happy/happy2/puzzled/relax/unhappy 5 个表情、idle/speak/thinking/thinkend 4 个动作。映射 happy/excited/puzzled/relaxed/sad；不编造模型没有的表情。原待机动作前几秒本身有笑眼/微笑，neutral 是去掉额外表情后恢复该模型原待机；不能用笑眼参数必须为 0 验收。嘴部在 motion 更新前清零，防止前动作缺失嘴部曲线时留下半张嘴；表情随后贡献、PCM 只在实际说话时最后覆盖。淡出表情队列最多 4，连续指令只保留最新待应用表情。
+
+`inspect-avatar.mjs <local-manifest> <local-report>` 检查模型引用的资源与路径边界，并给出本地 SHA-256 指纹。`verify-avatar.mjs <data-dir>` 验证 9 次表情切换/复位、4 个动作索引、模拟 tap/drag、视线回中和 PCM 口型/取消；`verify-avatar-stress.mjs <data-dir>` 验证 200 次快速切换与队列回收。它们需要 diagnostics，模拟反应不代替实际 Windows 点按/拖动验收。演示窗口提供表情/动作选择与恢复待机按钮。
+
+先启动 `soak.mjs <data-dir> 8` 后，可另跑 `endurance.mjs <data-dir> <local-config>`。它必须使用 silentOutput=true/diagnostics=true 的独立配置，按同一 soak deadline 运行，每分钟轮换模型动作/表情并检查复位，每 15 轮测试固定静音发声、交替取消。它是一段验收负载脚本，不是运行时的主动性策略。计数与状态留在 `endurance-summary.local.json`，是否真正完成仍看实际 deadline、失败和进程趋势。
+
+`diagnostics:true` 时，鉴权 `GET /v1/diagnostics/avatar` 读取当帧模型参数、动作索引、表情与队列；`POST` 同路径只接受 tap/drag/focus/center 四个固定诊断动作，明确标记 simulated。没有启用任意 renderer 脚本接口。
 
 ## 私有 GGUF 环境复现
 
@@ -89,5 +107,7 @@ node apps/interaction/soak.mjs <interaction-data-dir> 8
 前两项验证关键状态/缓冲/边界与真实 SAPI 取消。运行验证发出 10 句测试声音，检查首声、播放结束、取消后静音及鉴权；它**不等于真实用户麦克风 10 句验收**。增量验证检查两句播放和待播分句取消；replacement 验证生成中替换。lifecycle 需要 `diagnostics:true`，模拟挂起/恢复、隐藏/显示、ASR/renderer 故障和并发麦克风启动；不是实际休眠或设备拔插。长测保存 health、Electron 与 ASR/TTS 进程内存、总 GPU 显存、fps、音频轨/上下文/欠供、buildId；监测进程存活和最终 `soak-summary.local.json` 才能确认长测完成。
 
 `metrics.jsonl` 只保存允许字段的计时、计数和状态，8MiB 轮转，写队列上限 256；不保存输入音频、识别文本、发声文本、任意错误消息、token 或聊天记录。辅助 benchmark 可生成**固定测试音频**到 gitignored `tmp/`。`diagnostics:true` 可启用页面截图和模拟 lifecycle 接口；截图留在本机私有验收目录，关闭时不可调用。
+
+合成麦克风链路可用 `make-voice-fixture.ps1 -Output <gitignored-fixture.wav>` 生成十句固定 SAPI 音频，再用 Electron 的 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 启动独立临时运行时，配置 autoListen false、silentOutput true。立即启动 `verify-synthetic-voice.mjs <data-dir>`：先订阅 SSE、等待 worker ready，再开启伪麦克风，固定回复“听到了。”并关联 turnId；保存计时/计数，不存识别文字。它证明 AudioWorklet→VAD→ASR→SSE→TTS→PCM 的合成输入闭环，不证明真人准确率、AEC 或物理扬声器首声。
 
 真实验收还需：耳机/扬声器下连续 10 句、播放中插话、静音环境误触发、切换输入输出设备、模型替换、多屏拔插、休眠唤醒和重启自启。以实际日志和观察报告为准。进度及限制见 `docs/agents/A-interaction-report.md`。

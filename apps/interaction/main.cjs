@@ -25,6 +25,7 @@ let win,
   dataDir,
   token,
   buildId,
+  rendererDir,
   generation = 0,
   quitting = false,
   ready = false;
@@ -99,6 +100,7 @@ function metric(event) {
     )
       clean[key] = event[key];
   }
+  if (typeof event.avatarReady === "boolean") clean.avatarReady = event.avatarReady;
   // Serialize writes and rotate: no text, audio, tokens, or arbitrary payloads enter logs.
   pendingMetrics++;
   serial = serial
@@ -265,7 +267,8 @@ async function main() {
     !["sapi", "qwen", "qwen-gguf"].includes(config.tts?.provider)
   )
     throw new Error("Invalid interaction config");
-  const { validateManifest, assetPath } = await import("./contracts.mjs");
+  const { validateManifest, assetPath, avatarCommand } = await import("./contracts.mjs");
+  rendererDir = path.resolve(config.rendererDir || path.join(root, "../../tmp/interaction-dist"));
   const sources = [
     "main.cjs",
     "workers.cjs",
@@ -277,6 +280,7 @@ async function main() {
     "sapi-worker.ps1",
     "renderer/runtime.mjs",
     "renderer/avatar.mjs",
+    "renderer/body.mjs",
     "renderer/audio.mjs",
     "renderer/audio-worklet.mjs",
     "renderer/index.html",
@@ -287,7 +291,7 @@ async function main() {
     hash.update(source).update(await fs.readFile(path.join(root, source)));
   hash.update(
     await fs.readFile(
-      path.resolve(root, "../../tmp/interaction-dist/assets/main.js"),
+      path.join(rendererDir, "assets/main.js"),
     ),
   );
   buildId = hash.digest("hex");
@@ -346,7 +350,7 @@ async function main() {
         const avatar = url.pathname.startsWith("/avatar/");
         const base = avatar
           ? manifest.root
-          : path.resolve(root, "../../tmp/interaction-dist");
+          : rendererDir;
         const entry = decodeURIComponent(
           avatar
             ? url.pathname.slice(8)
@@ -396,6 +400,7 @@ async function main() {
         response.end(
           JSON.stringify({
             ready,
+            avatarReady: lastMetrics.avatarReady === true,
             apiVersion: 1,
             buildId,
             asr: workers.asr.ready,
@@ -443,6 +448,13 @@ async function main() {
         response.end(JSON.stringify({ captured: true }));
         return;
       }
+      if (config.diagnostics && request.method === "GET" &&
+          url.pathname === "/v1/diagnostics/avatar") {
+        response.setHeader("Content-Type", "application/json");
+        response.end(JSON.stringify(await win.webContents.executeJavaScript(
+          "window.interactionAvatarDiagnostic?.() || {loaded:false}")));
+        return;
+      }
       let body = "";
       for await (const chunk of request) {
         body += chunk;
@@ -450,7 +462,16 @@ async function main() {
       }
       const value = JSON.parse(body || "{}");
       let result;
-      if (request.method === "POST" && url.pathname === "/v1/speech")
+      if (config.diagnostics && request.method === "POST" &&
+          url.pathname === "/v1/diagnostics/avatar") {
+        if (!["tap", "drag", "focus", "center"].includes(value.action))
+          throw new Error("Invalid avatar diagnostic action");
+        if (value.action === "focus" &&
+            (![value.x, value.y].every(Number.isFinite) || Math.abs(value.x) > 2000 || Math.abs(value.y) > 2000))
+          throw new Error("Invalid avatar diagnostic coordinates");
+        result = await win.webContents.executeJavaScript(
+          `window.interactionAvatarExercise?.(${JSON.stringify({ action: value.action, x: value.x, y: value.y })})`);
+      } else if (request.method === "POST" && url.pathname === "/v1/speech")
         result = await speak(value);
       else if (request.method === "POST" && url.pathname === "/v1/cancel")
         result = { generation: cancel("external") };
@@ -515,15 +536,10 @@ async function main() {
         });
         result = { accepted: true };
       } else if (request.method === "POST" && url.pathname === "/v1/avatar") {
-        if (
-          typeof value.emotion !== "string" &&
-          typeof value.motion !== "string"
-        )
-          throw new Error("Invalid avatar command");
+        const command = avatarCommand(value, manifest);
         push({
           type: "avatar",
-          emotion: String(value.emotion || "neutral").slice(0, 40),
-          motion: String(value.motion || "").slice(0, 40),
+          ...command,
         });
         result = { accepted: true };
       } else {
@@ -688,6 +704,8 @@ async function main() {
         demoReply: config.demoReply || "",
         provider: config.tts.provider,
         autoListen: config.autoListen === true || micPreference,
+        diagnostics: config.diagnostics === true,
+        silentOutput: config.silentOutput === true,
       },
       asrReady: workers.asr.ready,
     };

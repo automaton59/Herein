@@ -112,6 +112,8 @@ while (Date.now() < deadline) {
       !value.ready ||
       !value.asr ||
       !value.tts ||
+      value.avatarReady === false ||
+      metric.renderErrors > 0 ||
       value.rendererAgeMs > 15000 ||
       value.buildId !== endpoint.buildId ||
       metric.tracks > 1 ||

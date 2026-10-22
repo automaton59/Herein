@@ -7,7 +7,8 @@ await build({
   root: path.join(root, "renderer"),
   base: "./",
   build: {
-    outDir: path.resolve(root, "../../tmp/interaction-dist"),
+    outDir: path.resolve(process.argv.find(arg => arg.startsWith("--out-dir="))?.slice(10) ||
+      path.join(root, "../../tmp/interaction-dist")),
     emptyOutDir: true,
     rollupOptions: {
       input: {

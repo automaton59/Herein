@@ -43,6 +43,7 @@ function notice(text, error = false) {
 }
 function setState(value) {
   state = value;
+  avatar?.setState(value);
   el("state").textContent =
     {
       idle: "在这里",
@@ -91,6 +92,7 @@ async function initializeAudio() {
       },
     });
     gain = context.createGain();
+    gain.gain.value = boot.config.silentOutput ? 0 : 1;
     out.connect(gain).connect(context.destination);
     out.port.postMessage({ type: "cancel", generation });
     out.port.onmessage = ({ data }) => {
@@ -207,6 +209,7 @@ async function transcript(utterance) {
   if (!asrReady) return;
   const { frames, endedAt, turnId } = utterance;
   const epoch = micEpoch;
+  const requestGeneration = generation;
   asrBusy = true;
   setState("thinking");
   const total = frames.reduce((n, f) => n + f.length, 0);
@@ -226,6 +229,9 @@ async function transcript(utterance) {
       vadToAsrMs: performance.now() - endedAt,
     });
     if (result.stale || epoch !== micEpoch || !desiredMic) return;
+    // C may respond to the SSE transcript before this IPC promise resolves.
+    // Do not replace that newer speech's visual state with "listening".
+    if (requestGeneration !== generation || speechActive) return;
     if (result.text) {
       notice(`听到：${result.text}`);
       if (el("demo").checked && boot.config.demoReply)
@@ -427,7 +433,7 @@ const unsubscribe = api.on(async (event) => {
     utteranceTimes.delete(event.turnId);
     cancelledSpeech = false;
     out.port.postMessage({ type: "cancel", generation });
-    gain.gain.setValueAtTime(1, context.currentTime);
+    gain.gain.setValueAtTime(boot.config.silentOutput ? 0 : 1, context.currentTime);
     outputEnded = false;
     speechActive = true;
     firstRequest = performance.now();
@@ -566,9 +572,19 @@ el("output").onchange = async () => {
 el("top").onchange = () => api.window("top", el("top").checked);
 el("fps").value = String(boot.config.fps);
 el("fps").onchange = () => avatar?.setFps(Number(el("fps").value));
+for (const [id, entries] of [["expression", boot.manifest.expressions], ["motion", boot.manifest.motions]])
+  for (const name of Object.keys(entries || {})) el(id).add(new Option(name, name));
+el("expression").onchange = () => avatar?.expression(el("expression").value);
+el("perform").onclick = () => avatar?.motion(el("motion").value);
+el("rest").onclick = () => {
+  avatar?.expression("neutral");
+  avatar?.motion(boot.manifest.states?.[state] || "idle");
+  el("expression").value = "neutral";
+};
 navigator.mediaDevices.ondevicechange = () => recoverDevices();
 let drag = null;
 el("avatar").onpointerdown = (event) => {
+  if (!event.isPrimary || event.button !== 0) return;
   drag = { x: event.screenX, y: event.screenY, moved: false };
   el("avatar").setPointerCapture(event.pointerId);
 };
@@ -584,15 +600,27 @@ el("avatar").onpointermove = (event) => {
   }
 };
 el("avatar").onpointerup = () => {
-  if (drag?.moved) avatar?.motion("drag");
+  if (drag) avatar?.interact(drag.moved ? "drag" : "tap");
   drag = null;
 };
+el("avatar").onpointercancel = () => { drag = null; };
 try {
   avatar = new Avatar(el("avatar"), boot.manifest, boot.config.fps);
   await avatar.load();
+  if (boot.config.diagnostics) {
+    window.interactionAvatarDiagnostic = () => avatar.diagnostic();
+    window.interactionAvatarExercise = async value => {
+      if (["tap", "drag"].includes(value.action)) await avatar.interact(value.action);
+      if (value.action === "focus") avatar.focus(value.x, value.y);
+      if (value.action === "center") avatar.model.internalModel.focusController.focus(0, 0);
+      return { accepted: true, simulated: true };
+    };
+  }
   notice("形象已就绪；可开始监听或接收 C 的发声命令。");
 } catch (error) {
   console.error(error);
+  avatar.errors++;
+  avatar.destroy();
   notice(error.message, true);
   stats({ type: "avatar.error", reason: "load_failed" });
 }
