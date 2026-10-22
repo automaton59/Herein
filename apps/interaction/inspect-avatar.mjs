@@ -30,9 +30,28 @@ for (const file of [...new Set(files)].sort()) {
   digest.update(file).update(bytes);
   assets.push({ file: file.replaceAll("\\", "/"), bytes: bytes.length, sha256 });
 }
+const expressionEffects = [];
+if (manifest.cubism === 4) {
+  for (const definition of refs.Expressions || []) {
+    const expression = JSON.parse(await fs.readFile(
+      assetPath(root, path.join(prefix, definition.File)), "utf8"));
+    const parameters = expression.Parameters || [];
+    const effective = parameters.filter(parameter =>
+      parameter.Blend === "Overwrite" ||
+      (parameter.Blend === "Multiply" ? parameter.Value !== 1 : parameter.Value !== 0));
+    expressionEffects.push({ name: definition.Name, parameterCount: parameters.length,
+      effectiveParameterCount: effective.length,
+      identityOnly: effective.length === 0,
+      parameters: effective.map(parameter => ({ id: parameter.Id, value: parameter.Value,
+        blend: parameter.Blend || "Add" })),
+    });
+  }
+}
 const report = { cubism: manifest.cubism, modelFingerprint: digest.digest("hex"),
   assets, expressions: Object.keys(manifest.expressions || {}), motions: manifest.motions,
+  expressionEffects,
   localOnly: true };
 if (process.argv[3]) await fs.writeFile(process.argv[3], JSON.stringify(report, null, 2));
 console.log(JSON.stringify({ cubism: report.cubism, assets: assets.length,
-  modelFingerprint: report.modelFingerprint, bytes: assets.reduce((sum, x) => sum + x.bytes, 0) }));
+  modelFingerprint: report.modelFingerprint, bytes: assets.reduce((sum, x) => sum + x.bytes, 0),
+  identityOnlyExpressions: expressionEffects.filter(effect => effect.identityOnly).map(effect => effect.name) }));

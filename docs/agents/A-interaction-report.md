@@ -2,6 +2,8 @@
 
 更新时间：2026-10-22。**进行中，尚未完成整体验收。**
 
+当前以末尾“长文截断与重载状态修复”“夜间审计补充”为准：修复版 buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`，数据 `tmp/interaction-blue-overnight-data`，8 小时从 10-22 23:33:39 至 10-23 07:33:39 北京时间。下文早期蓝鱼和 Shizuku 表格是历史证据，其旧运行状态不能当作当前冻结版验收。
+
 ## 交付范围
 
 `apps/interaction` 是独立 Electron 运行时：本地 ASR、PCM 播放、打断、Live2D manifest、常驻窗口、托盘、快捷键、设备恢复、presence 和 C 的本机接口。没有改 Core 数据库、人格、记忆、控制台、Android、插件或设计。
@@ -112,3 +114,15 @@
 修复版重新开始真实 8 小时：本机数据 `tmp/interaction-blue-overnight-data`，静态 bundle `tmp/interaction-blue-overnight-dist`；runtime PID 22520，monitor PID 6776，endurance PID 17500。开始 **2026-10-22 23:33:39 北京时间**，预计 **10-23 07:33:39** 结束。静音最终输出、Chromium fake device 循环固定 fixture，不访问真人麦克风。约每分钟轮换动作/表情，持续经过 VAD/ASR；每 15 轮暂关伪麦克风进行固定 TTS 完成/取消测试后恢复。endurance 另记 ASR 请求计数，此测试不作“毫不中断的真人监听”证据，也不决定产品主动性。
 
 当前长测仍在真实计时；不能标整体验收完成。明天等用户主动发“开始真人验收”再验证实声/插话与桌面操作；夜间没有请求用户回复或操作。
+
+## 2026-10-22 夜间审计补充
+
+再次视觉复查同修复版的 6 张 renderer 表情图，生成本机 `tmp/interaction-long-fixed-v2-data/expression-contact-sheet.png`；sad 的闭眼低头、excited 的张嘴、puzzled 的左右眼差异可见。neutral/happy/relaxed 在原 idle 笑眼阶段非常接近。原资源 `relax.exp3.json` 全部为 Add 0，实际是恒等操作；加载/切换成功不代表存在独立的放松表情。`inspect-avatar.mjs` 增加表情参数效果审计，蓝鱼报告 identityOnlyExpressions=[relax]；资源及模型指纹未变。没有改模型、贴图或造新表情。
+
+新增 `audit-soak.mjs` 独立审计原始数据：时间窗、采样间隔、uptime 与 PID/build 连续性、重复音频资源、渲染/合成/恢复事件、进程内存与一小时之后的斜率。当前运行与旧终止片段均正确判为 incomplete；5 个审计回归通过，包含伪造 finished 的短片段、采样缺口、uptime 重置、后期内存增长、worker 进程树变化/错误 runtime PID，不会自动声称无泄漏或真实硬件通过。
+
+补充采样 `sample-processes.mjs` PID 7680，**23:46:13 北京时间**开始，跟随新版 soak 至 07:33:39；实际全进程树的创建时间、私有内存、工作集、句柄和线程数保存到 `process-samples.local.jsonl`。它从第 13 分钟开始，fullSoakCoverage=false；原 soak 已从开始采集全程工作集和实际 ASR/TTS 子进程私有内存，新增采样不能冒充全程覆盖。未修改冻结运行代码和 bundle，也未重启新版 runtime。
+
+截至补充时，运行时/soak/endurance/补充采样均通过实际进程与活跃 session 确认；新版已约 13 分钟、采样 27 次、表现轮换 12 次、ASR 完成约 100 次，失败 0，帧率约 58。上述数字是阶段快照，最终以实际 deadline 后原始文件为准。
+
+最终完整验收仍须逐项证明：真人 10 句端到端延迟和识别、耳机/扬声器回声与真实插话、桌面显示/点拖/托盘/热键、多屏/设备/电源/登录周期，以及冻结版连续 8 小时与资源趋势。当前完成独立软件运行、可替换模型接入和合成/模拟验证；没有用这些结果替代剩余真机要求。

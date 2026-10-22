@@ -62,6 +62,8 @@ manifest 的 `motions` 兼容旧字符串组名，也可使用 `{group,index,loo
 
 蓝鱼已有 happy/happy2/puzzled/relax/unhappy 5 个表情、idle/speak/thinking/thinkend 4 个动作。映射 happy/excited/puzzled/relaxed/sad；不编造模型没有的表情。原待机动作前几秒本身有笑眼/微笑，neutral 是去掉额外表情后恢复该模型原待机；不能用笑眼参数必须为 0 验收。嘴部在 motion 更新前清零，防止前动作缺失嘴部曲线时留下半张嘴；表情随后贡献、PCM 只在实际说话时最后覆盖。淡出表情队列最多 4，连续指令只保留最新待应用表情。
 
+资源复查显示原 `relax.exp3.json` 的参数全部为 Add 0，它是恒等操作，不能声称 relaxed 有独立可见效果。happy/puzzled/excited/sad 有实际参数变化；neutral 与 happy 在 idle 的笑眼阶段可能相近。保留原素材，后续换模型由 manifest 映射新的表情。`inspect-avatar.mjs` 的本地报告包含 `expressionEffects` 和 `identityOnly`，帮助区分加载成功与实际表达能力。
+
 `inspect-avatar.mjs <local-manifest> <local-report>` 检查模型引用的资源与路径边界，并给出本地 SHA-256 指纹。`verify-avatar.mjs <data-dir>` 验证 9 次表情切换/复位、4 个动作索引、模拟 tap/drag、视线回中和 PCM 口型/取消；`verify-avatar-stress.mjs <data-dir>` 验证 200 次快速切换与队列回收。它们需要 diagnostics，模拟反应不代替实际 Windows 点按/拖动验收。演示窗口提供表情/动作选择与恢复待机按钮。
 
 先启动 `soak.mjs <data-dir> 8` 后，可另跑 `endurance.mjs <data-dir> <local-config>`。它必须使用 silentOutput=true/diagnostics=true 的独立配置，按同一 soak deadline 运行，每分钟轮换模型动作/表情并检查复位，每 15 轮测试固定静音发声、交替取消。它是一段验收负载脚本，不是运行时的主动性策略。计数与状态留在 `endurance-summary.local.json`，是否真正完成仍看实际 deadline、失败和进程趋势。
@@ -107,11 +109,16 @@ node apps/interaction/verify-replacement.mjs <interaction-data-dir>
 node apps/interaction/verify-long-speech.mjs <interaction-data-dir>
 node apps/interaction/verify-lifecycle.mjs <interaction-data-dir>
 node apps/interaction/soak.mjs <interaction-data-dir> 8
+node apps/interaction/sample-processes.mjs <interaction-data-dir>
+# 等真实 deadline 到达后，审计原始采样，不以 summary.status 单独判断通过。
+node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 ```
 
 前两项验证关键状态/缓冲/边界与真实 SAPI 取消。运行验证发出 10 句测试声音，检查首声、播放结束、取消后静音及鉴权；它**不等于真实用户麦克风 10 句验收**。增量验证检查两句播放和待播分句取消；replacement 验证生成中替换。lifecycle 需要 `diagnostics:true`，模拟挂起/恢复、隐藏/显示、ASR/renderer 故障和并发麦克风启动；不是实际休眠或设备拔插。长测保存 health、Electron 与 ASR/TTS 进程内存、总 GPU 显存、fps、音频轨/上下文/欠供、buildId；监测进程存活和最终 `soak-summary.local.json` 才能确认长测完成。
 
 `verify-long-speech.mjs` 需要 diagnostics；检查固定 145/500 字语音的 PCM 时长、超过原 24 秒上限后的持续生成、欠供、结束复位、长文取消与替换。它不保存 PCM，不证明文字逐字完整或实际扬声器音质。Python 分段回归可用 `python -B -m unittest discover -s apps/interaction/tests -p 'test_*.py'`；不需要模型。
+
+`sample-processes.mjs` 作为独立采样器运行至同一 soak deadline；确认 runtime 命令行属于该数据目录，收集实际全进程树的私有内存、工作集、句柄、线程和创建时间，不保存命令行或配置。它不会重启运行时。`audit-soak.mjs` 检查 8 小时时间窗、采样缺口、uptime/PID/build 连续性、音频资源、渲染与恢复错误，并汇总一小时预热后的内存斜率；每小时大于 10MiB 的增长列为复查项，不据此自动断定泄漏。审计通过后仍须人工审阅趋势及完成真实硬件验收。
 
 `metrics.jsonl` 只保存允许字段的计时、计数和状态，8MiB 轮转，写队列上限 256；不保存输入音频、识别文本、发声文本、任意错误消息、token 或聊天记录。辅助 benchmark 可生成**固定测试音频**到 gitignored `tmp/`。`diagnostics:true` 可启用页面截图和模拟 lifecycle 接口；截图留在本机私有验收目录，关闭时不可调用。
 
