@@ -24,6 +24,7 @@ import { CoreMemoryRunner } from './memory';
 import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
+import { AgentProviderRegistry, type AgentProvider } from '../plugins/agentProvider';
 import {
   scanBilibiliFeed,
   type BilibiliFeedSource,
@@ -81,6 +82,7 @@ export interface CoreServerOptions {
     enabled: boolean;
     intervalMs?: number;
   };
+  agentProviders?: AgentProvider[];
 }
 
 export interface CoreServerHandle {
@@ -282,6 +284,12 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     autoReply: options.qqListener?.autoReply,
   }));
   await pluginRegistry.initialize();
+
+  const agentProviderRegistry = new AgentProviderRegistry();
+
+  for (const provider of options.agentProviders ?? []) {
+    agentProviderRegistry.register(provider);
+  }
 
   const qqEnabled = options.qqListener?.enabled ?? process.env.HEREIN_QQ_ENABLED === '1';
 
@@ -839,6 +847,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         const status = await buildCoreStatus({
           db,
           pluginRegistry,
+          agentRegistry: agentProviderRegistry,
           startedAt,
           version: CORE_SERVER_VERSION,
           ttsUrl,
@@ -848,6 +857,83 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         });
         sendJson(response, 200, status);
         return;
+      }
+
+      if (segments[0] === 'v1' && segments[1] === 'agents') {
+        try {
+          if (request.method === 'GET' && segments.length === 2) {
+            sendJson(response, 200, await agentProviderRegistry.list());
+            return;
+          }
+
+          const providerId = segments[2] ? decodeURIComponent(segments[2]) : '';
+          const capabilityId = segments[3] ? decodeURIComponent(segments[3]) : '';
+
+          if (!providerId) {
+            sendJson(response, 404, { error: 'agent provider not found' });
+            return;
+          }
+
+          if (request.method === 'GET' && capabilityId === 'health' && segments.length === 4) {
+            sendJson(response, 200, { health: await agentProviderRegistry.health(providerId) });
+            return;
+          }
+
+          if (request.method === 'POST' && capabilityId && segments[4]) {
+            const action = segments[4];
+
+            if (action === 'install') {
+              sendJson(response, 200, await agentProviderRegistry.install(providerId, capabilityId));
+              return;
+            }
+
+            if (action === 'enable') {
+              sendJson(response, 200, await agentProviderRegistry.enable(providerId, capabilityId));
+              return;
+            }
+
+            if (action === 'disable') {
+              sendJson(response, 200, await agentProviderRegistry.disable(providerId, capabilityId));
+              return;
+            }
+
+            if (action === 'remove') {
+              sendJson(response, 200, await agentProviderRegistry.remove(providerId, capabilityId));
+              return;
+            }
+
+            if (action === 'rollback') {
+              sendJson(response, 200, await agentProviderRegistry.rollback(providerId, capabilityId));
+              return;
+            }
+
+            if (action === 'invoke') {
+              const body = asRecord(await readJson(request));
+              const invokeAction = requireString(body, 'action');
+              const result = await agentProviderRegistry.invoke(
+                providerId,
+                capabilityId,
+                invokeAction,
+                body.input,
+              );
+              sendJson(response, 200, { result });
+              return;
+            }
+          }
+
+          sendJson(response, 405, { error: 'method not allowed' });
+          return;
+        } catch (error) {
+          if (error instanceof PluginError) {
+            sendJson(response, error.status, {
+              error: error.code,
+              detail: error.message,
+            });
+            return;
+          }
+
+          throw error;
+        }
       }
 
       if (segments[0] === 'v1' && segments[1] === 'plugins') {

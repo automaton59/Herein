@@ -13,7 +13,8 @@
 - Core HTTP：`/v1/plugins*`、`/v1/status`。
 - `plugins/weather/`：第一个目录型 native plugin，验证安装 → 配置 → 启用 → 调用 → 审计 → 停用 → 卸载。
 - 内置 native plugin：`bilibili`（只读推荐流扫描 → observations/activity）、`netease`（匿名只读候选/搜索）、`qq`（官方 Bot listener/被动回复，凭据在本地文件）。
-- 桌面新增“系统”控制台：状态卡片、插件列表、天气配置/查询、最近审计。
+- `electron/plugins/agentProvider.ts`：AgentProvider 契约 + registry；DSH 能力将来从这里接入。
+- 桌面新增“系统”控制台：状态卡片、插件列表、天气配置/查询、主动性、最近审计。
 - Android 新增系统状态芯片/抽屉：Core/DB/模型/声音/插件。
 
 ## 插件契约
@@ -35,7 +36,7 @@ entry: export function createPlugin() -> { start, stop, health, invoke }
 ## 当前边界
 
 - `weather`、`bilibili`、`netease`、`qq` 已是 native plugin。
-- DSH 是 `agent` 能力来源，由 B 工作流提供 provider；C 的注册表只做聚合/策略/UI/审计。
+- DSH 通过 `AgentProvider` 契约接入；C 的注册表只做聚合/策略/UI/审计，B 尚未交付真实 provider。
 - 桌面控制台目前只对 weather 做了完整操作 UI；B 站/网易云/QQ 可以通过插件启停，调用入口仍走原有 Core 路由或后续通用插件 UI。
 - Android 状态只覆盖 Core 侧组件；relay/隧道状态、离线 outbox 待补。
 
@@ -44,7 +45,7 @@ entry: export function createPlugin() -> { start, stop, health, invoke }
 - `electron/plugins/registry.test.ts`：发现/安装/启用/调用/停用/审计/配置/权限/失败。
 - `electron/plugins/weather.test.ts`：天气安装/配置/缓存/降级/失败。
 - `electron/core/server.test.ts`：`/v1/status` + `/v1/plugins*` 端到端。
-- 2026-10-22：51 files / 195 tests passed；`npm run build` 通过。
+- 2026-10-22：53 files / 207 tests passed；`npm run build` 通过。
 
 ## 相关文档
 

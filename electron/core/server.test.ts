@@ -609,6 +609,72 @@ describe('core server', () => {
     expect(authorized.status).toBe(200);
   });
 
+  it('exposes agent providers and delegates lifecycle operations', async () => {
+    const provider = {
+      id: 'dsh',
+      name: 'DSH',
+      async listCapabilities() {
+        return [{
+          providerId: 'dsh',
+          id: 'hello',
+          name: 'Hello',
+          version: '1.0.0',
+          permissions: [],
+          health: { status: 'ok' as const, checkedAt: '2026-10-22T12:00:00.000Z' },
+        }];
+      },
+      async install(capabilityId: string) {
+        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
+      },
+      async enable(capabilityId: string) {
+        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
+      },
+      async disable(capabilityId: string) {
+        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
+      },
+      async remove(capabilityId: string) {
+        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
+      },
+      async health() {
+        return { status: 'ok' as const, checkedAt: '2026-10-22T12:00:00.000Z' };
+      },
+      async invoke(capabilityId: string, action: string, input: unknown) {
+        return { capabilityId, action, input };
+      },
+    };
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      agentProviders: [provider],
+    });
+    handles.push(handle);
+
+    const listed = await getJson(handle, '/v1/agents');
+    expect(listed.status).toBe(200);
+    expect(listed.body.providers[0]).toEqual(expect.objectContaining({ id: 'dsh' }));
+    expect(listed.body.capabilities[0]).toEqual(expect.objectContaining({ id: 'hello' }));
+
+    const installed = await postJson(handle, '/v1/agents/dsh/hello/install', {});
+    expect(installed.body).toEqual(expect.objectContaining({ status: 'applied', capabilityId: 'hello' }));
+
+    const invoked = await postJson(handle, '/v1/agents/dsh/hello/invoke', {
+      action: 'ping',
+      input: { n: 1 },
+    });
+    expect(invoked.body.result).toEqual({
+      capabilityId: 'hello',
+      action: 'ping',
+      input: { n: 1 },
+    });
+
+    const status = await getJson(handle, '/v1/status');
+    expect(status.body.components.agents).toEqual(expect.objectContaining({
+      status: 'ok',
+      detail: expect.objectContaining({ providers: 1, capabilities: 1 }),
+    }));
+  });
+
   it('exposes status and manages the weather plugin end to end', async () => {
     const pluginFetch = vi.fn(async (input: RequestInfo | URL) => {
       const requestUrl = String(input);

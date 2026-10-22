@@ -73,6 +73,7 @@ export interface CoreStatus {
     llm: CoreStatusComponent;
     tts: CoreStatusComponent;
     plugins: CoreStatusComponent;
+    agents: CoreStatusComponent;
   };
 }
 

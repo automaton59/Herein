@@ -56,6 +56,7 @@ interface SystemStatus {
     llm: SystemStatusComponent;
     tts: SystemStatusComponent;
     plugins: SystemStatusComponent;
+    agents: SystemStatusComponent;
   };
 }
 
@@ -814,6 +815,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                   ['模型', systemStatus.components.llm],
                   ['声音', systemStatus.components.tts],
                   ['插件', systemStatus.components.plugins],
+                  ['Agent', systemStatus.components.agents],
                 ].map(([label, component]) => {
                   const value = component as SystemStatusComponent;
                   return (

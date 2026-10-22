@@ -1,10 +1,12 @@
 import type { Phase2Database } from '../data/database';
 import type { PluginRegistry } from '../plugins/registry';
+import type { AgentProviderRegistry } from '../plugins/agentProvider';
 import { loadLlmConfig, type LlmConfig } from './llm';
 
 export interface CoreStatusOptions {
   db: Phase2Database;
   pluginRegistry: PluginRegistry;
+  agentRegistry?: AgentProviderRegistry;
   startedAt: number;
   version: string;
   ttsUrl: string;
@@ -34,6 +36,7 @@ export interface CoreStatus {
     llm: StatusComponent;
     tts: StatusComponent;
     plugins: StatusComponent;
+    agents: StatusComponent;
   };
 }
 
@@ -128,6 +131,36 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     detail: { ...pluginSummary },
   };
 
+  let agents: StatusComponent = {
+    status: 'ok',
+    message: 'no agent providers',
+  };
+
+  if (options.agentRegistry) {
+    try {
+      const list = await options.agentRegistry.list();
+      const failed = list.providers.filter(provider => provider.health.status === 'failed').length;
+      const degraded = list.providers.filter(provider => provider.health.status === 'degraded').length;
+      agents = {
+        status: failed > 0 ? 'degraded' : degraded > 0 ? 'degraded' : 'ok',
+        message: list.providers.length === 0
+          ? 'no agent providers'
+          : `${list.capabilities.length} capabilities / ${list.providers.length} providers`,
+        detail: {
+          providers: list.providers.length,
+          capabilities: list.capabilities.length,
+          failed,
+          degraded,
+        },
+      };
+    } catch (error) {
+      agents = {
+        status: 'degraded',
+        message: error instanceof Error ? error.message : 'agent provider status failed',
+      };
+    }
+  }
+
   const components = {
     core: {
       status: 'ok' as const,
@@ -140,9 +173,10 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     llm,
     tts,
     plugins,
+    agents,
   };
 
-  const degraded = [dbStatus, llm, tts, plugins]
+  const degraded = [dbStatus, llm, tts, plugins, agents]
     .some(component => component.status !== 'ok');
 
   return {

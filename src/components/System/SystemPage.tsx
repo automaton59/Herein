@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   Activity,
+  Bot,
   CloudSun,
   Database,
   Loader2,
@@ -329,12 +330,13 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           {statusCard('Core', status?.components.core, <Server size={16} />, status ? `v${status.version} · ${formatUptime(status.uptimeMs)}` : undefined)}
           {statusCard('数据库', status?.components.db, <Database size={16} />)}
           {statusCard('模型', status?.components.llm, <Sparkles size={16} />, status?.components.llm.detail?.model as string | undefined)}
           {statusCard('声音', status?.components.tts, <Volume2 size={16} />, status?.components.tts.latencyMs ? `${status.components.tts.latencyMs}ms` : undefined)}
           {statusCard('插件', status?.components.plugins, <Plug size={16} />, summary ? `${summary.enabled}/${summary.installed} 已启用` : undefined)}
+          {statusCard('Agent', status?.components.agents, <Bot size={16} />, status?.components.agents.message)}
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
