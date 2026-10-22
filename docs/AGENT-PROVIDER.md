@@ -47,5 +47,6 @@ interface AgentProvider {
 
 - `electron/plugins/agentProvider.ts`：registry + 契约。
 - `GET/POST /v1/agents*`：Core 路由。
+- 桌面“系统”控制台：provider 健康、capability 安装/启停/移除/action 调用、结果展示。
 - 测试：registry 生命周期、provider 健康失败、Core 端到端。
 - 还没有真实 DSH provider；B 交付后注册进 `CoreServerOptions.agentProviders` 即可。

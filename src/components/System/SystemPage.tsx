@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import {
   CoreClient,
+  type CoreAgentCapability,
+  type CoreAgentList,
   type CoreCharacterSummary,
   type CoreInitiativeResult,
   type CorePluginAudit,
@@ -266,6 +268,9 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
   const [summary, setSummary] = React.useState<CorePluginSummary | null>(null);
   const [characters, setCharacters] = React.useState<CoreCharacterSummary[]>([]);
   const [characterId, setCharacterId] = React.useState('');
+  const [agents, setAgents] = React.useState<CoreAgentList>({ providers: [], capabilities: [] });
+  const [agentBusy, setAgentBusy] = React.useState('');
+  const [agentOutput, setAgentOutput] = React.useState<{ id: string; text: string } | null>(null);
   const [initiativeResult, setInitiativeResult] = React.useState<CoreInitiativeResult | null>(null);
   const [initiativeBusy, setInitiativeBusy] = React.useState(false);
   const [audit, setAudit] = React.useState<CorePluginAudit[]>([]);
@@ -288,17 +293,19 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
     setLoading(true);
 
     try {
-      const [nextStatus, nextPlugins, nextAudit, nextCharacters] = await Promise.all([
+      const [nextStatus, nextPlugins, nextAudit, nextCharacters, nextAgents] = await Promise.all([
         core.status(),
         core.listPlugins(),
         core.pluginAudit(12),
         core.listCharacters(),
+        core.listAgents().catch(() => ({ providers: [], capabilities: [] } as CoreAgentList)),
       ]);
       setStatus(nextStatus);
       setPlugins(nextPlugins.plugins);
       setSummary(nextPlugins.summary);
       setAudit(nextAudit.audit);
       setCharacters(nextCharacters.characters);
+      setAgents(nextAgents);
       setCharacterId(current => current || nextCharacters.characters[0]?.id || '');
       setError('');
 
@@ -402,6 +409,30 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
       setError(initiativeError instanceof Error ? initiativeError.message : '主动性运行失败');
     } finally {
       setInitiativeBusy(false);
+    }
+  };
+
+  const runAgentAction = async (
+    capability: CoreAgentCapability,
+    key: string,
+    action: (core: CoreClient) => Promise<unknown>,
+  ) => {
+    const core = createCoreClient();
+    if (!core) return;
+    setAgentBusy(`${capability.id}:${key}`);
+    setError('');
+
+    try {
+      const result = await action(core);
+      setAgentOutput({
+        id: capability.id,
+        text: JSON.stringify(result, null, 2),
+      });
+      await load();
+    } catch (agentError) {
+      setError(agentError instanceof Error ? agentError.message : 'Agent 操作失败');
+    } finally {
+      setAgentBusy('');
     }
   };
 
@@ -696,6 +727,151 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
             </section>
           </div>
         </div>
+
+        <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <Bot size={18} className="text-sky-600 dark:text-sky-300" />
+                <h2 className="text-lg font-semibold">Agent 能力</h2>
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                DSH 等 agent provider 暴露的能力；装什么、启停、调用都走同一条权限/审计边界。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {agents.providers.map(provider => (
+                <span
+                  key={provider.id}
+                  className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                    provider.health.status === 'ok'
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                      : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
+                  }`}
+                >
+                  {provider.name} · {pluginHealthLabel(provider.health)}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {agents.capabilities.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-sky-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-sky-800 dark:text-slate-400">
+              还没有 agent provider。B 的 DSH 桥接入后，能力会出现在这里。
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {agents.capabilities.map(capability => {
+                const installed = capability.installed !== false;
+                const enabled = capability.enabled !== false;
+                const busy = agentBusy.startsWith(`${capability.id}:`);
+
+                return (
+                  <div
+                    key={`${capability.providerId}:${capability.id}`}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/35 p-4 dark:border-sky-900/40 dark:bg-white/[0.03]"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{capability.name}</span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">
+                            {capability.providerId}
+                          </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            capability.health.status === 'ok'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+                              : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
+                          }`}>
+                            {pluginHealthLabel(capability.health)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {capability.description || `${capability.id} · v${capability.version}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {!installed ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void runAgentAction(
+                            capability,
+                            'install',
+                            core => core.installAgent(capability.providerId, capability.id),
+                          )}
+                          className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        >
+                          安装
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void runAgentAction(
+                              capability,
+                              enabled ? 'disable' : 'enable',
+                              core => enabled
+                                ? core.disableAgent(capability.providerId, capability.id)
+                                : core.enableAgent(capability.providerId, capability.id),
+                            )}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                              enabled
+                                ? 'border border-slate-200 bg-white text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
+                                : 'bg-sky-600 text-white'
+                            }`}
+                          >
+                            {enabled ? '停用' : '启用'}
+                          </button>
+                          {(capability.actions ?? []).map(action => (
+                            <button
+                              key={action}
+                              type="button"
+                              disabled={busy || !enabled}
+                              onClick={() => void runAgentAction(
+                                capability,
+                                `action:${action}`,
+                                core => core.invokeAgent(
+                                  capability.providerId,
+                                  capability.id,
+                                  action,
+                                ),
+                              )}
+                              className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 disabled:opacity-50 dark:border-sky-800 dark:bg-white/5 dark:text-sky-200"
+                            >
+                              {action}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void runAgentAction(
+                              capability,
+                              'remove',
+                              core => core.removeAgent(capability.providerId, capability.id),
+                            )}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+                          >
+                            移除
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {agentOutput?.id === capability.id && (
+                      <pre className="mt-3 max-h-40 overflow-auto rounded-xl bg-slate-950/5 p-3 text-[11px] leading-5 text-slate-600 dark:bg-black/20 dark:text-slate-300">
+                        {agentOutput.text}
+                      </pre>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

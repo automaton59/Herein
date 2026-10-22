@@ -8,6 +8,9 @@ export interface AgentCapabilityDescriptor {
   description?: string;
   permissions: PluginPermission[];
   health: PluginHealth;
+  installed?: boolean;
+  enabled?: boolean;
+  actions?: string[];
 }
 
 export type AgentOperationStatus = 'applied' | 'restart-required' | 'failed';

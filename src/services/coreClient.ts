@@ -157,6 +157,48 @@ export interface CoreInitiativeResult {
   error?: string;
 }
 
+export interface CoreAgentHealth {
+  status: 'ok' | 'degraded' | 'failed' | 'unknown';
+  message?: string;
+  checkedAt: string;
+}
+
+export interface CoreAgentProvider {
+  id: string;
+  name: string;
+  health: CoreAgentHealth;
+}
+
+export interface CoreAgentCapability {
+  providerId: string;
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  permissions: Array<{
+    kind: 'network' | 'credentials' | 'send' | 'install' | 'filesystem';
+    value?: string;
+    reason?: string;
+  }>;
+  health: CoreAgentHealth;
+  installed?: boolean;
+  enabled?: boolean;
+  actions?: string[];
+}
+
+export interface CoreAgentList {
+  providers: CoreAgentProvider[];
+  capabilities: CoreAgentCapability[];
+}
+
+export interface CoreAgentOperation {
+  providerId: string;
+  capabilityId: string;
+  status: 'applied' | 'restart-required' | 'failed';
+  message?: string;
+  detail?: Record<string, unknown>;
+}
+
 export class CoreHttpError extends Error {
   readonly status: number;
 
@@ -349,6 +391,57 @@ export class CoreClient {
     return this.request('/v1/initiative/run', {
       method: 'POST',
       body: JSON.stringify(characterId ? { characterId } : {}),
+    });
+  }
+
+  listAgents(): Promise<CoreAgentList> {
+    return this.request('/v1/agents');
+  }
+
+  installAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
+    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/install`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  enableAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
+    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/enable`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  disableAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
+    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/disable`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  removeAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
+    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/remove`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  rollbackAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
+    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/rollback`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  invokeAgent<T = unknown>(
+    providerId: string,
+    capabilityId: string,
+    action: string,
+    input?: unknown,
+  ): Promise<{ result: T }> {
+    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/invoke`, {
+      method: 'POST',
+      body: JSON.stringify({ action, input }),
     });
   }
 }
