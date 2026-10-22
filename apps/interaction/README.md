@@ -125,6 +125,8 @@ node apps/interaction/audit-soak.mjs <interaction-data-dir> --require-finished
 
 审计的每个进程带 `hourlyWindows`（按起点小时的 min/median/max、样本数和覆盖分钟）与预热后时间窗后半段的斜率，帮助检查增长是否趋稳。补充采样单独报告起点/截止覆盖与采样缺口，超过 90 秒的缺口列为问题；句柄或私有内存增长即使未反映在工作集也会列入人工复查。单个小时仍可能含预热或活动波动，斜率/统计不自动作泄漏结论。
 
+`hourlyPerformance` 按同一起点汇总 ASR、VAD 后识别完成、合成首包、软件首声、软件取消确认、RTF 与 fps 的样本数/min/median/p95/max。没有测到的指标是 count=0/null，不能当作零延迟；ASR 的主进程与 renderer 记录不重复计数。长测固定语音没有关联合成输入回复，因此没有端到端首声样本；闭环另看对应合成/真人验收报告。软件首声/取消确认不代表扬声器或真人人声起点延迟，少量 TTS 样本的 p95 只作描述。
+
 `metrics.jsonl` 只保存允许字段的计时、计数和状态，8MiB 轮转，写队列上限 256；不保存输入音频、识别文本、发声文本、任意错误消息、token 或聊天记录。辅助 benchmark 可生成**固定测试音频**到 gitignored `tmp/`。`diagnostics:true` 可启用页面截图和模拟 lifecycle 接口；截图留在本机私有验收目录，关闭时不可调用。
 
 合成麦克风链路可用 `make-voice-fixture.ps1 -Output <gitignored-fixture.wav>` 生成十句固定 SAPI 音频，再用 Electron 的 `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<absolute-fixture.wav>%noloop` 启动独立临时运行时，配置 autoListen false、silentOutput true。立即启动 `verify-synthetic-voice.mjs <data-dir>`：先订阅 SSE、等待 worker ready，再开启伪麦克风，固定回复“听到了。”并关联 turnId；保存计时/计数，不存识别文字。它证明 AudioWorklet→VAD→ASR→SSE→TTS→PCM 的合成输入闭环，不证明真人准确率、AEC 或物理扬声器首声。

@@ -98,3 +98,25 @@ test("supplementary sampling gaps cannot silently look continuous", async () => 
   assert.equal(code, 1);
   assert.ok(report.problems.includes("supplementary_observation_gap_over_90_seconds"));
 }));
+
+test("hourly timings separate ASR, software sound and unmeasured endpoint latency", async () => fixture(async ({ dir, rows, summary }) => {
+  const metrics = [
+    { at: rows[100].at, type: "asr.complete", asrMs: 120 },
+    { at: rows[101].at, type: "voice.turn", asrMs: 120, vadToAsrMs: 135 },
+    { at: rows[102].at, type: "tts.first", firstMs: 600 },
+    { at: rows[103].at, type: "playback.sound", renderFirstMs: 800 },
+    { at: rows[104].at, type: "playback.sound", renderFirstMs: 1000 },
+    { at: rows[240].at, type: "playback.sound", renderFirstMs: 1100, endToSoundMs: 1500 },
+  ];
+  await fs.writeFile(path.join(dir, "metrics.jsonl"), metrics.map(JSON.stringify).join("\n") + "\n");
+  const { report } = await run(dir, rows, summary);
+  const first = report.hourlyPerformance.find(hour => hour.hourFromStart === 0);
+  const second = report.hourlyPerformance.find(hour => hour.hourFromStart === 2);
+  assert.equal(first.asrMs.count, 1, "Renderer copy must not double-count ASR");
+  assert.equal(first.ttsFirstMs.median, 600);
+  assert.equal(first.softwareFirstSoundMs.count, 2);
+  assert.equal(first.softwareFirstSoundMs.p95, 1000);
+  assert.equal(first.softwareEndToSoundMs.count, 0);
+  assert.equal(first.softwareEndToSoundMs.median, null);
+  assert.equal(second.softwareEndToSoundMs.median, 1500);
+}));

@@ -27,6 +27,12 @@ function stats(values) {
   if (!valid.length) return null;
   return { min: valid[0], median: valid[Math.floor(valid.length / 2)], max: valid.at(-1) };
 }
+function timingStats(values) {
+  const valid = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!valid.length) return { count: 0, min: null, median: null, p95: null, max: null };
+  return { count: valid.length, min: valid[0], median: valid[Math.floor(valid.length / 2)],
+    p95: valid[Math.max(0, Math.ceil(valid.length * 0.95) - 1)], max: valid.at(-1) };
+}
 function slope(points) {
   if (points.length < 3) return null;
   const x = points.map(p => p.hours), y = points.map(p => p.value);
@@ -176,6 +182,29 @@ if (supplementaryTimes.some((time, i) => i && time <= supplementaryTimes[i - 1])
   problems.push("supplementary_non_monotonic_samples");
 const supplementaryGrowth = supplementaryProcesses.filter(record =>
   record.latePrivateSlopeMiBPerHour > 10 || record.lateHandleSlopePerHour > 10);
+const performanceBuckets = new Map();
+for (const row of metrics) {
+  const hour = Math.floor((Date.parse(row.at) - started) / 3600000);
+  const bucket = performanceBuckets.get(hour) || [];
+  bucket.push(row);
+  performanceBuckets.set(hour, bucket);
+}
+const timingFields = {
+  asrMs: ["asr.complete", "asrMs"], vadToAsrMs: ["voice.turn", "vadToAsrMs"],
+  ttsFirstMs: ["tts.first", "firstMs"], softwareFirstSoundMs: ["playback.sound", "renderFirstMs"],
+  softwareEndToSoundMs: ["playback.sound", "endToSoundMs"],
+  softwareCancelAckMs: ["playback.interrupted", "interruptMs"], rtf: ["tts.complete", "rtf"],
+};
+const hourlyPerformance = [...performanceBuckets.entries()].sort(([a], [b]) => a - b)
+  .map(([hour, bucket]) => ({ hourFromStart: hour,
+    firstEvent: bucket[0].at, lastEvent: bucket.at(-1).at,
+    eventCounts: Object.fromEntries(Object.values(timingFields).map(([type]) =>
+      [type, bucket.filter(row => row.type === type).length])),
+    ...Object.fromEntries(Object.entries(timingFields).map(([label, [type, key]]) =>
+      [label, timingStats(bucket.filter(row => row.type === type).map(row => row[key]))])),
+    fps: timingStats(samples.filter(row => Math.floor((Date.parse(row.at) - started) / 3600000) === hour)
+      .map(row => row.metrics?.fps)),
+  }));
 const finished = summary.status === "finished" && Date.now() >= deadline &&
   (deadline - started) >= 8 * 3600000 && firstAt - started <= 45000 && deadline - lastAt <= 45000;
 if (endurance && summary.status === "finished" && endurance.status !== "finished")
@@ -207,6 +236,8 @@ const report = {
   memoryReviewThresholdMiBPerHour: 10,
   memoryAssessment: lateGrowth.length || supplementaryGrowth.length ? "review_late_growth" : finished ? "review_trends_before_acceptance" : "insufficient_duration",
   metricsCoverageStart: metrics[0]?.at,
+  hourlyPerformance,
+  performanceSemantics: "software_timing_only_missing_values_are_not_zero",
   metricsCounts: Object.fromEntries(["asr.complete", "tts.complete", "playback.sound", "playback.interrupted", "renderer.gone", "worker.recovery", "tts.error", "avatar.error"]
     .map(type => [type, metrics.filter(row => row.type === type).length])),
   endurance: endurance && { status: endurance.status, cycles: endurance.cycles,

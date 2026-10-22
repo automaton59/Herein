@@ -173,3 +173,5 @@
 thinkEnd 一次结束后回 idle，2.2 秒后仍 idle；happy 保留。模拟隐藏后 9.96fps，保持 13 秒跨动作周期后表情仍在；显示后恢复 29fps。整个测试 Electron 进程集合未变，末态 neutral/idle/嘴0/音轨0。报告 `avatar-loop-verification.local.json`；表情对照与脸部裁图保留该本机目录，目视复查 excited 张嘴开眼、sad 低头闭眼。happy 和 puzzled 在当前基础动作的笑眼阶段视觉相近，是素材叠加限制。该证据仍不证明 Windows 合成或真实点拖。
 
 临时 runtime PID 26324 已经完整命令行和数据目录验证，连同 10 个子进程回收；再查进程不存在。两条原蓝鱼 runtime/soak/endurance/process sampler 仍保持原 PID/创建时间，未覆盖 bundle 或修改冻结 runtime。
+
+长测审计补 `hourlyPerformance` 分别汇总 ASR、VAD→识别、合成首包、软件首声/取消确认、RTF/fps，缺测保留 count=0/null，不把主/renderer ASR 双计。8/8 审计回归通过。阶段性首小时主实例 ASR 511 次、89.18–555.58ms，中位 344.98ms；软件首声 4 次、737.6–826.8ms，RTF 2 次、0.44–0.45，帧率最低 58.26。透明实例当时首声 3 次、586.6–953.2ms。主后续第 1 小时尚不足完整时段，不能从少量 TTS 样本断言长期速度稳定。长测固定 TTS 与循环合成输入未连接回复，endToSound 不存在；不混作合成十轮闭环或真人声音证据。

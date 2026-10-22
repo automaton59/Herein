@@ -38,6 +38,8 @@ node apps/interaction/audit-soak.mjs tmp/interaction-blue-transparent-data --req
 
 比较每个进程 `hourlyWindows` 的中位值和最大值、预热后后半段斜率与句柄趋势，并核查 `supplementaryCoverage`；默认透明长测的补充采样从起点约 20 秒后开始。增长超过复查阈值只能判为需要调查，不能从首末样本或单个正斜率直接判定泄漏/无泄漏。
 
+另比较 `hourlyPerformance` 的 ASR、软件首声、RTF、fps 是否在后段明显恶化，同时核查样本数。固定 TTS 负载不构成 ASR→回复闭环，端到端样本缺失保留 null；真人和物理输出延迟仍须单独验收。
+
 ## 用户主动开始真人验收后
 
 用户已约定发送“开始真人验收”；夜间不提示、不录真人声音。真人阶段只保存计时、计数、状态和简短观察结果，不保存音频、识别文字或聊天数据。
