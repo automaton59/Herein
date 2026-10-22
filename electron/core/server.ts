@@ -419,6 +419,49 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         return;
       }
 
+      if (segments[0] === 'v1' && segments[1] === 'read-state' && segments[2]) {
+        const characterId = decodeURIComponent(segments[2]);
+        const character = repos.characters.get(characterId);
+
+        if (!character) {
+          sendJson(response, 404, { error: `character not found: ${characterId}` });
+          return;
+        }
+
+        if (request.method === 'GET') {
+          sendJson(response, 200, {
+            readState: repos.readState.get(characterId) ?? {
+              characterId,
+              lastReadMessageId: null,
+              lastReadAt: null,
+              updatedAt: null,
+            },
+          });
+          return;
+        }
+
+        if (request.method === 'POST') {
+          const body = asRecord(await readJson(request));
+          const lastReadMessageId = typeof body.lastReadMessageId === 'string'
+            ? body.lastReadMessageId
+            : null;
+          const readState = {
+            characterId,
+            lastReadMessageId,
+            lastReadAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          repos.readState.upsert(readState);
+          sendJson(response, 200, {
+            readState: repos.readState.get(characterId) ?? readState,
+          });
+          return;
+        }
+
+        sendJson(response, 405, { error: 'method not allowed' });
+        return;
+      }
+
       if (request.method === 'POST' && url.pathname === '/v1/chat') {
         const body = asRecord(await readJson(request));
         const characterId = requireString(body, 'characterId');

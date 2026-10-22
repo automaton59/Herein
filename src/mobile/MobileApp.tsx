@@ -437,6 +437,14 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
       );
       setMessages(data.messages);
       setStatus('已连接');
+
+      const lastMessage = data.messages[data.messages.length - 1];
+      if (lastMessage) {
+        void coreRequest(config, `/v1/read-state/${CHARACTER_ID}`, {
+          method: 'POST',
+          body: JSON.stringify({ lastReadMessageId: lastMessage.id }),
+        }).catch(() => undefined);
+      }
     } catch (error) {
       setStatus(error instanceof Error ? error.message : '连接失败');
     }

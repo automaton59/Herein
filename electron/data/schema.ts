@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;
 
 export interface SchemaMigration {
   version: number;
@@ -375,6 +375,18 @@ export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
         on plugin_audit(plugin_id, created_at desc);
       create index if not exists idx_plugin_audit_time
         on plugin_audit(created_at desc);
+    `,
+  },
+  {
+    version: 10,
+    name: 'timeline_read_state',
+    sql: `
+      create table if not exists timeline_read_state (
+        character_id text primary key references characters(id) on delete cascade,
+        last_read_message_id text,
+        last_read_at text,
+        updated_at text not null
+      );
     `,
   },
 ];

@@ -180,6 +180,13 @@ export interface SummaryRecord {
   updatedAt?: string;
 }
 
+export interface ReadStateRecord {
+  characterId: string;
+  lastReadMessageId: string | null;
+  lastReadAt: string | null;
+  updatedAt: string;
+}
+
 export interface MemoryRecord {
   id: string;
   characterId?: string | null;
@@ -1052,6 +1059,49 @@ export function createPhase2Repositories(db: Phase2Database) {
             JSON.stringify(summary.sourceMessageIds),
             summary.status ?? 'active',
             existing?.created_at ?? timestamp,
+            timestamp,
+          );
+      },
+    },
+
+    readState: {
+      get(characterId: string): ReadStateRecord | null {
+        const row = db
+          .prepare('select * from timeline_read_state where character_id = ?')
+          .get(characterId) as {
+            character_id: string;
+            last_read_message_id: string | null;
+            last_read_at: string | null;
+            updated_at: string;
+          } | undefined;
+
+        return row
+          ? {
+            characterId: row.character_id,
+            lastReadMessageId: row.last_read_message_id,
+            lastReadAt: row.last_read_at,
+            updatedAt: row.updated_at,
+          }
+          : null;
+      },
+
+      upsert(state: ReadStateRecord) {
+        const timestamp = nowIso();
+        db
+          .prepare(`
+            insert into timeline_read_state (
+              character_id, last_read_message_id, last_read_at, updated_at
+            )
+            values (?, ?, ?, ?)
+            on conflict(character_id) do update set
+              last_read_message_id = excluded.last_read_message_id,
+              last_read_at = excluded.last_read_at,
+              updated_at = excluded.updated_at
+          `)
+          .run(
+            state.characterId,
+            state.lastReadMessageId ?? null,
+            state.lastReadAt ?? null,
             timestamp,
           );
       },

@@ -191,6 +191,30 @@ describe('core server', () => {
     ]);
   });
 
+  it('tracks read state per character', async () => {
+    const handle = await start();
+
+    const initial = await getJson(handle, '/v1/read-state/herein-default');
+    expect(initial.status).toBe(200);
+    expect(initial.body.readState).toEqual(expect.objectContaining({
+      characterId: 'herein-default',
+      lastReadMessageId: null,
+    }));
+
+    const updated = await postJson(handle, '/v1/read-state/herein-default', {
+      lastReadMessageId: 'msg-1',
+    });
+    expect(updated.status).toBe(200);
+    expect(updated.body.readState).toEqual(expect.objectContaining({
+      characterId: 'herein-default',
+      lastReadMessageId: 'msg-1',
+      lastReadAt: expect.any(String),
+    }));
+
+    const read = await getJson(handle, '/v1/read-state/herein-default');
+    expect(read.body.readState.lastReadMessageId).toBe('msg-1');
+  });
+
   it('runs the initiative engine through Core HTTP', async () => {
     const llmFetch = vi.fn(async () => new Response(JSON.stringify({
       model: 'fake-model',

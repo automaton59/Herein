@@ -4,6 +4,7 @@ import { useChatStore } from '../../stores/chat';
 import { useCallStore } from '../../stores/call';
 import { useSettingsStore } from '../../stores/settings';
 import { createPhase2Client } from '../../services/phase2/client';
+import { CORE_TOKEN_KEY, CORE_URL_KEY } from '../../services/chatHistory';
 import { MessageList } from './MessageList';
 import { InputBar } from './InputBar';
 import { MemoryPanel } from '../Memory/MemoryPanel';
@@ -326,6 +327,56 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
   const currentPresentationProfile = presentationProfiles[currentCharacter.id] ?? createDefaultPresentationProfile(currentCharacter.id);
   const activeCallCharacter = characters.find(character => character.id === callSession?.characterId);
   const pendingCallCharacter = characters.find(character => character.id === pendingCallCharacterId);
+
+  useEffect(() => {
+    const base = localStorage.getItem(CORE_URL_KEY)?.trim().replace(/\/+$/, '');
+
+    if (!base) {
+      return;
+    }
+
+    const token = localStorage.getItem(CORE_TOKEN_KEY)?.trim() ?? '';
+    const source = new EventSource(`${base}/v1/events${token ? `?token=${encodeURIComponent(token)}` : ''}`);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const onCore = (event: MessageEvent) => {
+      try {
+        const parsed = JSON.parse(String(event.data)) as { type?: string };
+
+        if (
+          parsed.type !== 'chat.completed'
+          && parsed.type !== 'timeline.synced'
+          && parsed.type !== 'assistant.proactive'
+        ) {
+          return;
+        }
+
+        if (useChatStore.getState().isLoading) {
+          return;
+        }
+
+        if (timer) {
+          clearTimeout(timer);
+        }
+
+        timer = setTimeout(() => {
+          void useChatStore.getState().hydrate();
+        }, 150);
+      } catch {
+        // Ignore malformed Core events.
+      }
+    };
+
+    source.addEventListener('core', onCore as EventListener);
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      source.removeEventListener('core', onCore as EventListener);
+      source.close();
+    };
+  }, []);
 
   const contactRows = useMemo(() => {
     return characters
