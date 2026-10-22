@@ -343,6 +343,9 @@ export class PluginRegistry {
       try {
         await this.start(pluginId, updatedRow);
       } catch (error) {
+        this.db
+          .prepare('update plugin_registry set enabled = 0, updated_at = ? where plugin_id = ?')
+          .run(this.nowIso(), pluginId);
         this.markFailed(pluginId, error);
         this.recordAudit(pluginId, 'restart', 'failed', {
           message: error instanceof Error ? error.message : String(error),
@@ -613,12 +616,17 @@ export class PluginRegistry {
 
   private viewFromRow(row: PluginRow): PluginView {
     const discovered = this.discovered.get(row.plugin_id);
+    const storedManifest = parseJson<PluginManifest | null>(row.manifest_json, null);
     const manifest = discovered?.manifest
-      ?? parseJson<PluginManifest | null>(row.manifest_json, null);
-
-    if (!manifest) {
-      throw new PluginError('invalid_manifest', `stored manifest is invalid: ${row.plugin_id}`, 500);
-    }
+      ?? storedManifest
+      ?? {
+        id: row.plugin_id,
+        name: row.plugin_id,
+        version: 'unknown',
+        kind: 'tool' as const,
+        entry: '',
+        permissions: [],
+      };
 
     const health = this.health.get(row.plugin_id)
       ?? normalizeHealth(parseJson<PluginHealth | undefined>(row.health_json, undefined), this.nowIso());

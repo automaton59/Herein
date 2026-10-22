@@ -14,7 +14,8 @@
 | P0-03 | Core 启动方式 | `npm run core:serve`；`HEREIN_CORE_HOST/PORT/TOKEN`、`HEREIN_DATA_DIR`、`HEREIN_DB_PATH`；非 loopback 必须设 token |
 | P0-03 | 模型网关 | `electron/core/llm.ts` + `POST /v1/chat`：OpenAI-compatible、私钥文件、超时、usage；真实 `llm.json` 冒烟 1 次通过（3.7s，`persist:false`） |
 | P0-03 | 聊天上下文 | `buildCoreChatPrompt`：角色/关系/最近总结/记忆预算/回复形态拼进 `/v1/chat`；群聊排除 private 记忆；2 个测试 |
-| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,386,172 bytes，SHA256 `A39090B7...DEE6`） |
+| P0-10 | Android 壳 + APK | Capacitor 8.5.3 + `android/`；`MobileApp.tsx` 移动聊天页；JDK 21 + Android SDK 36 已装；APK `exports/herein-debug.apk`（4,472,527 bytes，SHA256 `53B13CC4...23D6`） |
+| P0-13 | Android 状态 | 聊天页系统状态芯片/抽屉；每 20s 轮询 `/v1/status`；展示 Core/DB/模型/声音/插件 |
 | P0-10 | 连接页 UX | “换地址”不再清 Token；保留地址/Token；粘贴 Token、显示/隐藏、清除记录（显式确认）；关闭自动大写/纠错 |
 | P1b | 移动聊天基础版 | 手机填 `http://192.168.1.3:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
 | P1a | 桌面 Core 路径 | `coreClient.ts` + 设置页 Core 地址/Token；聊天走 Core `/v1/chat`（含关系/记忆上下文），记录同步走 Core HTTP，失败回退本地 API；`parseAssistantMetadata` 提取 emotion/voice |
@@ -69,7 +70,7 @@
 - Core HTTP 已测：`/health`、`/v1/status`、`/v1/plugins*`、`/v1/characters`、timeline messages/sync、observations、token 鉴权
 - Core `/v1/chat` 真实 LLM 冒烟：HTTP 200，“在的”，3.7s
 - `npm run build` → 0；vite 2241 modules
-- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,484,515 bytes），SHA256 `0D291066...3E18`
+- Android `assembleDebug` → BUILD SUCCESSFUL；APK `exports/herein-debug.apk`（4,472,527 bytes），SHA256 `53B13CC4...23D6`
 - Live2D 演示：`?live2d=1`，Electron 中 canvas=1，模型尺寸 624×672；截图受无显示桌面限制
 - 远程：`http://147.224.56.120/herein/health` → 无 token 401，带 token 200；`:8000` 酒馆 401
 
