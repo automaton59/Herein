@@ -22,7 +22,7 @@ import {
 import { buildCoreStatus } from './status';
 import { CoreMemoryRunner } from './memory';
 import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
-import { InteractionDispatcher, HttpInteractionPort } from './interaction';
+import { InteractionDispatcher, HttpInteractionPort, AInteractionPort } from './interaction';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
 import { AgentProviderRegistry, type AgentProvider } from '../plugins/agentProvider';
@@ -97,6 +97,7 @@ export interface CoreServerOptions {
   interaction?: {
     url?: string;
     token?: string;
+    endpointFile?: string;
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
   };
@@ -274,8 +275,15 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   const startedAt = Date.now();
   const ntfyConfig = ntfyConfigFromEnv();
   const interactionUrl = options.interaction?.url ?? process.env.HEREIN_INTERACTION_URL;
-  const interactionDispatcher = new InteractionDispatcher(
-    interactionUrl
+  const interactionEndpointFile = options.interaction?.endpointFile
+    ?? process.env.HEREIN_INTERACTION_ENDPOINT;
+  const interactionPort = interactionEndpointFile
+    ? new AInteractionPort({
+      endpointFile: interactionEndpointFile,
+      fetchImpl: options.interaction?.fetchImpl,
+      timeoutMs: options.interaction?.timeoutMs,
+    })
+    : interactionUrl
       ? new HttpInteractionPort({
         url: interactionUrl,
         token: options.interaction?.token
@@ -284,8 +292,9 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         fetchImpl: options.interaction?.fetchImpl,
         timeoutMs: options.interaction?.timeoutMs,
       })
-      : undefined,
-  );
+      : undefined;
+  const interactionConfigured = Boolean(interactionEndpointFile || interactionUrl);
+  const interactionDispatcher = new InteractionDispatcher(interactionPort);
   const db: Phase2Database = openPhase2Database(dbPath);
   migratePhase1JsonData({ db, dataDir });
   const repos = createPhase2Repositories(db);
@@ -933,7 +942,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             fetchImpl: options.relayFetch,
             timeoutMs: options.relayTimeoutMs,
           },
-          interaction: interactionUrl ? interactionDispatcher : undefined,
+          interaction: interactionConfigured ? interactionDispatcher : undefined,
           startedAt,
           version: CORE_SERVER_VERSION,
           ttsUrl,

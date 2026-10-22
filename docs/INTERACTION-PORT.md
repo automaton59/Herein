@@ -46,6 +46,20 @@ $env:HEREIN_INTERACTION_URL = "http://127.0.0.1:9890"
 $env:HEREIN_INTERACTION_TOKEN = "<token>"
 ```
 
+## A 的 standalone runtime
+
+A 的桌面运行时用另一套路径（`/v1/speech`、`/v1/cancel`、`/health`），并在数据目录写 `endpoint.local.json`。C 已支持直接读这个文件：
+
+```powershell
+$env:HEREIN_INTERACTION_ENDPOINT = "D:\Herein\tmp\interaction-data\endpoint.local.json"
+```
+
+- 每次请求重新读文件，A 重启后端口/token 变了也能跟上。
+- `speak` 映射到 `POST /v1/speech`（`text/emotion/instruct`）；
+- `stop` 映射到 `POST /v1/cancel`；
+- `health` 要求 `ready && asr && tts`，缺一项就 degraded/unavailable。
+- A 的 SSE（transcript/presence/interrupted）尚未接进 C；目前只做 C → A 的发声，不做 A → C 的语音输入。
+
 ## C 现在怎么用
 
 - 主动消息写入主时间线、发 SSE、发 ntfy 后，会 best-effort 调 `InteractionPort.speak`。
@@ -60,7 +74,7 @@ $env:HEREIN_INTERACTION_TOKEN = "<token>"
 
 ## 实现位置
 
-- `electron/core/interaction.ts`：`InteractionPort`、`InteractionDispatcher`、`HttpInteractionPort`。
-- `electron/core/server.ts`：`HEREIN_INTERACTION_URL` 接入主动消息。
+- `electron/core/interaction.ts`：`InteractionPort`、`InteractionDispatcher`、`HttpInteractionPort`、`AInteractionPort`。
+- `electron/core/server.ts`：`HEREIN_INTERACTION_URL` / `HEREIN_INTERACTION_ENDPOINT` 接入主动消息。
 - `/v1/status` 的 `interaction` 组件显示 A 的健康（未配置为 unknown）。
-- 测试：dispatcher 软失败、HTTP speak/health、initiative `onSpoken`、Core status。
+- 测试：dispatcher 软失败、HTTP speak/health、A endpoint/speech/health、initiative `onSpoken`、Core status。

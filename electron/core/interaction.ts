@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 export type InteractionPriority = 'ambient' | 'normal' | 'urgent';
 
 export type InteractionSource = 'chat' | 'initiative' | 'system';
@@ -193,6 +195,139 @@ export class HttpInteractionPort implements InteractionPort {
         headers: {
           'content-type': 'application/json',
           ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
+          ...(init.headers ?? {}),
+        },
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+export interface AInteractionPortOptions {
+  endpointFile: string;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+interface AInteractionEndpoint {
+  url: string;
+  token: string;
+}
+
+/**
+ * A's standalone Electron runtime uses /v1/speech, /v1/cancel and /health.
+ * It writes a per-launch endpoint.local.json; read it on every request because
+ * the port and token rotate when A restarts.
+ */
+export class AInteractionPort implements InteractionPort {
+  private readonly endpointFile: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly timeoutMs: number;
+
+  constructor(options: AInteractionPortOptions) {
+    this.endpointFile = options.endpointFile;
+    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.timeoutMs = options.timeoutMs ?? 5000;
+  }
+
+  async speak(request: SpeakRequest): Promise<SpeakResult> {
+    const startedAt = Date.now();
+
+    try {
+      const response = await this.request('/v1/speech', {
+        method: 'POST',
+        body: JSON.stringify({
+          text: request.text,
+          emotion: request.emotion ?? 'neutral',
+          instruct: request.voiceInstruct ?? '',
+          ...(request.source === 'initiative' ? { turnId: `initiative-${Date.now()}` } : {}),
+        }),
+      });
+
+      return {
+        ok: response.ok,
+        latencyMs: Date.now() - startedAt,
+        ...(response.ok ? {} : { error: `A runtime HTTP ${response.status}` }),
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        latencyMs: Date.now() - startedAt,
+      };
+    }
+  }
+
+  async stop(): Promise<void> {
+    await this.request('/v1/cancel', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  async health(): Promise<InteractionHealth> {
+    try {
+      const response = await this.request('/health', { method: 'GET' });
+
+      if (!response.ok) {
+        return {
+          status: 'unavailable',
+          message: `A runtime HTTP ${response.status}`,
+          checkedAt: new Date().toISOString(),
+        };
+      }
+
+      const value = await response.json() as {
+        ready?: boolean;
+        asr?: boolean;
+        tts?: boolean;
+      };
+      const missing = [
+        value.ready ? null : 'runtime',
+        value.asr ? null : 'asr',
+        value.tts ? null : 'tts',
+      ].filter((item): item is string => Boolean(item));
+
+      return {
+        status: missing.length === 0 ? 'ok' : value.ready ? 'degraded' : 'unavailable',
+        message: missing.length === 0 ? undefined : `not ready: ${missing.join(', ')}`,
+        checkedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        status: 'unavailable',
+        message: error instanceof Error ? error.message : String(error),
+        checkedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  private async endpoint(): Promise<AInteractionEndpoint> {
+    const raw = JSON.parse(await readFile(this.endpointFile, 'utf8')) as Partial<AInteractionEndpoint>;
+
+    if (typeof raw.url !== 'string' || !raw.url.trim() || typeof raw.token !== 'string' || !raw.token.trim()) {
+      throw new Error('A interaction endpoint is invalid');
+    }
+
+    return {
+      url: raw.url.trim().replace(/\/+$/, ''),
+      token: raw.token.trim(),
+    };
+  }
+
+  private async request(pathname: string, init: RequestInit): Promise<Response> {
+    const endpoint = await this.endpoint();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      return await this.fetchImpl(`${endpoint.url}${pathname}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          authorization: `Bearer ${endpoint.token}`,
+          ...(init.body ? { 'content-type': 'application/json' } : {}),
           ...(init.headers ?? {}),
         },
       });

@@ -22,7 +22,7 @@
 
 ## 现在没有什么
 
-- A 的真实语音/渲染服务：C 的契约、HTTP adapter、env 已就绪，等 A 实现。
+- A 的独立 runtime 已在 `codex/interaction-runtime` 交付；C 已支持读 `endpoint.local.json` 调 `/v1/speech`。A → C 的 SSE 语音输入（transcript/presence/interrupted）尚未接。
 - 在场信号：还没有接桌面空闲、Android 前台、通话状态。
 - 渠道选择：目前只写主时间线 + ntfy + InteractionPort，不发 QQ/其他 channel。
 
@@ -37,4 +37,4 @@
 - `electron/core/initiative.test.ts`：6 个测试。
 - `electron/core/interaction.test.ts`：3 个测试。
 - `electron/core/server.test.ts`：`/v1/initiative/run` 端到端。
-- 2026-10-22：全量测试 56 files / 223 tests passed（见 P0-PROGRESS）。
+- 2026-10-22：全量测试 56 files / 225 tests passed（见 P0-PROGRESS）。
