@@ -68,6 +68,72 @@ export interface InitiativeEngineOptions {
   };
 }
 
+export interface InitiativeSchedulerOptions {
+  engine: Pick<InitiativeEngine, 'run'>;
+  getCharacterId: () => string | null;
+  intervalMs?: number;
+  onResult?: (result: InitiativeRunResult) => void;
+  logger?: {
+    warn?: (message: string, detail?: unknown) => void;
+  };
+}
+
+export class InitiativeScheduler {
+  private readonly options: InitiativeSchedulerOptions;
+  private timer: ReturnType<typeof setInterval> | null = null;
+  private ticking = false;
+
+  constructor(options: InitiativeSchedulerOptions) {
+    this.options = options;
+  }
+
+  start() {
+    if (this.timer) {
+      return;
+    }
+
+    const interval = this.options.intervalMs ?? 30 * 60 * 1000;
+    this.timer = setInterval(() => {
+      void this.tick();
+    }, interval);
+    this.timer.unref?.();
+  }
+
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+
+  async tick(): Promise<InitiativeRunResult> {
+    if (this.ticking) {
+      return { status: 'skipped', reason: 'initiative tick already running' };
+    }
+
+    this.ticking = true;
+
+    try {
+      const characterId = this.options.getCharacterId();
+
+      if (!characterId) {
+        return { status: 'skipped', reason: 'no character available' };
+      }
+
+      const result = await this.options.engine.run({ characterId });
+      this.options.onResult?.(result);
+
+      if (result.status === 'failed') {
+        this.options.logger?.warn?.('initiative scheduler tick failed', result.error);
+      }
+
+      return result;
+    } finally {
+      this.ticking = false;
+    }
+  }
+}
+
 function parseClock(value: string): number | null {
   const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
 

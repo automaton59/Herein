@@ -31,6 +31,7 @@ npm run core:serve
 
 ## 现在能做什么
 
+- 已作为 native channel plugin `qq` 接入插件系统；`HEREIN_QQ_ENABLED=1` 时 Core 会自动安装/启用它。
 - token 获取/缓存；
 - gateway 连接；
 - identify / HELLO 心跳 / READY / 事件分发 / 可选重连；

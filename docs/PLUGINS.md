@@ -12,7 +12,7 @@
 - schema v9：`plugin_registry`、`plugin_audit`。
 - Core HTTP：`/v1/plugins*`、`/v1/status`。
 - `plugins/weather/`：第一个目录型 native plugin，验证安装 → 配置 → 启用 → 调用 → 审计 → 停用 → 卸载。
-- 内置 native plugin：`bilibili`（只读推荐流扫描 → observations/activity）、`netease`（匿名只读候选/搜索）。
+- 内置 native plugin：`bilibili`（只读推荐流扫描 → observations/activity）、`netease`（匿名只读候选/搜索）、`qq`（官方 Bot listener/被动回复，凭据在本地文件）。
 - 桌面新增“系统”控制台：状态卡片、插件列表、天气配置/查询、最近审计。
 - Android 新增系统状态芯片/抽屉：Core/DB/模型/声音/插件。
 
@@ -34,9 +34,9 @@ entry: export function createPlugin() -> { start, stop, health, invoke }
 
 ## 当前边界
 
-- `weather`、`bilibili`、`netease` 已是 native plugin。
-- QQ 仍是 Core 内的独立 listener，尚未包成 channel plugin；DSH 是 `agent` 能力来源，由 B 工作流提供 provider；C 的注册表只做聚合/策略/UI/审计。
-- 桌面控制台目前只对 weather 做了完整操作 UI；B 站/网易云可以通过插件启停，调用入口仍走原有 Core 路由或后续通用插件 UI。
+- `weather`、`bilibili`、`netease`、`qq` 已是 native plugin。
+- DSH 是 `agent` 能力来源，由 B 工作流提供 provider；C 的注册表只做聚合/策略/UI/审计。
+- 桌面控制台目前只对 weather 做了完整操作 UI；B 站/网易云/QQ 可以通过插件启停，调用入口仍走原有 Core 路由或后续通用插件 UI。
 - Android 状态只覆盖 Core 侧组件；relay/隧道状态、离线 outbox 待补。
 
 ## 验证

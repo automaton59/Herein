@@ -14,11 +14,11 @@
 - 主动消息由 LLM 决策：返回 `{shouldSpeak, reason, message}`；默认不说。
 - 决定说时：写入主时间线，`sourceConversationId = 'initiative'`，并发布 SSE `assistant.proactive`。
 - Core `POST /v1/initiative/run`；桌面“系统”控制台可手动运行一次。
-- 测试覆盖：跨午夜免打扰、用户在场、冷却、每日上限、模型拒绝、成功写入 + SSE。
+- 可选自动调度：`HEREIN_INITIATIVE_AUTO=1` 开启，默认每 30 分钟检查一次；`HEREIN_INITIATIVE_INTERVAL_MS` 可调。
+- 测试覆盖：跨午夜免打扰、用户在场、冷却、每日上限、模型拒绝、成功写入 + SSE、调度器 tick。
 
 ## 现在没有什么
 
-- 自动调度器：还没有定时 heartbeat 自动触发；目前是手动/接口触发。
 - A 的 `InteractionPort`：还没有把主动消息变成桌面语音/口播；当前只写时间线 + SSE。
 - 推送：还没有把主动消息接到 ntfy/Android 通知。
 - 在场信号：还没有接桌面空闲、Android 前台、通话状态。
@@ -34,4 +34,4 @@
 
 - `electron/core/initiative.test.ts`：5 个测试。
 - `electron/core/server.test.ts`：`/v1/initiative/run` 端到端。
-- 2026-10-22：全量测试 52 files / 201 tests passed（见 P0-PROGRESS）。
+- 2026-10-22：全量测试 52 files / 203 tests passed（见 P0-PROGRESS）。

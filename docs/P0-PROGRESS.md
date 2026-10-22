@@ -53,18 +53,18 @@
 | P0-08 | TTS 实测 | `D:\AI\tools\qwen_tts\venv`（torch 2.11+cu128/CUDA）+ CustomVoice 1.7B：平均 **4.8s/句，RTF 3.70**；0.6B：**4.87s/句，RTF 3.28**；能出声，未实时。详见 `docs/TTS.md` |
 | P0-08/P2 | 手机朗读 | Core `POST /v1/tts` 代理；移动端助手消息“▶ 朗读”；本地 38KB/5.1s，远端 `/herein/v1/tts` 30KB/3.9s |
 | P0-08/P2 | 手机口型 | 手机朗读时 Web Audio RMS → `PARAM_MOUTH_OPEN_Y`；tsc 通过，真机未验证 |
-| P0-12 | 插件宿主 | schema v9 `plugin_registry` / `plugin_audit`；manifest、注册表、启停/配置/健康/审计、网络权限白名单；Core `/v1/plugins*`；`plugins/weather` + 内置 `bilibili`/`netease`；12 个插件测试 |
+| P0-12 | 插件宿主 | schema v9 `plugin_registry` / `plugin_audit`；manifest、注册表、启停/配置/健康/审计、网络权限白名单；Core `/v1/plugins*`；`plugins/weather` + 内置 `bilibili`/`netease`/`qq`；13 个插件测试 |
 | P0-13 | 状态与控制台 | Core `/v1/status`：Core/DB/LLM/TTS/plugins；桌面新增“系统”控制台；Android 状态芯片/抽屉；天气插件 E2E 通过 |
 | P1a | Core 记忆管线 | `CoreMemoryRunner`：`/v1/chat` 与 timeline sync 后触发；按上次 summary.messageCount 只跑新消息；失败不覆盖旧 summary；桌面使用 Core 时不再本地跑 memory |
 | P1a | 同步防截断 | Core timeline sync 默认 `prune:false`；普通全量快照不会删除另一台设备后写入的消息；显式删除需 `prune:true` |
-| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；桌面可手动运行；5 个测试 |
+| P0-14 | 主动性策略 | `InitiativeEngine`：免打扰/每日上限/冷却/最小空闲/材料判断；LLM 返回 shouldSpeak；写入主时间线 + SSE `assistant.proactive`；Core `/v1/initiative/run`；可选 `InitiativeScheduler`（`HEREIN_INITIATIVE_AUTO=1`）；桌面可手动运行；6 个测试 |
 | P0-15 | 白蓝设计 | 全 `src` rose/cream 色系切到 sky/白/深海蓝；body/暗色背景、聊天气泡、设置、记忆、通话、Android 统一；`rose-` 残留 0 |
 
 ## 验证
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **52 files / 201 tests passed**
+- `npx vitest run` → **52 files / 203 tests passed**
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
@@ -87,9 +87,9 @@
 | P0-10 | 真机验证 | APK 已出；还没装到手机/平板实测 |
 | P0-11 | QQ listener | 配置/连接/心跳/归一化/落库/被动回复接线已做；语音、频控、审核、默认回复策略待做，等 `qqbot.json` |
 | P1a | Core 双端一致性 | 记忆已在 Core 触发；跨端实时 SSE chat/read/outbox 未做；桌面仍是全量快照 sync（Core 默认不 prune，删除传播未做） |
-| P0-12 | 插件接入面 | `weather`/`bilibili`/`netease` 已是 native plugin；QQ 仍是独立 listener，未包成 channel plugin；DSH provider 未接（B 的工作流） |
+| P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；DSH provider 未接（B 的工作流） |
 | P0-13 | 状态完整性 | `/v1/status` 只覆盖 Core/DB/LLM/TTS/plugins；relay/隧道状态、Android 后台限制、跨端 outbox 还没接 |
-| P0-14 | 主动性 | 策略/手动运行/时间线/SSE 已有；自动调度、A 的 InteractionPort、ntfy/Android 通知、在场信号未接 |
+| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE 已有；A 的 InteractionPort、ntfy/Android 通知、在场信号未接 |
 | P0-15 | 设计系统 | 调色板已 sweep；语义 token、对比度审计、视觉回归/真机截图未做 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |
@@ -97,7 +97,7 @@
 
 ## 下一步顺序
 
-1. P0-12：把 QQ 包成 channel plugin；接 DSH provider（B 的工作流完成后）。
+1. P0-12：接 DSH provider（B 的工作流完成后）；补通用插件配置 UI。
 2. P1a：补 SSE chat/read/outbox、删除传播；桌面从全量快照迁到增量 append。
 3. P0-14：接自动调度、A 的 InteractionPort、ntfy/Android 通知和在场信号。
 4. P0-13：relay/隧道状态、Android 离线队列/后台限制；控制台补通用插件配置 UI。

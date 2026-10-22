@@ -21,11 +21,9 @@ import {
 } from './llm';
 import { buildCoreStatus } from './status';
 import { CoreMemoryRunner } from './memory';
-import { InitiativeEngine, type InitiativePolicy } from './initiative';
+import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
-import { BILIBILI_MANIFEST, createBilibiliPlugin } from '../plugins/builtin/bilibili';
-import { NETEASE_MANIFEST, createNeteasePlugin } from '../plugins/builtin/netease';
 import {
   scanBilibiliFeed,
   type BilibiliFeedSource,
@@ -40,8 +38,9 @@ import {
 } from '../services/neteaseCandidates';
 import { ProactiveShareScheduler } from '../services/proactiveShare';
 import { ntfyConfigFromEnv, publishNtfy } from '../services/ntfy';
-import { startQQListener, type QQListenerHandle } from '../services/qqListener';
-import { createQQResponder } from '../services/qqResponder';
+import { BILIBILI_MANIFEST, createBilibiliPlugin } from '../plugins/builtin/bilibili';
+import { NETEASE_MANIFEST, createNeteasePlugin } from '../plugins/builtin/netease';
+import { QQ_MANIFEST, createQQPlugin } from '../plugins/builtin/qq';
 
 export const CORE_SERVER_VERSION = '0.1.0';
 export const DEFAULT_CORE_HOST = '127.0.0.1';
@@ -78,6 +77,10 @@ export interface CoreServerOptions {
     triggerMessageCount?: number;
   };
   initiative?: Partial<InitiativePolicy>;
+  initiativeAuto?: {
+    enabled: boolean;
+    intervalMs?: number;
+  };
 }
 
 export interface CoreServerHandle {
@@ -270,7 +273,34 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   pluginRegistry.registerBuiltin(NETEASE_MANIFEST, () => createNeteasePlugin({
     source: options.neteaseSource,
   }));
+  pluginRegistry.registerBuiltin(QQ_MANIFEST, () => createQQPlugin({
+    repos,
+    llmConfig: options.llmConfig,
+    llmConfigPath: options.llmConfigPath,
+    fetchImpl: options.llmFetch,
+    configPath: options.qqListener?.configPath,
+    autoReply: options.qqListener?.autoReply,
+  }));
   await pluginRegistry.initialize();
+
+  const qqEnabled = options.qqListener?.enabled ?? process.env.HEREIN_QQ_ENABLED === '1';
+
+  if (qqEnabled) {
+    try {
+      await pluginRegistry.install('qq');
+      await pluginRegistry.updateConfig('qq', {
+        ...(options.qqListener?.configPath ? { configPath: options.qqListener.configPath } : {}),
+        autoReply: options.qqListener?.autoReply ?? process.env.HEREIN_QQ_AUTO_REPLY === '1',
+      });
+      const qq = pluginRegistry.get('qq');
+
+      if (!qq?.enabled) {
+        await pluginRegistry.enable('qq');
+      }
+    } catch (error) {
+      console.warn(`QQ plugin was not started: ${error instanceof Error ? error.message : error}`);
+    }
+  }
 
   const events = new CoreEventBus();
   const sseClients = new Set<ServerResponse>();
@@ -293,8 +323,21 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     policy: options.initiative,
   });
 
+  const initiativeAutoEnabled = options.initiativeAuto?.enabled
+    ?? process.env.HEREIN_INITIATIVE_AUTO === '1';
+  const initiativeScheduler = initiativeAutoEnabled
+    ? new InitiativeScheduler({
+      engine: initiative,
+      getCharacterId: () => repos.settings.get<string>('activeCharacterId')
+        ?? repos.characters.list()[0]?.id
+        ?? null,
+      intervalMs: options.initiativeAuto?.intervalMs
+        ?? (Number.parseInt(process.env.HEREIN_INITIATIVE_INTERVAL_MS ?? '', 10) || 30 * 60 * 1000),
+    })
+    : null;
+  initiativeScheduler?.start();
+
   let proactiveScheduler: ProactiveShareScheduler | null = null;
-  let qqListener: QQListenerHandle | null = null;
 
   const authorized = (request: IncomingMessage, url: URL) => {
     if (!token) {
@@ -1076,43 +1119,6 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     }
   }
 
-  const qqEnabled = options.qqListener?.enabled ?? process.env.HEREIN_QQ_ENABLED === '1';
-
-  if (qqEnabled) {
-    try {
-      const autoReply = options.qqListener?.autoReply ?? process.env.HEREIN_QQ_AUTO_REPLY === '1';
-      let responder;
-
-      if (autoReply) {
-        let llmConfig = options.llmConfig;
-
-        if (!llmConfig) {
-          try {
-            llmConfig = await loadLlmConfig(options.llmConfigPath);
-          } catch {
-            llmConfig = undefined;
-          }
-        }
-
-        if (llmConfig) {
-          responder = createQQResponder({
-            repos,
-            llmConfig,
-            fetchImpl: options.llmFetch,
-          });
-        }
-      }
-
-      qqListener = await startQQListener({
-        repos,
-        configPath: options.qqListener?.configPath,
-        responder,
-      });
-    } catch (error) {
-      console.warn(`QQ listener was not started: ${error instanceof Error ? error.message : error}`);
-    }
-  }
-
   return {
     server,
     host,
@@ -1121,8 +1127,8 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     dbPath,
     assetsDir,
     close: async () => {
-      qqListener?.stop();
       proactiveScheduler?.stop();
+      initiativeScheduler?.stop();
       await memoryRunner.close();
       await pluginRegistry.close();
       for (const client of sseClients) {

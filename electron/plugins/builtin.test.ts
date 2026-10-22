@@ -7,6 +7,7 @@ import { openPhase2Database } from '../data/database';
 import { createPhase2Repositories } from '../data/repositories';
 import { createBilibiliPlugin, BILIBILI_MANIFEST } from './builtin/bilibili';
 import { createNeteasePlugin, NETEASE_MANIFEST } from './builtin/netease';
+import { QQ_MANIFEST } from './builtin/qq';
 import { PluginRegistry } from './registry';
 
 const tempDirs: string[] = [];
@@ -135,5 +136,30 @@ describe('built-in plugins', () => {
     }) as { candidates: Array<{ title: string }> };
 
     expect(result.candidates[0].title).toBe('夜曲');
+  });
+
+  it('registers QQ as a channel capability', async () => {
+    const { registry } = createHarness();
+    registry.registerBuiltin(QQ_MANIFEST, () => ({
+      async health(ctx) {
+        return { status: 'degraded', message: 'test profile', checkedAt: ctx.now().toISOString() };
+      },
+      async invoke(action) {
+        return { action, running: false };
+      },
+    }));
+    await registry.initialize();
+    await registry.install('qq');
+    await registry.enable('qq');
+
+    expect(registry.get('qq')).toEqual(expect.objectContaining({
+      installed: true,
+      enabled: true,
+      manifest: expect.objectContaining({ kind: 'channel', id: 'qq' }),
+    }));
+    await expect(registry.invoke('qq', 'status', null)).resolves.toEqual({
+      action: 'status',
+      running: false,
+    });
   });
 });

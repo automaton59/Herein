@@ -8,6 +8,7 @@ import { createPhase2Repositories } from '../data/repositories';
 import { CoreEventBus } from './eventBus';
 import {
   InitiativeEngine,
+  InitiativeScheduler,
   evaluateInitiativeGate,
   isQuietHours,
   DEFAULT_INITIATIVE_POLICY,
@@ -208,5 +209,28 @@ describe('InitiativeEngine', () => {
     expect(result).toEqual(expect.objectContaining({ status: 'skipped' }));
     expect(repos.messages.listRecent(timeline.id, 10).filter(message => message.role === 'assistant'))
       .toHaveLength(0);
+  });
+
+  it('schedules a tick for the active character', async () => {
+    const run = vi.fn().mockResolvedValue({ status: 'skipped', reason: 'quiet hours' });
+    const scheduler = new InitiativeScheduler({
+      engine: { run },
+      getCharacterId: () => 'char-1',
+    });
+
+    await expect(scheduler.tick()).resolves.toEqual(expect.objectContaining({
+      status: 'skipped',
+      reason: 'quiet hours',
+    }));
+    expect(run).toHaveBeenCalledWith({ characterId: 'char-1' });
+
+    const empty = new InitiativeScheduler({
+      engine: { run },
+      getCharacterId: () => null,
+    });
+    await expect(empty.tick()).resolves.toEqual(expect.objectContaining({
+      status: 'skipped',
+      reason: 'no character available',
+    }));
   });
 });
