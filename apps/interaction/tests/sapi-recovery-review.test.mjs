@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reviewSapiRecovery } from "../pending/sapi-progress/recovery-review.mjs";
+import { reviewSapiRecovery, reviewRetiredIdentities } from "../pending/sapi-progress/recovery-review.mjs";
 const at = seconds => new Date(Date.UTC(2026, 0, 1) + seconds * 1000).toISOString();
 function fixture() {
   const old = { pid: 10, parentPid: 1, name: "powershell", created: at(0) };
@@ -37,4 +37,17 @@ test("replacement without cancellation evidence or follow-up coverage is flagged
   const report = reviewSapiRecovery(1, at(0), metrics.filter(row => row.type !== "cancel"), samples);
   assert.ok(report.problems.includes("missing_fixed_playback_cancel_evidence"));
   assert.ok(report.problems.includes("missing_followup_process_sample"));
+});
+test("global identity check detects a retired descendant even after it leaves the root tree", () => {
+  const { metrics, samples, old } = fixture();
+  samples[0].processes.push({ pid: 12, parentPid: old.pid, name: "conhost", created: at(1) });
+  const report = reviewSapiRecovery(1, at(0), metrics, samples);
+  assert.equal(report.retiredWorkerTrees[0].identities.length, 2);
+  const alive = reviewRetiredIdentities(report.retiredWorkerTrees,
+    [{ pid: 12, parentPid: 999, created: at(1) }]);
+  assert.equal(alive.knownRetiredIdentitiesAbsent, false);
+  const reused = reviewRetiredIdentities(report.retiredWorkerTrees,
+    [{ pid: 12, parentPid: 999, created: at(100) }]);
+  assert.equal(reused.knownRetiredIdentitiesAbsent, true);
+  assert.equal(reused.allPossibleOrphansExcluded, false);
 });

@@ -15,6 +15,7 @@ export function reviewSapiRecovery(runtimePid, started, metrics, samples) {
   const pythonTrees = observations.map(row => (row.processes || [])
     .filter(item => item.name === "python").map(identity).sort().join(","));
   if (new Set(pythonTrees).size > 1) problems.push("asr_process_identity_changed");
+  if (pythonTrees.some(tree => !tree)) problems.push("asr_process_identity_missing");
   const recoveries = events.filter(row => row.type === "worker.recovery");
   const seen = new Map();
   for (const row of observations) for (const item of workerAt(row)) {
@@ -24,6 +25,22 @@ export function reviewSapiRecovery(runtimePid, started, metrics, samples) {
     seen.set(key, entry);
   }
   const workers = [...seen.values()].sort((a, b) => Date.parse(a.created) - Date.parse(b.created));
+  const retiredWorkerTrees = workers.slice(0, -1).map(worker => {
+    const tree = new Map([[identity(worker), worker]]);
+    for (const row of observations) {
+      if (!workerAt(row).some(item => identity(item) === identity(worker))) continue;
+      const ids = new Set([worker.pid]);
+      let added = true;
+      while (added) {
+        added = false;
+        for (const item of row.processes || []) if (ids.has(item.parentPid) && !ids.has(item.pid)) {
+          ids.add(item.pid); tree.set(identity(item), item); added = true;
+        }
+      }
+    }
+    return { workerPid: worker.pid, identities: [...tree.values()]
+      .map(item => ({ pid: item.pid, created: item.created, name: item.name })) };
+  });
   const transitions = workers.slice(1).map((worker, index) => {
     const old = workers[index], created = Date.parse(worker.created);
     const recovery = recoveries.find(event => Math.abs(Date.parse(event.at) - created) <= 2000);
@@ -64,11 +81,20 @@ export function reviewSapiRecovery(runtimePid, started, metrics, samples) {
     workers: workers.map(item => ({ pid: item.pid, created: item.created,
       firstObserved: item.firstObserved, lastObserved: item.lastObserved })),
     currentWorkerCount: current.length, peakWorkerCount: Math.max(0, ...observations.map(row => workerAt(row).length)),
-    transitions, unmatchedRecoveryEvents: unmatchedRecoveries.map(row => row.at),
+    transitions, retiredWorkerTrees, unmatchedRecoveryEvents: unmatchedRecoveries.map(row => row.at),
     problems: [...new Set(problems)],
     evidenceCorrelationComplete: problems.length === 0,
     strictSoakAuditFlagsPreserved: true, manualReviewRequired: true,
     eightHourAcceptance: false, realHardwareVerified: false,
     limitations: "Periodic process snapshots do not prove absence between observations or desktop/audio hardware behavior",
   };
+}
+
+export function reviewRetiredIdentities(retiredWorkerTrees, globalProcesses) {
+  const retired = retiredWorkerTrees.flatMap(tree => tree.identities);
+  const alive = retired.filter(old => globalProcesses.some(item =>
+    item.pid === old.pid && Date.parse(item.created) === Date.parse(old.created)));
+  return { checkedIdentities: retired.length, knownRetiredIdentitiesAlive: alive,
+    knownRetiredIdentitiesAbsent: alive.length === 0,
+    allPossibleOrphansExcluded: false };
 }

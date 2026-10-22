@@ -14,6 +14,8 @@
 
 复查时执行 `node apps/interaction/pending/sapi-progress/review-recovery.mjs <data-dir> <local-config>`：从原始metrics/全树采样关联每次固定播放取消、恢复事件、新worker创建、后续独占worker与旧身份消失，另查ASR身份连续性。结果留在 `sapi-recovery-review.local.json`，只辅助人工审阅，不删除严格soak审计标记、不判断8小时或硬件通过。周期快照无法证明两次采样之间没有短暂重叠，未观察到后续样本时保留复查项。首个取消实测4.15秒后恢复、447ms后就绪，旧worker及conhost身份均已消失，下一次采样仅一个新worker。复查回归3/3，包含重叠、ASR重启、缺取消/覆盖的反例。
 
+运行时仍在原PID时可加 `--live`，只读CIM全机进程表，按PID+创建时间检查所有已观察到的退休worker子树身份，排除它们离开根树后仍存活的情况。调用先核对runtime完整命令行/数据目录/创建时间，输出不存命令行。4/4复查回归包含孤立旧conhost与PID复用反例，首次实际全机核对旧身份均不在；未被周期采到的子进程仍无法由此排除。此选项不终止、重启或修改任何进程，也不消除人工长测审阅要求。
+
 在 A 的两条冻结长测完成、审阅并保留原证据后，将它应用到实际源码；不要覆盖仍在运行的 bundle：
 
 ```powershell
