@@ -27,6 +27,8 @@
 
 SAPI修复候选独立长测 `tmp/interaction-sapi-progress-soak-data` 从2026-10-23 01:16:13至09:16:13北京时间进行中。它使用候选build、CPU ASR/SAPI/透明30fps，不与旧GGUF版本或硬件证据拼接。SAPI固定取消会重建worker，严格通用审计的相关复查项需按负载时序和进程创建时间人工核对，不能仅因“预期行为”跳过审阅。
 
+可用 `pending/sapi-progress/review-recovery.mjs <data-dir> <local-config>` 关联取消/恢复/新worker/旧身份消失。这个离线复查只整理采样证据，保留严格审计标记，不能作为8小时或无泄漏的自动判定。
+
 ## 真实 8 小时结束后
 
 在 worktree 根目录执行：

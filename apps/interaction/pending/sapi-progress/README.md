@@ -12,6 +12,8 @@
 
 候选另开独立8小时：`tmp/interaction-sapi-progress-soak-data`，01:16:13–09:16:13（2026-10-23北京时间），同候选build、30fps/透明/CPU ASR/SAPI、循环合成输入、静音输出。runtime PID25784、soak17656、endurance29420、process sampler6360；采样器距起点约21秒，fullSoakCoverage=true。尚在运行。SAPI取消会关闭/重建worker；严格GGUF通用审计已列出worker变化/recovery复查项，必须结合固定负载取消与全树创建时间逐项审阅，不能自动豁免或标无失败通过。原GGUF长测独立保留、不拼接。
 
+复查时执行 `node apps/interaction/pending/sapi-progress/review-recovery.mjs <data-dir> <local-config>`：从原始metrics/全树采样关联每次固定播放取消、恢复事件、新worker创建、后续独占worker与旧身份消失，另查ASR身份连续性。结果留在 `sapi-recovery-review.local.json`，只辅助人工审阅，不删除严格soak审计标记、不判断8小时或硬件通过。周期快照无法证明两次采样之间没有短暂重叠，未观察到后续样本时保留复查项。首个取消实测4.15秒后恢复、447ms后就绪，旧worker及conhost身份均已消失，下一次采样仅一个新worker。复查回归3/3，包含重叠、ASR重启、缺取消/覆盖的反例。
+
 在 A 的两条冻结长测完成、审阅并保留原证据后，将它应用到实际源码；不要覆盖仍在运行的 bundle：
 
 ```powershell
