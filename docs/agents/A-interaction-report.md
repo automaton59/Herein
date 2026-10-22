@@ -2,7 +2,20 @@
 
 更新时间：2026-10-23。**进行中，尚未完成整体验收。**
 
-当前以末尾“长文截断与重载状态修复”“夜间审计补充”为准：修复版 buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`，数据 `tmp/interaction-blue-overnight-data`，8 小时从 10-22 23:33:39 至 10-23 07:33:39 北京时间。下文早期蓝鱼和 Shizuku 表格是历史证据，其旧运行状态不能当作当前冻结版验收。
+## 当前交付状态
+
+蓝鱼已接入独立运行时，表情/动作/口型/打断/合成十轮闭环及模拟恢复已有证据；**完整8小时与真人/桌面硬件关卡尚未通过**。用户指定模型只用于技术验证，后续通过manifest替换。
+
+| 版本或关卡 | 当前事实 | 下一步 |
+| --- | --- | --- |
+| 交付源码与GGUF冻结版 | buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`，`apps/interaction`；两条原进程长测仍在运行 | 分别等真实截止、审阅完整资源/延迟趋势 |
+| GGUF非透明长测 | `tmp/interaction-blue-overnight-data`，10-22 23:33:39–10-23 07:33:39 北京时间 | ASR周期私有内存曾触发复查，须复核完整窗口 |
+| GGUF默认透明长测 | `tmp/interaction-blue-transparent-data`，10-23 00:03:51–08:03:51 | 单独审阅，不与非透明片段拼接 |
+| SAPI长文修复候选 | buildId `a46ecc9bc3cc331f86825bbbecdc5424c9c9abc4b34d4b0d7905753a67be76cc`，145/500字、取消/替换及机制回归通过；**补丁尚未应用到交付源码** | 原长测结束保留证据后应用 `pending/sapi-progress/workers.patch`，新版本复验 |
+| 候选SAPI/CPU降级长测 | `tmp/interaction-sapi-progress-soak-data`，10-23 01:16:13–09:16:13 | 审阅预期取消重建与旧身份退出，严格审计标记不自动豁免 |
+| 真人与桌面硬件 | 待用户主动发送“开始真人验收”；夜间未录真人声音/外放/触发操作请求 | 十句/AEC/插话、真实显示/点拖/托盘/热键、设备/多屏/电源/登录 |
+
+运行/manifest/C接口见 `apps/interaction/README.md`；逐项验收见 `apps/interaction/ACCEPTANCE.md`；SAPI补丁和候选证据见 `apps/interaction/pending/sapi-progress/README.md`。下文早期蓝鱼和Shizuku表格为历史记录，旧运行状态、短片段和不同build不能代替当前版本验收。原始模型、配置、截图和固定音频仅留本机忽略目录。
 
 ## 交付范围
 
