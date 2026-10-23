@@ -13,9 +13,9 @@
 - Core HTTP：`/v1/plugins*`、`/v1/status`。
 - `plugins/weather/`：第一个目录型 native plugin，验证安装 → 配置 → 启用 → 调用 → 审计 → 停用 → 卸载。
 - 内置 native plugin：`bilibili`（只读推荐流扫描 → observations/activity）、`netease`（匿名只读候选/搜索）、`qq`（官方 Bot listener/被动回复，凭据在本地文件）。
-- `electron/plugins/agentProvider.ts`：AgentProvider 契约 + registry；DSH 能力将来从这里接入。
-- 桌面新增“系统”控制台：状态卡片、插件列表、天气配置/查询、主动性、最近审计。
-- Android 新增系统状态芯片/抽屉：Core/DB/模型/声音/插件。
+- `electron/plugins/agentProvider.ts`：AgentProvider 契约 + registry；`dshProvider.ts` 已接 B 的 DSH bridge inventory/call。
+- 桌面新增“系统”控制台：状态卡片、插件列表、天气配置/查询、主动性、最近审计、Agent 能力操作。
+- Android 新增系统状态芯片/抽屉：Core/DB/模型/声音/插件/Agent/隧道/交互。
 
 ## 插件契约
 
@@ -36,9 +36,9 @@ entry: export function createPlugin() -> { start, stop, health, invoke }
 ## 当前边界
 
 - `weather`、`bilibili`、`netease`、`qq` 已是 native plugin。
-- DSH 通过 `AgentProvider` 契约接入；C 的注册表只做聚合/策略/UI/审计，B 尚未交付真实 provider。
-- 桌面控制台：weather 有专用配置/查询卡；其他插件按 manifest `configSchema` 渲染通用配置表单。
-- Android 状态只覆盖 Core 侧组件；relay/隧道状态、离线 outbox 待补。
+- DSH 通过 `AgentProvider` 接入：`adapters/dsh` + `electron/plugins/dshProvider.ts`；C 负责发现/健康/`call`，安装/启停/回滚仍需 DSH 侧签署审批，标记为 `lifecycle: external`。
+- 桌面控制台：weather 有专用配置/查询卡；其他插件按 manifest `configSchema` 渲染通用配置表单；Agent 能力有安装/启停/调用 UI（外部生命周期只读）。
+- Android 状态只覆盖 Core 侧组件；插件配置/Agent 操作仍在桌面；QQ 真凭据/语音/频控未验收。
 
 ## 验证
 
