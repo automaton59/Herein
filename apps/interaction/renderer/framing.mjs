@@ -8,7 +8,7 @@ export function avatarLayout({
   offsetX = 0,
   offsetY = 0,
   framingTop = 0.02,
-  framingScaleBust = 1.55,
+  framingScaleBust = 1.38,
   framingScaleHalf = 1.16,
 }) {
   if (framing === "full") {

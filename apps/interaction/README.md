@@ -2,7 +2,7 @@
 
 Agent A 的独立桌面运行时。它接收 C 的发声、文本增量和身体命令，并上报用户语音、presence、状态与打断。它不打开 Core 数据库、不装配人格或记忆、不决定主动发言，也不改桌面控制台或 Android。
 
-> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `b286ed8894df7b4a5c18224a0350f5e198e078bedc2974bde582862fa25ea063`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
+> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `5bd0ceafdac47ba17fb48a6cba666c2d96a51bad70b077940bd68bc7821539ec`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
 
 ## 安装与启动
 
@@ -62,7 +62,7 @@ C 侧现在已经实现这条链路：`AInteractionSession` 订阅 SSE，`VoiceC
 
 `avatarReady` 在模型完成加载后才为 true；模型配置错误时 renderer 仍可运行，但 avatarReady=false、renderErrors>0，C 与长测应检查该字段。neutral 取消额外表情立即清掉淡出队列；新 emotion 命令在 interrupted 状态也能正常显示。
 
-冻结版曾复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 的修复已应用到当前源码（连同 SAPI 与 profile 补丁，新 buildId `b286ed88...a063`）；旧长测仍属于旧 build。
+冻结版曾复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 的修复已应用到当前源码（连同 SAPI 与 profile 补丁，新 buildId `5bd0ceaf...39ec`）；旧长测仍属于旧 build。
 
 `avatar` 的 emotion/motion 必须存在于当前 manifest，否则 400；只传 motion 会保留表情。身体按实际 ASR/TTS/播放状态执行 thinking/speaking/idle，发声完成或取消后恢复中性。C 仍决定表达内容与情绪，也可显式传动作命令。
 
@@ -108,7 +108,7 @@ GGUF worker 在导入上游前禁用其文件日志；只在内存保留 PCM 和
 
 单次 speech 仍接受至 500 字符。GGUF 先按句末或邻近分句标点切成最多 60 字的有界片段，在同一 generation 下连续输出 PCM；取消会停止剩余片段。每片段的生成预算为 max(300, 字符数×15) 帧；触顶作为失败上报，避免把截断音频标成成功。worker 使用 90 秒无进展超时，持续生成/播放的长内容不受 90 秒总时限截断。长文中每段声线衔接的主观质量仍需真人听测。
 
-冻结版 SAPI 降级曾有已复现的 30 秒总超时缺陷；`pending/sapi-progress` 的无进展超时补丁已应用到当前源码（新 build `b286ed...`），旧冻结版长测不证明新 build。完整候选 145/500 字静默播放/取消通过，细节见该目录 README。
+冻结版 SAPI 降级曾有已复现的 30 秒总超时缺陷；`pending/sapi-progress` 的无进展超时补丁已应用到当前源码（新 build `5bd0ce...`），旧冻结版长测不证明新 build。完整候选 145/500 字静默播放/取消通过，细节见该目录 README。
 
 不完整分句在标点、60 字符上限或 `end` 时进入 TTS；真正上游 LLM 延迟由 C 负责。固定回复演示是用户显式勾选的测试模式，不是主动性策略或人格实现。
 
