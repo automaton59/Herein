@@ -300,11 +300,12 @@ async function main() {
   ];
   const hash = crypto.createHash("sha256");
   for (const source of sources)
-    hash.update(source).update(await fs.readFile(path.join(root, source)));
+    hash.update(source).update(
+      (await fs.readFile(path.join(root, source), "utf8")).replace(/\r\n/g, "\n"),
+    );
   hash.update(
-    await fs.readFile(
-      path.join(rendererDir, "assets/main.js"),
-    ),
+    (await fs.readFile(path.join(rendererDir, "assets/main.js"), "utf8"))
+      .replace(/\r\n/g, "\n"),
   );
   buildId = hash.digest("hex");
   manifest = validateManifest(

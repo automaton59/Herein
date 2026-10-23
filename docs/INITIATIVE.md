@@ -37,4 +37,4 @@
 - `electron/core/initiative.test.ts`：6 个测试。
 - `electron/core/interaction.test.ts`：3 个测试。
 - `electron/core/server.test.ts`：`/v1/initiative/run` 端到端。
-- 2026-10-22：全量测试 56 files / 225 tests passed（见 P0-PROGRESS）。
+- 2026-10-23：全量测试 58 files / 230 tests passed（见 P0-PROGRESS）；A runtime 27/27。

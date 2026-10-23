@@ -7,7 +7,7 @@
 `sapi-progress`、`profile-isolation`、`stream-failure` 三项待应用补丁已按顺序应用到当前源码，并生成新 buildId：
 
 ```text
-94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca
+d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5
 ```
 
 验证：
@@ -22,9 +22,9 @@
 
 最新静音表演补验：六种表情映射与说话/点拖/取消组合562采样通过，最低29.52fps、队列峰值4、欠供0；保留表情淡入的首轮过早断言记录。原运行时源码/bundle未改，两条GGUF及SAPI候选8小时仍在计时。透明ASR曾新增斜率复查项，须结合完整窗口审阅，不能把后续下降自动视为无泄漏。
 
-最新便携部署补验：171文件SHA256与仓库外Electron启动通过，模型/Python/配置外置；启动器已设Chromium临时profile。直接/登录入口main隔离补丁候选已验证，**尚未应用冻结main**；与SAPI补丁一起待原长测审阅后应用并重新生成交付包。部署/表演补验提交 `71899ab`、`158eabb`。
+最新便携部署补验：171文件SHA256与仓库外Electron启动通过，模型/Python/配置外置；启动器已设Chromium临时profile。直接/登录入口main隔离补丁已应用，和SAPI补丁一起进入新 build。部署/表演补验提交 `71899ab`、`158eabb`。
 
-最新故障补验：发现冻结GGUF ACK失败未处理/挂起及合成故障后缓冲未取消。组合候选 `94cde9da...7b98ca` 机制4/4、真实SAPI故障→Worklet取消确认0.3ms→新句通过；**stream-failure补丁也未应用源码**。当前交付仍需三项补丁合并、新版本验证和完整长测。
+最新故障补验：发现冻结GGUF ACK失败未处理/挂起及合成故障后缓冲未取消。组合候选 `d6e145d9...8cbc5` 机制4/4、真实SAPI故障→Worklet取消确认0.3ms→新句通过；stream-failure补丁已应用源码，新 build 仍需完整长测。
 
 ## 当前交付状态
 
@@ -35,11 +35,11 @@
 | 交付源码与GGUF冻结版 | buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`，`apps/interaction`；两条原进程长测仍在运行 | 分别等真实截止、审阅完整资源/延迟趋势 |
 | GGUF非透明长测 | `tmp/interaction-blue-overnight-data`，10-22 23:33:39–10-23 07:33:39 北京时间 | ASR周期私有内存曾触发复查，须复核完整窗口 |
 | GGUF默认透明长测 | `tmp/interaction-blue-transparent-data`，10-23 00:03:51–08:03:51 | 单独审阅，不与非透明片段拼接 |
-| SAPI长文修复候选 | buildId `a46ecc9bc3cc331f86825bbbecdc5424c9c9abc4b34d4b0d7905753a67be76cc`，145/500字、取消/替换及机制回归通过；**补丁尚未应用到交付源码** | 原长测结束保留证据后应用 `pending/sapi-progress/workers.patch`，新版本复验 |
+| SAPI长文修复候选 | buildId `a46ecc9...`，145/500字、取消/替换及机制回归通过；**补丁已应用**，新 build `d6e145...` | 新 build 复验长语音/取消；旧候选数据保留 |
 | 候选SAPI/CPU降级长测 | `tmp/interaction-sapi-progress-soak-data`，10-23 01:16:13–09:16:13 | 审阅预期取消重建与旧身份退出，严格审计标记不自动豁免 |
 | 便携部署路线 | `tmp/interaction-portable-complete`，171文件/372,092,803bytes；仓库外启动/静音PCM/表情/取消通过，仍是冻结build | 两项补丁应用后重新生成新版本；外部Python/模型是运行前提 |
-| Chromium profile隔离 | launch/便携脚本修正已验证；直接/登录main候选 `df6cb5cd...24bf3d` 通过，**main补丁未应用**；旧长测有默认profile缺口 | 应用 `pending/profile-isolation/main.patch`，重验新源码和真实登录 |
-| 流式故障收尾 | GGUF ACK缺陷与SAPI worker死亡残余缓冲已复现；组合候选4回归/实际错误取消与新句通过，**补丁未应用** | 前两补丁之后应用 `pending/stream-failure/failure.patch`，重验新build |
+| Chromium profile隔离 | launch/便携脚本修正已验证；直接/登录main候选 `df6cb5cd...24bf3d` 通过，**main补丁已应用**；旧长测有默认profile缺口 | 新 build 重验直接/登录入口 |
+| 流式故障收尾 | GGUF ACK缺陷与SAPI worker死亡残余缓冲已复现；组合候选4回归/实际错误取消与新句通过，**补丁已应用** | 新 build 重验故障取消 |
 | 真人与桌面硬件 | 待用户主动发送“开始真人验收”；夜间未录真人声音/外放/触发操作请求 | 十句/AEC/插话、真实显示/点拖/托盘/热键、设备/多屏/电源/登录 |
 
 运行/manifest/C接口见 `apps/interaction/README.md`；逐项验收见 `apps/interaction/ACCEPTANCE.md`；SAPI补丁和候选证据见 `apps/interaction/pending/sapi-progress/README.md`。下文早期蓝鱼和Shizuku表格为历史记录，旧运行状态、短片段和不同build不能代替当前版本验收。原始模型、配置、截图和固定音频仅留本机忽略目录。
@@ -276,7 +276,7 @@ GGUF ASR小时0/1/2中位延迟：非透明345/343/348ms（计数511/514/324）�
 
 实际冻结SAPI故障：隔离静音runtime30156（18:47:06.691372Z），等renderer新采样speaking/buffer3457.83ms后，只杀父进程/脚本名/创建身份与runtime/config/data归属确认的SAPI。之后generation仍3，body已idle，buffer仍3457.83，恢复后3470.83ms。旧发声故障未取消整个播放generation。首次较早探针buffer0无法确认积压，被保留为first-probe而未用作通过依据。
 
-组合候选先应用SAPI/profile两补丁，再加流式故障修复：捕获当前Qwen worker对象、settled清监听器、ACK续期/失败立即拒绝/关闭/阻止后续emit；main先publish speech.failed(旧generation)，再cancel并推进generation，speech.error通知用新generation。buildId `94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca`，同冻结renderer。SAPI故障临时runtime12496（18:49:18.218191Z）原buffer3487.17ms，杀归属确认的worker后gen1→2，Worklet取消ACK0.3ms，tts.error→ACK1ms；下一新renderer采样buffer0，新句与取消/晚结束无复活通过。原始报告 `tmp/interaction-worker-failure-fixed-data/worker-failure-{probe,correlation}.local.json`；不保存PCM，不验证物理余音。health缓冲在下个5秒采样前可保留旧值，立即取消证据来自worklet ACK。
+组合候选先应用SAPI/profile两补丁，再加流式故障修复：捕获当前Qwen worker对象、settled清监听器、ACK续期/失败立即拒绝/关闭/阻止后续emit；main先publish speech.failed(旧generation)，再cancel并推进generation，speech.error通知用新generation。buildId `d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5`，同冻结renderer。SAPI故障临时runtime12496（18:49:18.218191Z）原buffer3487.17ms，杀归属确认的worker后gen1→2，Worklet取消ACK0.3ms，tts.error→ACK1ms；下一新renderer采样buffer0，新句与取消/晚结束无复活通过。原始报告 `tmp/interaction-worker-failure-fixed-data/worker-failure-{probe,correlation}.local.json`；不保存PCM，不验证物理余音。health缓冲在下个5秒采样前可保留旧值，立即取消证据来自worklet ACK。
 
 两个短实例随后完整命令行/data/config/创建身份核对，各回收11个身份。三条原长测12个runtime/monitor/load/sampler仍原身份，未改冻结源与bundle；重算15源文件+main.js的build仍b3ffe698...4925d。三项补丁待原长测结束审阅后依次应用、记录新build、复验与重新打包；候选故障短测不等于最终全天候通过。
 

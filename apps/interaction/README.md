@@ -2,7 +2,7 @@
 
 Agent A 的独立桌面运行时。它接收 C 的发声、文本增量和身体命令，并上报用户语音、presence、状态与打断。它不打开 Core 数据库、不装配人格或记忆、不决定主动发言，也不改桌面控制台或 Android。
 
-> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
+> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
 
 ## 安装与启动
 
@@ -20,7 +20,7 @@ npm start
 
 也可 `npm start -- --config=<absolute-config-path>`。模型只从本机 manifest 指定的目录加载。构建产物在仓库 `tmp/interaction-dist`；不会打包或复制模型。配置模板没有真实模型或凭据。并行验证可用 `node apps/interaction/build.mjs --out-dir=tmp/<isolated-dist>`，在本地配置设置绝对 `rendererDir`，避免覆盖长测版本的静态资源。`silentOutput:true` 保持 PCM/口型链路运行但将最终输出 gain 设为 0；这种验证不证明扬声器发声。
 
-`launch.cjs` 会在 Electron 启动前把 Chromium 的 `--user-data-dir` 设为同一 interaction 数据目录，避免异步读取配置期间 GPU/网络子进程先使用默认共享 profile。直接调用冻结版 Electron 时也必须同时传 `--data-dir=<absolute>` 和 `--user-data-dir=<same-absolute>`；原冻结长测通过旧入口启动，profile 隔离缺口另记，不由旧长测证明修复。直接/登录入口的main修复候选在 `pending/profile-isolation`，源码补丁尚未应用；与SAPI补丁一样需原长测结束后处理并记录新版本。
+`launch.cjs` 会在 Electron 启动前把 Chromium 的 `--user-data-dir` 设为同一 interaction 数据目录，避免异步读取配置期间 GPU/网络子进程先使用默认共享 profile。直接/登录入口的 main 隔离补丁已应用；新 build 仍需重新验证直接/登录入口，旧长测的默认 profile 缺口不由旧数据证明修复。
 
 可在已有独立构建上生成便携目录：`node apps/interaction/package-portable.mjs --output=tmp/<new-portable-directory> --renderer=tmp/<saved-dist>`。输出只含白名单运行时源码、JS/CSS/HTML bundle、当前 Electron 发行版及原许可、配置/manifest 模板，不含 node_modules、模型、Cubism Core、Python、真实配置、录音或聊天。目录已存在会拒绝；生成失败保留部分目录，成功会写 `portable-manifest.json` 的逐文件SHA256和buildId。使用包内 `Start-Interaction.ps1 -ConfigPath <absolute-private-config> -DataDirectory <absolute-new-data-dir>` 启动；移除配置中的rendererDir以使用包内bundle。无需仓库/Node，仍需本机离线模型与Python推理环境。
 
@@ -56,11 +56,13 @@ npm start
 
 `transcript` 内容 `{type:"transcript",text,final:true,generation,turnId}`。C 自行选择是否回复与回复内容，将 `turnId` 回传给 speech/text 命令；运行时据此记录用户停止说话到首个非静音输出采样的延迟。文本在 SSE 内存传递，默认不落盘。`begin` 替换当前轮次；过期 turn 的 delta/end 被忽略。C 应等待 ASR/TTS ready，维护自己的重连与主动性策略。
 
+C 侧现在已经实现这条链路：`AInteractionSession` 订阅 SSE，`VoiceConversation` 把 final transcript 送入 Core 模型/时间线，再用 `/v1/speech` 回传同 `turnId`。C 的 `HEREIN_INTERACTION_ENDPOINT` 指向本运行时的 `endpoint.local.json` 即可。
+
 `health`/endpoint 带 `apiVersion:1` 与 `buildId`。长测必须匹配同一 buildId；`ready` 表示 renderer 接口已启动，C 还需检查 `asr`、`tts`。`POST /v1/speech` 返回接收的 generation，发声是异步的；SSE `speech.started`、`speech.completed`（合成完成，播放器可能仍有缓冲）、`speech.failed` 带 generation/turnId，错误只给固定类别。重启 token/port 变化，必须重新读 endpoint。
 
 `avatarReady` 在模型完成加载后才为 true；模型配置错误时 renderer 仍可运行，但 avatarReady=false、renderErrors>0，C 与长测应检查该字段。neutral 取消额外表情立即清掉淡出队列；新 emotion 命令在 interrupted 状态也能正常显示。
 
-冻结版已复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 保留组合候选、回归与SAPI故障实测：ACK立即失败清监听器，主线程发出speech.failed后推进generation并取消播放；补丁尚未应用，须在SAPI/profile补丁之后合并，不能把已有原版本长测当故障修复证明。
+冻结版曾复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 的修复已应用到当前源码（连同 SAPI 与 profile 补丁，新 buildId `d6e145d9...8cbc5`）；旧长测仍属于旧 build。
 
 `avatar` 的 emotion/motion 必须存在于当前 manifest，否则 400；只传 motion 会保留表情。身体按实际 ASR/TTS/播放状态执行 thinking/speaking/idle，发声完成或取消后恢复中性。C 仍决定表达内容与情绪，也可显式传动作命令。
 
@@ -106,7 +108,7 @@ GGUF worker 在导入上游前禁用其文件日志；只在内存保留 PCM 和
 
 单次 speech 仍接受至 500 字符。GGUF 先按句末或邻近分句标点切成最多 60 字的有界片段，在同一 generation 下连续输出 PCM；取消会停止剩余片段。每片段的生成预算为 max(300, 字符数×15) 帧；触顶作为失败上报，避免把截断音频标成成功。worker 使用 90 秒无进展超时，持续生成/播放的长内容不受 90 秒总时限截断。长文中每段声线衔接的主观质量仍需真人听测。
 
-冻结版 SAPI 降级仍有已复现的 30 秒总超时缺陷：带播放背压的长文本会提前失败。`pending/sapi-progress` 保留隔离候选验证过的无进展超时补丁和回归，当前尚未应用，以保留正在运行的两条 GGUF 长测源码/版本连续性。交付源码应用后会改变 buildId，必须另行记录验收；补丁存在不代表冻结版降级已经修复。完整候选145/500字静默播放/取消通过，细节见该目录 README。
+冻结版 SAPI 降级曾有已复现的 30 秒总超时缺陷；`pending/sapi-progress` 的无进展超时补丁已应用到当前源码（新 build `d6e145...`），旧冻结版长测不证明新 build。完整候选 145/500 字静默播放/取消通过，细节见该目录 README。
 
 不完整分句在标点、60 字符上限或 `end` 时进入 TTS；真正上游 LLM 延迟由 C 负责。固定回复演示是用户显式勾选的测试模式，不是主动性策略或人格实现。
 

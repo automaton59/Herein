@@ -23,6 +23,8 @@ import { buildCoreStatus } from './status';
 import { CoreMemoryRunner } from './memory';
 import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
 import { InteractionDispatcher, HttpInteractionPort, AInteractionPort } from './interaction';
+import { AInteractionSession } from './aInteractionSession';
+import { VoiceConversation } from './voiceConversation';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
 import { AgentProviderRegistry, type AgentProvider } from '../plugins/agentProvider';
@@ -100,6 +102,10 @@ export interface CoreServerOptions {
     endpointFile?: string;
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
+  };
+  voice?: {
+    enabled?: boolean;
+    characterId?: string;
   };
 }
 
@@ -372,6 +378,43 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     enabled: options.memory?.enabled,
     triggerMessageCount: options.memory?.triggerMessageCount,
   });
+
+  const voiceConversation = interactionEndpointFile && options.voice?.enabled !== false
+    && process.env.HEREIN_VOICE_ENABLED !== '0'
+    ? new VoiceConversation({
+      repos,
+      events,
+      memoryRunner,
+      dispatcher: interactionDispatcher,
+      llmConfig: options.llmConfig,
+      llmConfigPath: options.llmConfigPath,
+      fetchImpl: options.llmFetch,
+      characterId: options.voice?.characterId ?? process.env.HEREIN_VOICE_CHARACTER_ID,
+    })
+    : null;
+  const aInteractionSession = voiceConversation && interactionEndpointFile
+    ? new AInteractionSession({
+      endpointFile: interactionEndpointFile,
+      fetchImpl: options.interaction?.fetchImpl,
+      onEvent: event => {
+        if (event.type === 'transcript') {
+          const transcript = event as { text?: unknown; final?: unknown; turnId?: unknown };
+
+          if (transcript.final === true && typeof transcript.text === 'string') {
+            voiceConversation.handleTranscript(
+              transcript.text,
+              typeof transcript.turnId === 'string' ? transcript.turnId : undefined,
+            );
+          }
+        } else if (event.type === 'interrupted') {
+          voiceConversation.interrupt();
+          events.publish('interaction.interrupted', event);
+        } else if (event.type === 'presence') {
+          events.publish('interaction.presence', event);
+        }
+      },
+    })
+    : null;
 
   const initiative = new InitiativeEngine({
     repos,
@@ -1372,6 +1415,8 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     }
   }
 
+  aInteractionSession?.start();
+
   return {
     server,
     host,
@@ -1382,6 +1427,8 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     close: async () => {
       proactiveScheduler?.stop();
       initiativeScheduler?.stop();
+      await aInteractionSession?.stop();
+      await voiceConversation?.stop();
       await interactionDispatcher.stop();
       await memoryRunner.close();
       await pluginRegistry.close();

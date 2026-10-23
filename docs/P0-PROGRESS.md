@@ -69,7 +69,9 @@
 
 - `npx tsc --noEmit` → 0
 - `npx tsc -p tsconfig.electron.json --noEmit` → 0
-- `npx vitest run` → **56 files / 225 tests passed**
+- `npx vitest run` → **58 files / 230 tests passed**
+- `npm run test:interaction` → **27/27**（A runtime）
+- A 新 buildId：`d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5`（三项 pending 补丁已应用；行尾归一后稳定）
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run check:contrast` → 8 个关键色对全部通过（AA）
 - `npm run test:dsh` → 13/13 DSH bridge 测试通过（真实 DSH 安装/审批/回滚/崩溃恢复）
@@ -97,8 +99,8 @@
 | P1a | Core 双端一致性 | 记忆/已读/离线幂等/桌面增量 apply 已进 Core；跨端实时 read/outbox 未做；本地 IPC 仍写本地 DB，删除已能通过 apply 传播 |
 | P0-12 | 插件接入面 | `weather`/`bilibili`/`netease`/`qq` 已是 native plugin；DSH bridge 已合入 `adapters/dsh`，C 通过 `HEREIN_DSH_URL/TOKEN` 发现并调用 capability；生命周期仍走 DSH 审批 |
 | P0-13 | 状态完整性 | `/v1/status` 覆盖 Core/DB/LLM/TTS/plugins/agents/relay/interaction；Android visibility/online 生命周期已接；Doze/系统级后台限制未真机验证 |
-| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy/Android 横幅/InteractionPort（generic + A endpoint）已接；A 的真实 runtime 在独立分支，A → C 语音输入未接 |
-| P0-14b | A runtime 接入 | A `codex/interaction-runtime` HEAD `14733ce`，27/27 测试、构建通过；8h 主测一条通过采样、release 一条 `capability_not_ready`，透明/SAPI 提前停止；三项补丁未应用；详见 `docs/A-STATUS-2026-10-23.md` |
+| P0-14 | 主动性 | 策略/手动/自动调度/时间线/SSE/ntfy/Android 横幅/InteractionPort 已接；语音对话 transcript→模型→时间线→A speech 已接；A→C presence/interrupted 已入事件总线 |
+| P0-14b | A runtime 接入 | A `codex/interaction-runtime` 已合并；三项补丁应用，buildId `d6e145d9...8cbc5`，27/27 + 4/4 + 4/4 回归通过；C 已接 A SSE transcript/presence/interrupted，final transcript 走模型/时间线并回 `/v1/speech`；新 8h/真人/最终模型待验 |
 | P0-15 | 设计系统 | 调色板已 sweep + 关键色对 guard；语义 token、完整 DOM 对比度审计、视觉回归/真机截图未做 |
 | P1c | 远程稳定性 | 隧道已通；还没做开机自启/断线自动重连/TLS |
 | P3 | B 站 Experience/UI | 适配器已有；ActivitySession、每日摘要、UI“她今天看了什么”未接 |

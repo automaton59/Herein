@@ -701,6 +701,95 @@ describe('core server', () => {
     expect(relayFetch).toHaveBeenCalledTimes(1);
   });
 
+  it('runs a synthetic voice turn from A SSE to A speech', async () => {
+    const endpointDir = mkdtempSync(path.join(tmpdir(), 'herein-a-endpoint-'));
+    tempDirs.push(endpointDir);
+    const endpointFile = path.join(endpointDir, 'endpoint.local.json');
+    writeFileSync(endpointFile, JSON.stringify({
+      url: 'http://a.test',
+      token: 'a-token',
+    }), 'utf8');
+
+    let speechBody: { text?: string; turnId?: string } | null = null;
+    const encoder = new TextEncoder();
+    const aFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+
+      if (url.endsWith('/v1/events')) {
+        const signal = init?.signal;
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode(
+              'data: {"type":"transcript","text":"你好","final":true,"turnId":"turn-v"}\n\n',
+            ));
+            signal?.addEventListener('abort', () => {
+              try {
+                controller.error(new Error('aborted'));
+              } catch {
+                // Stream may already be closed.
+              }
+            });
+          },
+        }), { status: 200 });
+      }
+
+      if (url.endsWith('/v1/speech')) {
+        speechBody = JSON.parse(String(init?.body)) as { text?: string; turnId?: string };
+        return new Response('{}', { status: 200 });
+      }
+
+      if (url.endsWith('/health')) {
+        return new Response(JSON.stringify({
+          ready: true,
+          asr: true,
+          tts: true,
+        }), { status: 200 });
+      }
+
+      throw new Error(`unexpected A fetch: ${url}`);
+    }) as typeof fetch;
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{ message: { role: 'assistant', content: '在。' } }],
+    }), { status: 200 })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      interaction: {
+        endpointFile,
+        fetchImpl: aFetch,
+      },
+      voice: {
+        enabled: true,
+        characterId: 'herein-default',
+      },
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    await vi.waitFor(() => {
+      expect(speechBody).not.toBeNull();
+    }, { timeout: 5000 });
+
+    expect(speechBody).toEqual(expect.objectContaining({
+      text: '在。',
+      turnId: 'turn-v',
+    }));
+
+    const messages = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(messages.body.messages.slice(-2)).toEqual([
+      expect.objectContaining({ role: 'user', content: '你好' }),
+      expect.objectContaining({ role: 'assistant', content: '在。' }),
+    ]);
+  });
+
   it('reports the interaction port health when configured', async () => {
     const interactionFetch = vi.fn(async (input: RequestInfo | URL) => {
       expect(String(input)).toBe('http://interaction.test/health');

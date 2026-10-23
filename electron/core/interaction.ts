@@ -11,6 +11,7 @@ export interface SpeakRequest {
   priority?: InteractionPriority;
   interruptible?: boolean;
   source?: InteractionSource;
+  turnId?: string;
 }
 
 export interface SpeakResult {
@@ -241,7 +242,11 @@ export class AInteractionPort implements InteractionPort {
           text: request.text,
           emotion: request.emotion ?? 'neutral',
           instruct: request.voiceInstruct ?? '',
-          ...(request.source === 'initiative' ? { turnId: `initiative-${Date.now()}` } : {}),
+          ...(request.turnId
+            ? { turnId: request.turnId }
+            : request.source === 'initiative'
+              ? { turnId: `initiative-${Date.now()}` }
+              : {}),
         }),
       });
 

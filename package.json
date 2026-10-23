@@ -18,6 +18,8 @@
     "test:dsh": "node --test adapters/dsh/test/*.test.mjs",
     "demo:dsh": "node adapters/dsh/scripts/demo.mjs",
     "serve:dsh": "node adapters/dsh/scripts/cli.mjs serve",
+    "test:interaction": "node --test apps/interaction/tests/*.test.mjs",
+    "build:interaction": "node apps/interaction/build.mjs",
     "bench:tts": "node scripts/benchmark_tts.mjs",
     "native:rebuild:node": "npm rebuild better-sqlite3",
     "test": "npm run native:rebuild:node && vitest",
