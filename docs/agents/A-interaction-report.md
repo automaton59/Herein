@@ -2,6 +2,24 @@
 
 更新时间：2026-10-23。**进行中，尚未完成整体验收。**
 
+## 2026-10-23 08:20：三项补丁已应用
+
+`sapi-progress`、`profile-isolation`、`stream-failure` 三项待应用补丁已按顺序应用到当前源码，并生成新 buildId：
+
+```text
+94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca
+```
+
+验证：
+
+- `node --test apps/interaction/tests/*.test.mjs`：27/27
+- `node --test apps/interaction/pending/sapi-progress/regression.mjs`：4/4
+- `node --test apps/interaction/pending/stream-failure/regression.mjs`：4/4
+- `node apps/interaction/build.mjs --out-dir tmp/interaction-final-dist`：通过
+- `npm run check:core`：10 files 边界通过
+
+旧长测（`interaction-release-data`、`interaction-blue-overnight-data`、透明/SAPI）均属于旧 build，不替代新 build 的验收。最终模型效果和真人/硬件关卡仍待最终模型与用户主动开始。
+
 最新静音表演补验：六种表情映射与说话/点拖/取消组合562采样通过，最低29.52fps、队列峰值4、欠供0；保留表情淡入的首轮过早断言记录。原运行时源码/bundle未改，两条GGUF及SAPI候选8小时仍在计时。透明ASR曾新增斜率复查项，须结合完整窗口审阅，不能把后续下降自动视为无泄漏。
 
 最新便携部署补验：171文件SHA256与仓库外Electron启动通过，模型/Python/配置外置；启动器已设Chromium临时profile。直接/登录入口main隔离补丁候选已验证，**尚未应用冻结main**；与SAPI补丁一起待原长测审阅后应用并重新生成交付包。部署/表演补验提交 `71899ab`、`158eabb`。

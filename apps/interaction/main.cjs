@@ -51,6 +51,16 @@ if (!configPath) {
     "Set HEREIN_INTERACTION_CONFIG or --config=<absolute-local-config.json>",
   );
   app.quit();
+} else {
+  // Set paths before the first awaited filesystem read and before Chromium
+  // starts GPU/network children, including direct Electron/login launches.
+  dataDir = path.resolve(
+    process.argv.find(arg => arg.startsWith("--data-dir="))?.slice(11) ||
+    process.env.HEREIN_INTERACTION_DATA_DIR || path.join(root, "../../tmp/interaction-data"),
+  );
+  app.setPath("userData", dataDir);
+  app.setPath("sessionData", dataDir);
+  app.commandLine.appendSwitch("user-data-dir", dataDir);
 }
 function push(event) {
   if (win && !win.isDestroyed())
@@ -187,9 +197,11 @@ async function speak(value) {
           turnId: command.turnId,
           error: "tts_unavailable",
         });
+        // Failed synthesis invalidates every queued chunk before recovery.
+        cancel("tts-failure");
         push({
           type: "speech.error",
-          generation: current,
+          generation,
           error: error.message,
         });
         metric({ type: "tts.error", reason: error.message });
@@ -304,6 +316,7 @@ async function main() {
       path.join(root, "../../tmp/interaction-data"),
   );
   app.setPath("userData", dataDir);
+  app.setPath("sessionData", dataDir);
   await fs.mkdir(dataDir, { recursive: true });
   token = crypto.randomBytes(32).toString("hex");
   try {

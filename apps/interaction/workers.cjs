@@ -186,10 +186,11 @@ class VoiceWorkers extends EventEmitter {
     const sequence = this.sequence;
     const start = performance.now();
     let first = true,
-      bytes = 0;
+      bytes = 0,
+      voiceFailed = false;
     const emit = async (pcm) => {
       for (let offset = 0; offset < pcm.length; offset += 4800) {
-        if (sequence !== this.sequence) return;
+        if (sequence !== this.sequence || voiceFailed) return;
         const part = pcm.subarray(offset, offset + 4800);
         bytes += part.length;
         await onPcm(part, {
@@ -207,57 +208,67 @@ class VoiceWorkers extends EventEmitter {
       if (!this.qwen?.ready || this.qwenBusy)
         throw new Error("Qwen not ready or cancelling");
       this.qwenBusy = true;
+      const worker = this.qwen;
       const id = crypto.randomUUID();
       try {
         const task = new Promise((resolve, reject) => {
           let serial = Promise.resolve();
           // Long accepted texts can take over 90 seconds to play. Bound stalls,
           // including a stuck downstream ACK, without truncating steady progress.
-          let timer;
+          let timer, settled = false;
           const progress = () => {
+            if (settled) return;
             clearTimeout(timer);
             timer = setTimeout(() => {
-              cleanup();
-              this.qwen.close();
-              reject(new Error("Qwen progress timeout"));
+              finish(new Error("Qwen progress timeout"));
             }, 90000);
           };
-          progress();
+          const finish = (error) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (error) { voiceFailed = true; reject(error); worker.close(); }
+            else resolve();
+          };
           const message = (event) => {
-            if (event.id !== id) return;
+            if (event.id !== id || settled) return;
             progress();
             if (event.pcm) {
               const pcm = Buffer.from(event.pcm, "base64");
-              this.qwen.child.stdout.pause();
+              worker.child.stdout.pause();
               serial = serial
-                .then(() => emit(pcm))
-                .finally(() => this.qwen.child.stdout.resume());
+                .then(async () => {
+                  if (settled) return;
+                  await emit(pcm);
+                  progress();
+                })
+                .finally(() => worker.child.stdout.resume());
+              void serial.catch(finish);
             }
             if (event.done) {
               serial.then(
                 () => {
-                  cleanup();
-                  event.error ? reject(new Error(event.error)) : resolve();
+                  finish(event.error ? new Error(event.error) : undefined);
                 },
                 (error) => {
-                  cleanup();
-                  reject(error);
+                  finish(error);
                 },
               );
             }
           };
           const failure = () => {
-            cleanup();
-            reject(new Error("Qwen worker unavailable"));
+            finish(new Error("Qwen worker unavailable"));
           };
           const cleanup = () => {
             clearTimeout(timer);
-            this.qwen.off("message", message);
-            this.qwen.off("failure", failure);
+            worker.off("message", message);
+            worker.off("failure", failure);
           };
-          this.qwen.on("message", message);
-          this.qwen.on("failure", failure);
-          this.qwen.send({ ...command, id });
+          worker.on("message", message);
+          worker.on("failure", failure);
+          progress();
+          try { worker.send({ ...command, id }); }
+          catch (error) { finish(error); }
         });
         this.qwenTask = task;
         await task;
@@ -296,34 +307,46 @@ class VoiceWorkers extends EventEmitter {
       try {
         await new Promise((resolve, reject) => {
           let serial = Promise.resolve();
-          const timer = setTimeout(() => {
-            worker.close();
-            reject(new Error("SAPI timeout"));
-          }, 30000);
+          let timer, settled = false;
+          // Pace by downstream PCM acknowledgements without imposing a total
+          // duration cap on accepted long texts. A stalled stream stays bounded.
+          const progress = () => {
+            if (settled) return;
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              finish(new Error("SAPI progress timeout"));
+              worker.close();
+            }, 90000);
+          };
+          const finish = (error) => {
+            if (settled) return;
+            settled = true;
+            cleanup();
+            if (error) { voiceFailed = true; reject(error); worker.close(); }
+            else resolve();
+          };
           const message = (event) => {
-            if (event.id !== id) return;
+            if (event.id !== id || settled) return;
+            progress();
             if (event.pcm) {
               worker.child.stdout.pause();
               serial = serial
-                .then(() => emit(Buffer.from(event.pcm, "base64")))
+                .then(async () => {
+                  if (settled) return;
+                  await emit(Buffer.from(event.pcm, "base64"));
+                  progress();
+                })
                 .finally(() => worker.child.stdout.resume());
+              // Observe a failed ACK even if no done frame arrives afterwards.
+              void serial.catch(finish);
             }
             if (event.done)
               serial.then(
-                () => {
-                  cleanup();
-                  event.error ? reject(new Error(event.error)) : resolve();
-                },
-                (error) => {
-                  cleanup();
-                  reject(error);
-                },
+                () => finish(event.error ? new Error(event.error) : undefined),
+                finish,
               );
           };
-          const failure = (error) => {
-            cleanup();
-            sequence !== this.sequence ? resolve() : reject(error);
-          };
+          const failure = error => finish(sequence !== this.sequence ? undefined : error);
           const cleanup = () => {
             clearTimeout(timer);
             worker.off("message", message);
@@ -331,7 +354,9 @@ class VoiceWorkers extends EventEmitter {
           };
           worker.on("message", message);
           worker.on("failure", failure);
-          worker.send({ ...command, id });
+          progress();
+          try { worker.send({ ...command, id }); }
+          catch (error) { finish(error); }
         });
       } finally {
         if (this.sapi === worker) this.sapiBusy = false;

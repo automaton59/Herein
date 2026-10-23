@@ -5,7 +5,8 @@
 ## 当前冻结版本
 
 - 分支：`codex/interaction-runtime`。
-- buildId：`b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`。
+- buildId：`94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca`（三项 pending 补丁已应用）。
+- 旧 build `b3ffe698...` 的长测和截图不再等同于当前版本证据；新版本仍需最终模型/真人重验。
 - 独立 renderer：`tmp/interaction-blue-overnight-dist`。
 - 夜间数据：`tmp/interaction-blue-overnight-data`。
 - 夜间窗口：非透明配置、静音输出、循环合成麦克风；8 小时截止 2026-10-23 07:33:39 北京时间。

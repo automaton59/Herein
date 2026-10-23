@@ -2,6 +2,8 @@
 
 Agent A 的独立桌面运行时。它接收 C 的发声、文本增量和身体命令，并上报用户语音、presence、状态与打断。它不打开 Core 数据库、不装配人格或记忆、不决定主动发言，也不改桌面控制台或 Android。
 
+> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `94cde9da19f4f9df7ffcc9e47d6b4c4dcee8d937940a1fa091dd4c9e3f7b98ca`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
+
 ## 安装与启动
 
 需要 Windows、仓库根目录的 Node/Electron/Pixi/Vite 依赖、本地 faster-whisper 环境与离线模型。GPU ASR 需要匹配的 CUDA/cuDNN DLL；CPU 可用 `int8`，延迟需另测。
