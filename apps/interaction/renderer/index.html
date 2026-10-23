@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Herein · 交互运行时</title>
+  </head>
+  <body>
+    <main>
+      <div id="avatar"></div>
+      <div id="bar">
+        <span id="state">启动中</span><button id="mic">开始监听</button
+        ><button id="stop">打断</button
+        ><button id="hide" title="隐藏到托盘">−</button>
+      </div>
+      <div id="panel">
+        <label>输入设备<select id="input"></select></label
+        ><label>输出设备<select id="output"></select></label
+        ><label><input type="checkbox" id="demo" />固定回复演示</label
+        ><label><input type="checkbox" id="top" checked />置顶</label
+        ><label
+          >帧率<select id="fps">
+            <option>60</option>
+            <option>30</option>
+          </select></label
+        ><label>表情<select id="expression"></select></label
+        ><label>动作<select id="motion"></select></label
+        ><button id="perform">演示动作</button><button id="rest">恢复待机</button
+        ><textarea
+          id="text"
+          maxlength="500"
+          placeholder="输入一句话试听；正式发言由 C 提供"
+        ></textarea
+        ><button id="say">试听</button><output id="metrics"></output>
+        <p id="notice">
+          私有模型仅本地加载。语音不会保存。首次开始监听后持续运行，可在托盘暂停。
+        </p>
+      </div>
+    </main>
+    <script type="module" src="./runtime.mjs"></script>
+  </body>
+</html>

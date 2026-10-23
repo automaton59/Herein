@@ -1,0 +1,27 @@
+--- a/apps/interaction/main.cjs
++++ b/apps/interaction/main.cjs
+@@ -51,6 +51,16 @@
+     "Set HEREIN_INTERACTION_CONFIG or --config=<absolute-local-config.json>",
+   );
+   app.quit();
++} else {
++  // Set paths before the first awaited filesystem read and before Chromium
++  // starts GPU/network children, including direct Electron/login launches.
++  dataDir = path.resolve(
++    process.argv.find(arg => arg.startsWith("--data-dir="))?.slice(11) ||
++    process.env.HEREIN_INTERACTION_DATA_DIR || path.join(root, "../../tmp/interaction-data"),
++  );
++  app.setPath("userData", dataDir);
++  app.setPath("sessionData", dataDir);
++  app.commandLine.appendSwitch("user-data-dir", dataDir);
+ }
+ function push(event) {
+   if (win && !win.isDestroyed())
+@@ -305,6 +315,7 @@
+       path.join(root, "../../tmp/interaction-data"),
+   );
+   app.setPath("userData", dataDir);
++  app.setPath("sessionData", dataDir);
+   await fs.mkdir(dataDir, { recursive: true });
+   token = crypto.randomBytes(32).toString("hex");
+   try {

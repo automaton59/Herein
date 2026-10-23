@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "cubism": 4,
+  "root": "<absolute-path-to-local-dsh-live2d-checkout>",
+  "entry": "assets/deepseek_l2d/deepseek.model3.json",
+  "core": "lib/live2dcubismcore.min.js",
+  "parameters": {
+    "mouth": "ParamMouthOpenY",
+    "breath": "ParamBreath",
+    "eyeLeft": "ParamEyeLOpen",
+    "eyeRight": "ParamEyeROpen",
+    "eyeX": "ParamEyeBallX",
+    "eyeY": "ParamEyeBallY",
+    "smileLeft": "ParamEyeLSmile",
+    "mouthForm": "ParamMouthForm",
+    "angleY": "ParamAngleY"
+  },
+  "expressions": {
+    "neutral": null,
+    "happy": "happy",
+    "excited": "happy2",
+    "puzzled": "puzzled",
+    "relaxed": "relax",
+    "sad": "unhappy"
+  },
+  "motions": {
+    "idle": { "group": "Idle", "index": 0, "loop": true },
+    "speaking": { "group": "Anima", "index": 0, "loop": true },
+    "thinking": { "group": "Anima", "index": 2, "loop": true },
+    "thinkEnd": { "group": "Anima", "index": 1, "loop": false }
+  },
+  "states": {
+    "idle": "idle",
+    "listening": "idle",
+    "paused": "idle",
+    "interrupted": "idle",
+    "thinking": "thinking",
+    "speaking": "speaking"
+  },
+  "interactions": {
+    "tap": { "motion": "thinkEnd", "emotion": "happy" },
+    "drag": { "motion": "thinkEnd", "emotion": "puzzled" }
+  },
+  "scale": 0.92,
+  "offsetX": 0,
+  "offsetY": 0
+}

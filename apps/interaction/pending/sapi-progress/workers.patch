@@ -1,0 +1,92 @@
+--- a/apps/interaction/workers.cjs
++++ b/apps/interaction/workers.cjs
+@@ -186,10 +186,11 @@
+     const sequence = this.sequence;
+     const start = performance.now();
+     let first = true,
+-      bytes = 0;
++      bytes = 0,
++      voiceFailed = false;
+     const emit = async (pcm) => {
+       for (let offset = 0; offset < pcm.length; offset += 4800) {
+-        if (sequence !== this.sequence) return;
++        if (sequence !== this.sequence || voiceFailed) return;
+         const part = pcm.subarray(offset, offset + 4800);
+         bytes += part.length;
+         await onPcm(part, {
+@@ -296,34 +297,46 @@
+       try {
+         await new Promise((resolve, reject) => {
+           let serial = Promise.resolve();
+-          const timer = setTimeout(() => {
+-            worker.close();
+-            reject(new Error("SAPI timeout"));
+-          }, 30000);
++          let timer, settled = false;
++          // Pace by downstream PCM acknowledgements without imposing a total
++          // duration cap on accepted long texts. A stalled stream stays bounded.
++          const progress = () => {
++            if (settled) return;
++            clearTimeout(timer);
++            timer = setTimeout(() => {
++              finish(new Error("SAPI progress timeout"));
++              worker.close();
++            }, 90000);
++          };
++          const finish = (error) => {
++            if (settled) return;
++            settled = true;
++            cleanup();
++            if (error) { voiceFailed = true; reject(error); worker.close(); }
++            else resolve();
++          };
+           const message = (event) => {
+-            if (event.id !== id) return;
++            if (event.id !== id || settled) return;
++            progress();
+             if (event.pcm) {
+               worker.child.stdout.pause();
+               serial = serial
+-                .then(() => emit(Buffer.from(event.pcm, "base64")))
++                .then(async () => {
++                  if (settled) return;
++                  await emit(Buffer.from(event.pcm, "base64"));
++                  progress();
++                })
+                 .finally(() => worker.child.stdout.resume());
++              // Observe a failed ACK even if no done frame arrives afterwards.
++              void serial.catch(finish);
+             }
+             if (event.done)
+               serial.then(
+-                () => {
+-                  cleanup();
+-                  event.error ? reject(new Error(event.error)) : resolve();
+-                },
+-                (error) => {
+-                  cleanup();
+-                  reject(error);
+-                },
++                () => finish(event.error ? new Error(event.error) : undefined),
++                finish,
+               );
+           };
+-          const failure = (error) => {
+-            cleanup();
+-            sequence !== this.sequence ? resolve() : reject(error);
+-          };
++          const failure = error => finish(sequence !== this.sequence ? undefined : error);
+           const cleanup = () => {
+             clearTimeout(timer);
+             worker.off("message", message);
+@@ -331,7 +344,9 @@
+           };
+           worker.on("message", message);
+           worker.on("failure", failure);
+-          worker.send({ ...command, id });
++          progress();
++          try { worker.send({ ...command, id }); }
++          catch (error) { finish(error); }
+         });
+       } finally {
+         if (this.sapi === worker) this.sapiBusy = false;

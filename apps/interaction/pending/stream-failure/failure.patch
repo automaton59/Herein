@@ -1,0 +1,109 @@
+diff --git a/apps/interaction/workers.cjs b/apps/interaction/workers.cjs
+index b673a2d..3373f21 100644
+--- a/apps/interaction/workers.cjs
++++ b/apps/interaction/workers.cjs
+@@ -208,57 +208,67 @@ class VoiceWorkers extends EventEmitter {
+       if (!this.qwen?.ready || this.qwenBusy)
+         throw new Error("Qwen not ready or cancelling");
+       this.qwenBusy = true;
++      const worker = this.qwen;
+       const id = crypto.randomUUID();
+       try {
+         const task = new Promise((resolve, reject) => {
+           let serial = Promise.resolve();
+           // Long accepted texts can take over 90 seconds to play. Bound stalls,
+           // including a stuck downstream ACK, without truncating steady progress.
+-          let timer;
++          let timer, settled = false;
+           const progress = () => {
++            if (settled) return;
+             clearTimeout(timer);
+             timer = setTimeout(() => {
+-              cleanup();
+-              this.qwen.close();
+-              reject(new Error("Qwen progress timeout"));
++              finish(new Error("Qwen progress timeout"));
+             }, 90000);
+           };
+-          progress();
++          const finish = (error) => {
++            if (settled) return;
++            settled = true;
++            cleanup();
++            if (error) { voiceFailed = true; reject(error); worker.close(); }
++            else resolve();
++          };
+           const message = (event) => {
+-            if (event.id !== id) return;
++            if (event.id !== id || settled) return;
+             progress();
+             if (event.pcm) {
+               const pcm = Buffer.from(event.pcm, "base64");
+-              this.qwen.child.stdout.pause();
++              worker.child.stdout.pause();
+               serial = serial
+-                .then(() => emit(pcm))
+-                .finally(() => this.qwen.child.stdout.resume());
++                .then(async () => {
++                  if (settled) return;
++                  await emit(pcm);
++                  progress();
++                })
++                .finally(() => worker.child.stdout.resume());
++              void serial.catch(finish);
+             }
+             if (event.done) {
+               serial.then(
+                 () => {
+-                  cleanup();
+-                  event.error ? reject(new Error(event.error)) : resolve();
++                  finish(event.error ? new Error(event.error) : undefined);
+                 },
+                 (error) => {
+-                  cleanup();
+-                  reject(error);
++                  finish(error);
+                 },
+               );
+             }
+           };
+           const failure = () => {
+-            cleanup();
+-            reject(new Error("Qwen worker unavailable"));
++            finish(new Error("Qwen worker unavailable"));
+           };
+           const cleanup = () => {
+             clearTimeout(timer);
+-            this.qwen.off("message", message);
+-            this.qwen.off("failure", failure);
++            worker.off("message", message);
++            worker.off("failure", failure);
+           };
+-          this.qwen.on("message", message);
+-          this.qwen.on("failure", failure);
+-          this.qwen.send({ ...command, id });
++          worker.on("message", message);
++          worker.on("failure", failure);
++          progress();
++          try { worker.send({ ...command, id }); }
++          catch (error) { finish(error); }
+         });
+         this.qwenTask = task;
+         await task;
+diff --git a/apps/interaction/main.cjs b/apps/interaction/main.cjs
+index 6442c9c..a288079 100644
+--- a/apps/interaction/main.cjs
++++ b/apps/interaction/main.cjs
+@@ -197,9 +197,11 @@ async function speak(value) {
+           turnId: command.turnId,
+           error: "tts_unavailable",
+         });
++        // Failed synthesis invalidates every queued chunk before recovery.
++        cancel("tts-failure");
+         push({
+           type: "speech.error",
+-          generation: current,
++          generation,
+           error: error.message,
+         });
+         metric({ type: "tts.error", reason: error.message });
