@@ -279,6 +279,9 @@ async function main() {
     !["sapi", "qwen", "qwen-gguf"].includes(config.tts?.provider)
   )
     throw new Error("Invalid interaction config");
+  config.framing = ["bust", "half", "full"].includes(config.framing)
+    ? config.framing
+    : "bust";
   const { validateManifest, assetPath, avatarCommand } = await import("./contracts.mjs");
   rendererDir = path.resolve(config.rendererDir || path.join(root, "../../tmp/interaction-dist"));
   const sources = [
@@ -590,11 +593,15 @@ async function main() {
       2,
     ),
   );
+  const defaultWidth = config.framing === "full" ? 380 : 360;
+  const defaultHeight = config.framing === "half"
+    ? 720
+    : config.framing === "full" ? 620 : 560;
   let bounds = {
-    width: 380,
-    height: 620,
-    x: screen.getPrimaryDisplay().workArea.width - 400,
-    y: screen.getPrimaryDisplay().workArea.height - 640,
+    width: defaultWidth,
+    height: defaultHeight,
+    x: screen.getPrimaryDisplay().workArea.width - defaultWidth - 20,
+    y: screen.getPrimaryDisplay().workArea.height - defaultHeight - 20,
   };
   try {
     const saved = JSON.parse(
@@ -720,9 +727,10 @@ async function main() {
         vad: config.vad || {},
         demoReply: config.demoReply || "",
         provider: config.tts.provider,
-        autoListen: config.autoListen === true || micPreference,
+        autoListen: config.autoListen !== false || micPreference,
         diagnostics: config.diagnostics === true,
         silentOutput: config.silentOutput === true,
+        framing: config.framing,
       },
       asrReady: workers.asr.ready,
     };

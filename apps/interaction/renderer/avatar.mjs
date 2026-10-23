@@ -1,11 +1,13 @@
 import { Application, Ticker } from "pixi.js";
 import "@pixi/unsafe-eval";
 import { BodyAnimator, motionSpec } from "./body.mjs";
+import { avatarLayout } from "./framing.mjs";
 export class Avatar {
-  constructor(host, manifest, fps) {
+  constructor(host, manifest, fps, framing = "bust") {
     this.host = host;
     this.manifest = manifest;
     this.fps = fps;
+    this.framing = ["bust", "half", "full"].includes(framing) ? framing : "bust";
     this.mouth = 0;
     this.emotion = "neutral";
     this.samples = [];
@@ -83,11 +85,22 @@ export class Avatar {
     const width = this.model.width,
       height = this.model.height;
     this.fit = () => {
-      const w = this.host.clientWidth,
-        h = this.host.clientHeight;
-      this.model.scale.set(Math.min(w / width, h / height) * (m.scale || 0.92));
-      this.model.x = w * (0.5 + (m.offsetX || 0));
-      this.model.y = h * (0.5 + (m.offsetY || 0));
+      const layout = avatarLayout({
+        modelWidth: width,
+        modelHeight: height,
+        width: this.host.clientWidth,
+        height: this.host.clientHeight,
+        framing: this.framing,
+        scale: this.framing === "full" ? (m.scale || 0.92) : (m.scale || 1),
+        offsetX: m.offsetX || 0,
+        offsetY: m.offsetY || 0,
+        framingTop: m.framingTop,
+        framingScaleBust: m.framingScaleBust,
+        framingScaleHalf: m.framingScaleHalf,
+      });
+      this.model.scale.set(layout.scale);
+      this.model.x = layout.x;
+      this.model.y = layout.y;
     };
     this.fit();
     this.observer = new ResizeObserver(this.fit);
@@ -194,6 +207,11 @@ export class Avatar {
     this.state = state;
     this.body?.setState(state);
   }
+  setFraming(framing) {
+    if (!["bust", "half", "full"].includes(framing)) return;
+    this.framing = framing;
+    this.fit?.();
+  }
   focus(x, y) {
     const box = this.host.getBoundingClientRect();
     this.model?.focus(x - box.left, y - box.top);
@@ -203,6 +221,7 @@ export class Avatar {
     const expression = manager?.expressionManager;
     return {
       loaded: this.loaded === true, cubism: this.manifest.cubism,
+      framing: this.framing,
       state: this.state, emotion: this.body?.emotion,
       motion: this.body?.motionName,
       group: manager?.state.currentGroup, index: manager?.state.currentIndex,

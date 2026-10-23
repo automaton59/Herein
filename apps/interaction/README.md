@@ -2,7 +2,7 @@
 
 Agent A 的独立桌面运行时。它接收 C 的发声、文本增量和身体命令，并上报用户语音、presence、状态与打断。它不打开 Core 数据库、不装配人格或记忆、不决定主动发言，也不改桌面控制台或 Android。
 
-> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
+> 2026-10-23：SAPI 进展超时、profile 隔离、流式故障三项 pending 补丁已应用到源码；新 buildId `b286ed8894df7b4a5c18224a0350f5e198e078bedc2974bde582862fa25ea063`。旧长测属于旧 build，不替代新版本验收。详见 `pending/APPLIED.md`。
 
 ## 安装与启动
 
@@ -24,9 +24,9 @@ npm start
 
 可在已有独立构建上生成便携目录：`node apps/interaction/package-portable.mjs --output=tmp/<new-portable-directory> --renderer=tmp/<saved-dist>`。输出只含白名单运行时源码、JS/CSS/HTML bundle、当前 Electron 发行版及原许可、配置/manifest 模板，不含 node_modules、模型、Cubism Core、Python、真实配置、录音或聊天。目录已存在会拒绝；生成失败保留部分目录，成功会写 `portable-manifest.json` 的逐文件SHA256和buildId。使用包内 `Start-Interaction.ps1 -ConfigPath <absolute-private-config> -DataDirectory <absolute-new-data-dir>` 启动；移除配置中的rendererDir以使用包内bundle。无需仓库/Node，仍需本机离线模型与Python推理环境。
 
-渲染依赖的LICENSE/COPYING/NOTICE、包名和版本收进 `licenses/`，缺失许可会停止打包。补充notice来源见 `licenses/README.md`。`node apps/interaction/verify-portable.mjs <package-directory>` 校验每个列出文件、拒绝未列出的文件、重算runtime buildId；它检查完整性，不验证签名、启动或物理硬件。原冻结包的SAPI长文30秒缺陷仍在，不能当作修复版交付；当前便携验证证明部署路线。
+渲染依赖的LICENSE/COPYING/NOTICE、包名和版本收进 `licenses/`，缺失许可会停止打包。补充notice来源见 `licenses/README.md`。`node apps/interaction/verify-portable.mjs <package-directory>` 校验每个列出文件、拒绝未列出的文件、重算runtime buildId；它检查完整性，不验证签名、启动或物理硬件。当前构建已应用SAPI长文修复；旧便携包不替代新构建验收。
 
-首次点“开始监听”后会保存监听偏好；下一次运行自动监听。配置 `autoListen:true` 可用于无人值守验收。`Ctrl+Shift+Space` 显示/隐藏、`Ctrl+Shift+X` 打断、`Ctrl+Shift+M` 切换监听。关闭窗口隐藏到托盘，托盘“退出运行时”才退出。拖形象移动位置，点击触发 manifest 的 tap 动作。窗口会保存位置并在屏幕配置变化后收回可见区域。
+默认启动即开启监听（`autoListen` 未显式设为 `false` 时）；首次监听偏好会保存。配置 `autoListen:false` 可改为手动点“开始监听”启动。`framing` 默认 `bust`（胸口以上），可切 `half`（半身）或 `full`（全身）；窗口默认尺寸随之调整，面板里也可以临时切换。`Ctrl+Shift+Space` 显示/隐藏、`Ctrl+Shift+X` 打断、`Ctrl+Shift+M` 切换监听。关闭窗口隐藏到托盘，托盘“退出运行时”才退出。拖形象移动位置，点击触发 manifest 的 tap 动作。窗口会保存位置并在屏幕配置变化后收回可见区域。
 
 开机启动由托盘显式切换，使用本运行时的 Electron 入口和配置路径。当前未通过真实重启验收；路径移动后需重新配置。多屏与休眠恢复有实现，仍需要相应硬件与真实电源周期验收。
 
@@ -62,7 +62,7 @@ C 侧现在已经实现这条链路：`AInteractionSession` 订阅 SSE，`VoiceC
 
 `avatarReady` 在模型完成加载后才为 true；模型配置错误时 renderer 仍可运行，但 avatarReady=false、renderErrors>0，C 与长测应检查该字段。neutral 取消额外表情立即清掉淡出队列；新 emotion 命令在 interrupted 状态也能正常显示。
 
-冻结版曾复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 的修复已应用到当前源码（连同 SAPI 与 profile 补丁，新 buildId `d6e145d9...8cbc5`）；旧长测仍属于旧 build。
+冻结版曾复现GGUF下游ACK拒绝未立即settle以及合成故障后未清待播PCM的缺口。`pending/stream-failure` 的修复已应用到当前源码（连同 SAPI 与 profile 补丁，新 buildId `b286ed88...a063`）；旧长测仍属于旧 build。
 
 `avatar` 的 emotion/motion 必须存在于当前 manifest，否则 400；只传 motion 会保留表情。身体按实际 ASR/TTS/播放状态执行 thinking/speaking/idle，发声完成或取消后恢复中性。C 仍决定表达内容与情绪，也可显式传动作命令。
 
@@ -108,7 +108,7 @@ GGUF worker 在导入上游前禁用其文件日志；只在内存保留 PCM 和
 
 单次 speech 仍接受至 500 字符。GGUF 先按句末或邻近分句标点切成最多 60 字的有界片段，在同一 generation 下连续输出 PCM；取消会停止剩余片段。每片段的生成预算为 max(300, 字符数×15) 帧；触顶作为失败上报，避免把截断音频标成成功。worker 使用 90 秒无进展超时，持续生成/播放的长内容不受 90 秒总时限截断。长文中每段声线衔接的主观质量仍需真人听测。
 
-冻结版 SAPI 降级曾有已复现的 30 秒总超时缺陷；`pending/sapi-progress` 的无进展超时补丁已应用到当前源码（新 build `d6e145...`），旧冻结版长测不证明新 build。完整候选 145/500 字静默播放/取消通过，细节见该目录 README。
+冻结版 SAPI 降级曾有已复现的 30 秒总超时缺陷；`pending/sapi-progress` 的无进展超时补丁已应用到当前源码（新 build `b286ed...`），旧冻结版长测不证明新 build。完整候选 145/500 字静默播放/取消通过，细节见该目录 README。
 
 不完整分句在标点、60 字符上限或 `end` 时进入 TTS；真正上游 LLM 延迟由 C 负责。固定回复演示是用户显式勾选的测试模式，不是主动性策略或人格实现。
 

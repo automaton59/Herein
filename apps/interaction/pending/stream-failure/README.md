@@ -7,7 +7,7 @@ The frozen runtime has two reproduced failure paths:
 
 `failure.patch` applies **after** `pending/sapi-progress/workers.patch` and `pending/profile-isolation/main.patch`. It captures the active Qwen worker, settles failures once, cleans listeners, rejects failed ACKs immediately, drops queued PCM, and extends the progress deadline on ACKs. Main publishes `speech.failed` for the failed generation, then cancels that generation's queued playback before sending a notice in the new generation. C still owns response/proactivity policy.
 
-The combined private candidate is `tmp/interaction-stream-failure-candidate`, buildId `d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5`. Frozen runtime sources and active GGUF/SAPI soaks were not modified. This patch is **not yet applied to delivery sources**.
+The combined private candidate is `tmp/interaction-stream-failure-candidate`, buildId `b286ed8894df7b4a5c18224a0350f5e198e078bedc2974bde582862fa25ea063`. Frozen runtime sources and active GGUF/SAPI soaks were not modified. This patch is **not yet applied to delivery sources**.
 
 Evidence:
 

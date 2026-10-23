@@ -9,12 +9,12 @@
 新 buildId：
 
 ```text
-d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5
+b286ed8894df7b4a5c18224a0350f5e198e078bedc2974bde582862fa25ea063
 ```
 
 验证结果：
 
-- `tests/*.test.mjs`：27/27
+- `tests/*.test.mjs`：30/30
 - `sapi-progress/regression.mjs`：4/4
 - `stream-failure/regression.mjs`：4/4
 - `build.mjs --out-dir tmp/interaction-final-dist`：通过

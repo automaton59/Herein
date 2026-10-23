@@ -18,6 +18,8 @@
   "port": 0,
   "alwaysOnTop": true,
   "fps": 60,
+  "framing": "bust",
+  "autoListen": true,
   "silentOutput": false,
   "vad": {
     "startMs": 60,

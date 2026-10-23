@@ -572,6 +572,15 @@ el("output").onchange = async () => {
 el("top").onchange = () => api.window("top", el("top").checked);
 el("fps").value = String(boot.config.fps);
 el("fps").onchange = () => avatar?.setFps(Number(el("fps").value));
+const framingLabel = document.createElement("label");
+framingLabel.textContent = "取景";
+const framingSelect = document.createElement("select");
+for (const [value, label] of [["bust", "肖像"], ["half", "半身"], ["full", "全身"]])
+  framingSelect.add(new Option(label, value));
+framingSelect.value = boot.config.framing || "bust";
+framingSelect.onchange = () => avatar?.setFraming(framingSelect.value);
+framingLabel.appendChild(framingSelect);
+el("panel").prepend(framingLabel);
 for (const [id, entries] of [["expression", boot.manifest.expressions], ["motion", boot.manifest.motions]])
   for (const name of Object.keys(entries || {})) el(id).add(new Option(name, name));
 el("expression").onchange = () => avatar?.expression(el("expression").value);
@@ -605,7 +614,7 @@ el("avatar").onpointerup = () => {
 };
 el("avatar").onpointercancel = () => { drag = null; };
 try {
-  avatar = new Avatar(el("avatar"), boot.manifest, boot.config.fps);
+  avatar = new Avatar(el("avatar"), boot.manifest, boot.config.fps, boot.config.framing);
   await avatar.load();
   if (boot.config.diagnostics) {
     window.interactionAvatarDiagnostic = () => avatar.diagnostic();

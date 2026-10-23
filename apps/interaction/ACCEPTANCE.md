@@ -5,7 +5,7 @@
 ## 当前冻结版本
 
 - 分支：`codex/interaction-runtime`。
-- buildId：`d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5`（三项 pending 补丁已应用）。
+- buildId：`b286ed8894df7b4a5c18224a0350f5e198e078bedc2974bde582862fa25ea063`（三项 pending 补丁已应用）。
 - 旧 build `b3ffe698...` 的长测和截图不再等同于当前版本证据；新版本仍需最终模型/真人重验。
 - 独立 renderer：`tmp/interaction-blue-overnight-dist`。
 - 夜间数据：`tmp/interaction-blue-overnight-data`。
@@ -25,7 +25,7 @@
 | 独立包 | 便携Electron与bundle从仓库外启动；171文件SHA256、配置/资源外置、10句静音PCM/取消通过 | 新 build 重新生成交付包；真人实际声音/显示 |
 | 常驻与恢复 | loopback、置顶状态、窗口位置保存、模拟隐藏/恢复/worker 故障/renderer 重载 | 真热键/托盘、多屏、设备拔插、休眠与真实登录 |
 | 全天候 | 旧 build 8h 数据已到截止；新 build 尚未跑完整 8h | 新 build 真实 8 小时并人工审阅内存斜率 |
-| SAPI 降级长文 | 30秒总超时补丁、145/500字、取消/替换与4回归通过；已应用新 build `d6e145...` | 新 build 长语音/取消复验 |
+| SAPI 降级长文 | 30秒总超时补丁、145/500字、取消/替换与4回归通过；已应用新 build `b286ed...` | 新 build 长语音/取消复验 |
 
 SAPI修复候选独立长测 `tmp/interaction-sapi-progress-soak-data` 从2026-10-23 01:16:13至09:16:13北京时间进行中。它使用候选build、CPU ASR/SAPI/透明30fps，不与旧GGUF版本或硬件证据拼接。SAPI固定取消会重建worker，严格通用审计的相关复查项需按负载时序和进程创建时间人工核对，不能仅因“预期行为”跳过审阅。
 
@@ -49,7 +49,7 @@ node apps/interaction/audit-soak.mjs tmp/interaction-blue-transparent-data --req
 
 另比较 `hourlyPerformance` 的 ASR、软件首声、RTF、fps 是否在后段明显恶化，同时核查样本数。固定 TTS 负载不构成 ASR→回复闭环，端到端样本缺失保留 null；真人和物理输出延迟仍须单独验收。
 
-SAPI 长语音补丁、profile 隔离补丁、stream-failure 补丁已按顺序应用，新 buildId `d6e145d9...8cbc5`。新 build 必须重新跑长语音/取消、直接/登录入口和故障取消；旧 frozen build 的 8h 数据不能替代新 build 的 8h。
+SAPI 长语音补丁、profile 隔离补丁、stream-failure 补丁已按顺序应用，新 buildId `b286ed88...a063`。新 build 必须重新跑长语音/取消、直接/登录入口和故障取消；旧 frozen build 的 8h 数据不能替代新 build 的 8h。
 
 ```powershell
 npm run test:interaction
