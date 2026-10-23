@@ -73,6 +73,7 @@
 - `npm run check:core` → core boundary ok（10 files）
 - `npm run check:contrast` → 8 个关键色对全部通过（AA）
 - `npm run test:dsh` → 13/13 DSH bridge 测试通过（真实 DSH 安装/审批/回滚/崩溃恢复）
+- DSH 真对话：`session-0ed4f4ce-4293-4946-907f-c01fd05a1619`，`hi` → 正常回复（见 `docs/DSH-REAL-CHAT-2026-10-23.md`）
 - `npm run build:core` → 0
 - `node scripts/benchmark_tts.mjs --help` → 0
 - `npm run core:serve` + `GET /health` 冒烟通过（临时 dataDir，未碰真实数据）
