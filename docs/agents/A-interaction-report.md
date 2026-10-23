@@ -32,7 +32,7 @@ d6e145d9c9229dc110a02dbcc749444c10ae6001e95d4dfef3517cab8588cbc5
 
 | 版本或关卡 | 当前事实 | 下一步 |
 | --- | --- | --- |
-| 交付源码与GGUF冻结版 | buildId `b3ffe698326d97cc97c97021d316c13cbd93ee9cafd0fc384c3227dc55f4925d`，`apps/interaction`；两条原进程长测仍在运行 | 分别等真实截止、审阅完整资源/延迟趋势 |
+| 当前交付源码 | buildId `d6e145d9...8cbc5`，三项 pending 补丁已应用；旧 `b3ffe698...`/`94cde9...` 长测为历史 | 新 build 完整 8h、真人/桌面/最终模型验收 |
 | GGUF非透明长测 | `tmp/interaction-blue-overnight-data`，10-22 23:33:39–10-23 07:33:39 北京时间 | ASR周期私有内存曾触发复查，须复核完整窗口 |
 | GGUF默认透明长测 | `tmp/interaction-blue-transparent-data`，10-23 00:03:51–08:03:51 | 单独审阅，不与非透明片段拼接 |
 | SAPI长文修复候选 | buildId `a46ecc9...`，145/500字、取消/替换及机制回归通过；**补丁已应用**，新 build `d6e145...` | 新 build 复验长语音/取消；旧候选数据保留 |
