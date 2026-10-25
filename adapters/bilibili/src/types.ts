@@ -114,6 +114,10 @@ export interface BilibiliPlayerData {
 
 export interface BilibiliRequestOptions {
   params?: Record<string, string | number | boolean | undefined | null>;
+  /** URL-encoded form body; when present the request is sent as POST. */
+  data?: Record<string, string | number | boolean | undefined | null>;
+  /** Overrides the default `https://www.bilibili.com/` referer. */
+  referer?: string;
   signal?: AbortSignal;
 }
 
@@ -123,4 +127,52 @@ export interface BilibiliClientOptions {
   userAgent?: string;
   minIntervalMs?: number;
   getNowSeconds?: () => number;
+}
+
+export interface BilibiliReply {
+  rpid: number;
+  parent?: number;
+  root?: number;
+  oid?: number;
+  type?: number;
+  like?: number;
+  /** 楼中楼回复数 */
+  rcount?: number;
+  ctime?: number;
+  content?: { message?: string; emote?: unknown };
+  member?: {
+    mid?: string;
+    uname?: string;
+    avatar?: string;
+    level_info?: { current_level?: number };
+  };
+  /** 内嵌的楼中楼预览（仅顶层评论可能带） */
+  replies?: BilibiliReply[];
+  reply_control?: Record<string, unknown>;
+}
+
+export interface BilibiliReplyPage {
+  oid: number;
+  type: number;
+  page?: { num?: number; size?: number; count?: number; acount?: number };
+  replies: BilibiliReply[];
+  /** 部分场景下楼层为空但 cursor 指向下一页 */
+  cursor?: { is_end?: boolean; next?: number } | null;
+}
+
+export interface BilibiliMyInfo {
+  isLogin: boolean;
+  mid?: number;
+  uname?: string;
+  level?: number;
+  coins?: number;
+  vipStatus?: number;
+}
+
+export interface BilibiliPostReplyResult {
+  rpid: number;
+  oid: number;
+  type: number;
+  root?: number;
+  parent?: number;
 }

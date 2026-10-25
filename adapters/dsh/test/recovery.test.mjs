@@ -10,8 +10,8 @@ import { DshBridge } from '../src/bridge.mjs';
 import { createAuthority, approvePlan } from '../src/approval.mjs';
 import { snapshotProfile } from '../src/profile.mjs';
 import { atomicJson } from '../src/common.mjs';
+import { DSH_INSTALL as install, DSH_SKIP } from './install-path.mjs';
 
-const install = process.env.HEREIN_DSH_INSTALL || 'C:/Users/wzy_8/AppData/Local/Programs/DeepSeek Harness';
 async function execute(bridge, keys, request) {
   const plan = await bridge.prepare(request);
   return bridge.execute(plan.id, approvePlan(plan, keys.privateKey, 'reviewed local test fixture'));
@@ -23,7 +23,7 @@ async function scriptFixture(root, name, body) {
   await writeFile(join(dir, 'build.cjs'), body);
   return dir;
 }
-test('unapproved dependency scripts are blocked; explicit signed approval runs only the reviewed script', { timeout: 120000 }, async t => {
+test('unapproved dependency scripts are blocked; explicit signed approval runs only the reviewed script', { timeout: 120000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-build-')), keys = createAuthority();
   const bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey }); t.after(() => bridge.close());
   const marker = join(root, 'reviewed-build-ran');
@@ -39,7 +39,7 @@ test('unapproved dependency scripts are blocked; explicit signed approval runs o
   console.log(JSON.stringify({ blocked: { application: blocked.application, failureKind: blocked.failureKind, pendingBuilds: blocked.pendingBuilds }, approved: { application: approved.application, approvedBuilds: approved.approvedBuilds } }));
 });
 
-test('Host crash and interrupted bridge journal restore snapshots without restarting an incomplete install', { timeout: 120000 }, async t => {
+test('Host crash and interrupted bridge journal restore snapshots without restarting an incomplete install', { timeout: 120000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-crash-')), keys = createAuthority();
   let bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey }); t.after(() => bridge.close());
   const started = join(root, 'build-process.json');
@@ -72,7 +72,7 @@ test('Host crash and interrupted bridge journal restore snapshots without restar
   console.log(JSON.stringify({ crashed: { errorCode: crashed.errorCode, recovery: crashed.recovery }, interrupted: bridge.audit.operation(operationId) }));
 });
 
-test('cancel waits for the approved build to stop and restores profile and build permissions', { timeout: 90000 }, async t => {
+test('cancel waits for the approved build to stop and restores profile and build permissions', { timeout: 90000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-cancel-')), keys = createAuthority();
   const bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey }); t.after(() => bridge.close());
   const started = join(root, 'build-started');
@@ -92,7 +92,7 @@ test('cancel waits for the approved build to stop and restores profile and build
   console.log(JSON.stringify({ cancel: cancel.status, application: result.application, recovery: result.recovery.status }));
 });
 
-test('killing the actual bridge process terminates Host/build descendants; new bridge replays its recovery journal', { timeout: 90000 }, async t => {
+test('killing the actual bridge process terminates Host/build descendants; new bridge replays its recovery journal', { timeout: 90000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-abrupt-')), keys = createAuthority();
   let bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey });
   t.after(async () => bridge?.close());

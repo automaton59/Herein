@@ -5,7 +5,7 @@ import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { closePhase2Database, openPhase2Database, type Phase2Database } from '../data/database';
 import { createPhase2Repositories } from '../data/repositories';
-import { createQQResponder } from './qqResponder';
+import { createQQReply } from './qqResponder';
 
 const dirs: string[] = [];
 const databases: Phase2Database[] = [];
@@ -18,7 +18,7 @@ function setup() {
   const repos = createPhase2Repositories(db);
   repos.characters.upsert({
     id: 'char-1',
-    name: '海拾香',
+    name: '测试角色',
     description: '嘴硬心软。',
     personalityCore: '聪明、嘴硬',
     speakingStyle: '短句',
@@ -64,40 +64,26 @@ describe('qq responder', () => {
       const body = JSON.parse(String(init?.body)) as {
         messages: Array<{ role: string; content: string }>;
       };
-      expect(body.messages[0].content).toContain('你是海拾香');
+      expect(body.messages[0].content).toContain('你是测试角色');
       expect(body.messages[0].content).toContain('刚被 @');
       expect(body.messages.some(message => message.content.includes('群友：今天好累'))).toBe(true);
-      expect(body.messages[body.messages.length - 1].content).toBe('@蓝蓝 在吗');
+      expect(body.messages[body.messages.length - 1].content).toBe('@小蓝 在吗');
       return new Response(JSON.stringify({
         choices: [{ message: { content: '在。[emotion: neutral][voice: 用自然语气说]' } }],
       }), { status: 200, headers: { 'content-type': 'application/json' } });
     }) as typeof fetch;
 
-    const responder = createQQResponder({
+    const reply = await createQQReply({
       repos,
       characterId: character.id,
       llmConfig: { baseUrl: 'https://example.test/v1', apiKey: 'sk-test', model: 'test' },
       fetchImpl,
-    });
-
-    const reply = await responder({ t: 'GROUP_AT_MESSAGE_CREATE' }, {
-      id: 'obs-2',
-      platform: 'qq',
+    })({
       conversationId: 'group-1',
       conversationKind: 'group',
-      actorId: 'member-1',
+      msgId: 'obs-2',
+      content: '@小蓝 在吗',
       actorName: '群友',
-      isSelf: false,
-      isBot: false,
-      kind: 'message',
-      content: '@蓝蓝 在吗',
-      occurredAt: '2026-10-21T12:01:00.000Z',
-      receivedAt: '2026-10-21T12:01:01.000Z',
-      provenance: 'untrusted',
-      audience: 'group',
-      trust: 0.5,
-      dedupeKey: 'qq:group:obs-2',
-      raw: {},
     });
 
     expect(reply).toBe('在。');

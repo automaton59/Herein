@@ -10,14 +10,14 @@ import { serveBridge } from '../src/server.mjs';
 import { DshBridgeClient } from '../src/client.mjs';
 import { atomicJson, digest } from '../src/common.mjs';
 import { snapshotProfile } from '../src/profile.mjs';
+import { DSH_INSTALL as install, DSH_SKIP } from './install-path.mjs';
 
-const install = process.env.HEREIN_DSH_INSTALL || 'C:/Users/wzy_8/AppData/Local/Programs/DeepSeek Harness';
 const fixture = name => resolve(import.meta.dirname, '../fixtures', name);
 async function operator(client, keys, request) {
   const plan = await client.prepare(request);
   return client.execute(plan.id, approvePlan(plan, keys.privateKey, 'test operator'), randomUUID());
 }
-test('real DSH lifecycle through the C-facing HTTP client, approval and failure recovery', { timeout: 240000 }, async t => {
+test('real DSH lifecycle through the C-facing HTTP client, approval and failure recovery', { timeout: 240000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-dsh-e2e-')), keys = createAuthority(), token = randomBytes(32).toString('base64url');
   let bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey });
   let server = await serveBridge(bridge, { token });

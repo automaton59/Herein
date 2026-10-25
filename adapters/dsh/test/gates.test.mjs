@@ -6,10 +6,10 @@ import { join, resolve } from 'node:path';
 import { DshBridge } from '../src/bridge.mjs';
 import { createAuthority, approvePlan } from '../src/approval.mjs';
 import { stageArtifact } from '../src/artifact.mjs';
-const install = process.env.HEREIN_DSH_INSTALL || 'C:/Users/wzy_8/AppData/Local/Programs/DeepSeek Harness';
+import { DSH_INSTALL as install, DSH_SKIP } from './install-path.mjs';
 const hello = resolve(import.meta.dirname, '../fixtures/hello-v1');
 
-test('invalid bundle and incompatible DSH version fail without damaging the profile; saved disablement survives restart', { timeout: 90000 }, async t => {
+test('invalid bundle and incompatible DSH version fail without damaging the profile; saved disablement survives restart', { timeout: 90000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-gates-')), keys = createAuthority();
   let bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey }); t.after(() => bridge.close());
   const execute = async request => { const plan = await bridge.prepare(request); return bridge.execute(plan.id, approvePlan(plan, keys.privateKey, 'gate fixture operator')); };
@@ -34,7 +34,7 @@ test('invalid bundle and incompatible DSH version fail without damaging the prof
   console.log(JSON.stringify({ invalid: rejected.errorCode, incompatible: refused.errorCode, disabledAfterRestart: current.enabled }));
 });
 
-test('state changes and post-review package edits invalidate approval; protected desktop paths are refused', { timeout: 60000 }, async t => {
+test('state changes and post-review package edits invalidate approval; protected desktop paths are refused', { timeout: 60000, skip: DSH_SKIP }, async t => {
   const root = await mkdtemp(join(tmpdir(), 'herein-integrity-')), keys = createAuthority();
   const bridge = await DshBridge.open({ root, install, publicKey: keys.publicKey }); t.after(() => bridge.close());
   await assert.rejects(DshBridge.open({ root: join(process.env.USERPROFILE, '.dsh/profiles/desktop'), install, publicKey: keys.publicKey }), { code: 'PROTECTED_DSH_LOCATION' });
@@ -47,7 +47,7 @@ test('state changes and post-review package edits invalidate approval; protected
   await assert.rejects(bridge.prepare({ action: 'restart' }), { code: 'PROFILE_CHANGED_OUTSIDE_BRIDGE' });
 });
 
-test('unreviewed transitive dependency declarations never reach installation', async () => {
+test('unreviewed transitive dependency declarations never reach installation', { skip: DSH_SKIP }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'herein-deps-')), source = join(root, 'package'); await mkdir(source);
   await writeFile(join(source, 'package.json'), '{"name":"@herein/deps","version":"1.0.0","dependencies":{"unreviewed-code":"*"}}');
   await assert.rejects(stageArtifact(source, root), { code: 'DEPENDENCY_CLOSURE_REQUIRED' });

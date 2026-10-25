@@ -98,6 +98,24 @@ describe('qq bot client', () => {
       status: 401,
     } satisfies Partial<QQBotApiError>);
   });
+
+  it('surfaces api errors that come back as HTTP 200 with a code', async () => {
+    const fetchImpl = (async () => jsonResponse({
+      code: 100016,
+      message: 'invalid appid or secret',
+    })) as typeof fetch;
+    const client = new QQBotClient({
+      config: { appId: 'app-1', appSecret: 'short' },
+      fetchImpl,
+    });
+
+    await expect(client.getAccessToken()).rejects.toMatchObject({
+      name: 'QQBotApiError',
+      status: 200,
+      code: 100016,
+      message: 'code 100016: invalid appid or secret',
+    } satisfies Partial<QQBotApiError>);
+  });
 });
 
 describe('qq event normalization', () => {

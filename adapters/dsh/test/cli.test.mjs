@@ -7,8 +7,9 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
 
+import { DSH_INSTALL as install, DSH_SKIP } from './install-path.mjs';
+
 const cli = resolve(import.meta.dirname, '../scripts/cli.mjs');
-const install = process.env.HEREIN_DSH_INSTALL || 'C:/Users/wzy_8/AppData/Local/Programs/DeepSeek Harness';
 async function run(args) {
   const child = spawn(process.execPath, [cli, ...args], { windowsHide: true });
   let stdout = '', stderr = '';
@@ -28,7 +29,7 @@ async function serve(root, keys) {
   child.stderr.on('data', () => {});
   return { child, ready: await ready };
 }
-test('documented CLI separates approval authority, installs a reviewed plugin, and survives actual service restart', { timeout: 90000 }, async t => {
+test('documented CLI separates approval authority, installs a reviewed plugin, and survives actual service restart', { timeout: 90000, skip: DSH_SKIP }, async t => {
   const scratch = await mkdtemp(join(tmpdir(), 'herein-cli-')), root = join(scratch, 'bridge'), keys = join(scratch, 'operator');
   await run(['keys', '--dir', keys]);
   let service = await serve(root, keys);

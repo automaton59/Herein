@@ -26,8 +26,13 @@ export interface ProactiveShareResult {
 export interface ProactiveShareOptions {
   repos: Repositories;
   llmConfig: LlmConfig;
-  source?: NeteaseCandidateSource;
+  /**
+   * Produces song candidates. When omitted the Core falls back to the built-in
+   * read-only NetEase client; the netease plugin is the preferred source.
+   */
+  fetchCandidates?: () => Promise<unknown[]>;
   promptPath?: string;
+  characterName?: string;
   fetchImpl?: typeof fetch;
   publish?: (song: SharedSong) => void;
   notify?: (song: SharedSong) => void | Promise<void>;
@@ -83,10 +88,9 @@ export class ProactiveShareScheduler {
         }
       }
 
-      const candidates = await getNeteaseCandidates({
-        limit: 3,
-        source: this.options.source,
-      }) as Array<{
+      const candidates = await (this.options.fetchCandidates
+        ? this.options.fetchCandidates()
+        : getNeteaseCandidates({ limit: 3 })) as Array<{
         itemId: string;
         title: string;
         creator?: string;
@@ -111,7 +115,7 @@ export class ProactiveShareScheduler {
           likedItemIds: feedbackEvents.filter(event => event.feedback === 'like').map(event => event.itemId),
           skippedItemIds: feedbackEvents.filter(event => event.feedback === 'skip').map(event => event.itemId),
         },
-        characterName: '蓝蓝',
+        characterName: this.options.characterName ?? '角色',
         gate: {
           now,
           itemId: first.itemId,

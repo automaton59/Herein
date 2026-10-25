@@ -64,7 +64,7 @@ export async function publishNtfy(
 ): Promise<boolean> {
   const creator = song.creator ? ` — ${song.creator}` : '';
   return publishNtfyMessage(config, {
-    title: '蓝蓝转了一首歌',
+    title: '转了一首歌',
     message: `${song.title}${creator}\n${song.shareLine}`,
     tags: ['musical_note'],
   }, fetchImpl);

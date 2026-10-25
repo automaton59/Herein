@@ -68,7 +68,7 @@ function renderPrompt(template: string, options: RecommendContentOptions) {
   const taste = typeof options.taste === 'string' ? options.taste : JSON.stringify(options.taste ?? {});
 
   return template
-    .split('{{character_name}}').join(options.characterName ?? '蓝蓝')
+    .split('{{character_name}}').join(options.characterName ?? '角色')
     .split('{{context}}').join(options.context)
     .split('{{candidates_json}}').join(JSON.stringify(options.candidates))
     .split('{{taste}}').join(taste);

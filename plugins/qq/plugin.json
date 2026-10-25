@@ -1,0 +1,35 @@
+{
+  "id": "qq",
+  "name": "QQ Bot",
+  "version": "0.3.0",
+  "apiVersion": 1,
+  "kind": "channel",
+  "description": "QQ 官方 Bot：全量群消息/私聊监听，可选被动回复；凭据在本地文件。",
+  "setup": "先在 QQ 开放平台建机器人拿到 AppID/AppSecret，写成 qqbot.json（见文档），再启用本插件。不填也能启动，但会提示缺少凭据。",
+  "helpUrl": "docs/PLUGIN-SETUP.md#qq",
+  "entry": "index.mjs",
+  "permissions": [
+    { "kind": "credentials", "value": "qqbot.json", "reason": "读取 AppID/AppSecret" },
+    { "kind": "send", "value": "qq", "reason": "被动回复群/私聊" },
+    { "kind": "network", "value": "api.sgroup.qq.com", "reason": "QQ Bot HTTP/WebSocket" }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "configPath": {
+        "type": "string",
+        "title": "凭据文件",
+        "description": "内容是 {\"appId\":\"...\",\"appSecret\":\"...\"} 的 JSON 文件。留空时按 用户数据目录/qqbot.json 找。",
+        "placeholder": "%APPDATA%\\herein\\data\\qqbot.json",
+        "format": "path"
+      },
+      "autoReply": {
+        "type": "boolean",
+        "title": "自动回复",
+        "description": "开启后把 @ 消息交给此间的人格生成回复；关闭则只接收不回复。",
+        "default": false
+      }
+    },
+    "additionalProperties": false
+  }
+}

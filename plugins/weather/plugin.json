@@ -1,10 +1,12 @@
 {
   "id": "weather",
   "name": "天气",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "kind": "tool",
   "description": "查询当前天气，作为聊天和主动性的环境上下文。使用 Open-Meteo，不需要 API key。",
   "entry": "index.mjs",
+  "setup": "只需要填一个城市名（或经纬度），保存后点「检查」确认能取到天气。不需要 API key。",
+  "helpUrl": "docs/PLUGIN-SETUP.md#weather",
   "permissions": [
     {
       "kind": "network",
@@ -23,28 +25,34 @@
       "city": {
         "type": "string",
         "title": "城市",
-        "description": "例如：杭州。和经纬度二选一。"
+        "description": "填中文城市名即可，和经纬度二选一。",
+        "placeholder": "例如：杭州",
+        "examples": ["杭州", "深圳", "上海"]
       },
       "latitude": {
         "type": "number",
         "title": "纬度",
+        "description": "只有在城市名解析不到时才需要填。",
         "minimum": -90,
         "maximum": 90
       },
       "longitude": {
         "type": "number",
         "title": "经度",
+        "description": "和纬度一起使用。",
         "minimum": -180,
         "maximum": 180
       },
       "locationName": {
         "type": "string",
         "title": "显示名",
-        "description": "可选；覆盖城市名，例如“家”。"
+        "description": "可选；覆盖城市名，例如“家”。",
+        "placeholder": "例如：家"
       },
       "refreshMinutes": {
         "type": "number",
         "title": "缓存分钟",
+        "description": "同一个城市在这个时间内复用缓存，避免频繁请求。",
         "default": 15,
         "minimum": 1,
         "maximum": 180

@@ -1,12 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { Phase2Database } from '../data/database';
 import { discoverPlugins, loadPluginInstance, type DiscoveredPlugin } from './loader';
 import { defaultPluginConfig, validatePluginConfig, validatePluginManifest } from './manifest';
 import {
+  PLUGIN_API_VERSION,
   PluginError,
   type PluginAuditRecord,
   type PluginContext,
+  type PluginEvent,
   type PluginHealth,
   type PluginHealthStatus,
   type PluginInstance,
@@ -24,13 +27,27 @@ export interface PluginLogger {
 
 export interface PluginRegistryOptions {
   db: Phase2Database;
-  pluginsDir: string;
+  pluginsDir: string | string[];
+  /** Asset roots served at `/assets/<rel>`; forwarded to plugins as `ctx.assetsDirs`. */
+  assetsDirs?: string[];
+  /** User data directory; forwarded to plugins as `ctx.dataDir`. */
+  dataDir?: string;
+  /**
+   * Application root used by `ctx.loadModule()`. In a packaged build this is the
+   * asar path, so bundled adapters and the core package stay importable.
+   */
+  appRoot?: string;
+  /** Test seam: modules served by `ctx.loadModule()` before touching the disk. */
+  bundledModules?: Record<string, unknown>;
   fetchImpl?: typeof fetch;
   now?: () => Date;
   logger?: PluginLogger;
   healthTimeoutMs?: number;
   startTimeoutMs?: number;
 }
+
+/** Receives every event a plugin pushes through `ctx.emit()`. */
+export type PluginEventSink = (pluginId: string, event: PluginEvent) => Promise<void> | void;
 
 interface PluginRow {
   plugin_id: string;
@@ -112,12 +129,17 @@ function requestUrl(input: RequestInfo | URL) {
 
 export class PluginRegistry {
   private readonly db: Phase2Database;
-  private readonly pluginsDir: string;
+  private readonly pluginsDirs: string[];
+  private readonly assetsDirs: string[];
+  private readonly dataDir: string | undefined;
   private readonly fetchImpl: typeof fetch;
   private readonly now: () => Date;
   private readonly logger: PluginLogger;
   private readonly healthTimeoutMs: number;
   private readonly startTimeoutMs: number;
+  private readonly appRoot: string | undefined;
+  private readonly bundledModules: Record<string, unknown> | undefined;
+  private eventSink: PluginEventSink | undefined;
   private readonly discovered = new Map<string, DiscoveredPlugin>();
   private readonly builtins = new Map<string, DiscoveredPlugin>();
   private readonly loaded = new Map<string, LoadedPlugin>();
@@ -125,7 +147,12 @@ export class PluginRegistry {
 
   constructor(options: PluginRegistryOptions) {
     this.db = options.db;
-    this.pluginsDir = path.resolve(options.pluginsDir);
+    this.pluginsDirs = (Array.isArray(options.pluginsDir) ? options.pluginsDir : [options.pluginsDir])
+      .map(dir => path.resolve(dir));
+    this.assetsDirs = (options.assetsDirs ?? [])
+      .filter(dir => Boolean(dir && dir.trim()))
+      .map(dir => path.resolve(dir));
+    this.dataDir = options.dataDir ? path.resolve(options.dataDir) : undefined;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? (() => new Date());
     this.logger = options.logger ?? {
@@ -135,6 +162,16 @@ export class PluginRegistry {
     };
     this.healthTimeoutMs = options.healthTimeoutMs ?? DEFAULT_HEALTH_TIMEOUT_MS;
     this.startTimeoutMs = options.startTimeoutMs ?? DEFAULT_START_TIMEOUT_MS;
+    this.appRoot = options.appRoot ? path.resolve(options.appRoot) : undefined;
+    this.bundledModules = options.bundledModules;
+  }
+
+  /**
+   * Wires the Core-side handler for `ctx.emit()`. Optional: without a sink a
+   * plugin that calls `emit` fails loudly rather than dropping events.
+   */
+  setEventSink(sink: PluginEventSink | undefined) {
+    this.eventSink = sink;
   }
 
   async initialize() {
@@ -180,7 +217,12 @@ export class PluginRegistry {
 
   async refreshDiscovered() {
     try {
-      const discovered = await discoverPlugins(this.pluginsDir);
+      const discovered: DiscoveredPlugin[] = [];
+
+      for (const dir of this.pluginsDirs) {
+        discovered.push(...await discoverPlugins(dir));
+      }
+
       this.discovered.clear();
 
       for (const plugin of discovered) {
@@ -563,6 +605,10 @@ export class PluginRegistry {
       config,
       fetch: this.createPermissionedFetch(manifest),
       now: this.now,
+      assetsDirs: [...this.assetsDirs],
+      ...(this.dataDir ? { dataDir: this.dataDir } : {}),
+      emit: event => this.emitFromPlugin(manifest.id, event),
+      loadModule: relativePath => this.loadBundledModule(relativePath),
       log: (level: PluginLogLevel, message: string, detail?: unknown) => {
         const target = level === 'error'
           ? this.logger.error
@@ -572,6 +618,72 @@ export class PluginRegistry {
         target(`[plugin:${manifest.id}] ${message}`, detail);
       },
     };
+  }
+
+  private async emitFromPlugin(pluginId: string, event: PluginEvent): Promise<void> {
+    if (!event || typeof event !== 'object' || typeof event.type !== 'string' || !event.payload) {
+      throw new PluginError('plugin_failed', `plugin ${pluginId} emitted an invalid event`, 500);
+    }
+
+    if (!this.eventSink) {
+      throw new PluginError(
+        'plugin_failed',
+        `plugin ${pluginId} emitted "${event.type}" but no event sink is configured`,
+        500,
+      );
+    }
+
+    try {
+      await this.eventSink(pluginId, event);
+    } catch (error) {
+      this.recordAudit(pluginId, `emit:${event.type}`, 'failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Loads a module that ships with the application. This is how a plugin reaches
+   * an adapter or the core package without receiving internal objects: the path
+   * is resolved against the app root and may not escape it.
+   */
+  private async loadBundledModule(relativePath: string): Promise<unknown> {
+    const normalized = String(relativePath ?? '').replace(/\\/g, '/').trim();
+
+    if (!normalized || normalized.startsWith('/') || /^[a-zA-Z]:/.test(normalized)) {
+      throw new PluginError('permission_denied', `module path must be relative: ${relativePath}`, 403);
+    }
+
+    if (normalized.split('/').some(part => part === '..' || part === '')) {
+      throw new PluginError('permission_denied', `module path may not contain "..": ${relativePath}`, 403);
+    }
+
+    const bundled = this.bundledModules?.[normalized];
+
+    if (bundled !== undefined) {
+      return bundled;
+    }
+
+    if (!this.appRoot) {
+      throw new PluginError('plugin_failed', 'app root is not configured; cannot load bundled modules', 500);
+    }
+
+    const resolved = path.resolve(this.appRoot, normalized);
+
+    if (resolved !== this.appRoot && !resolved.startsWith(`${this.appRoot}${path.sep}`)) {
+      throw new PluginError('permission_denied', `module path escapes the app root: ${relativePath}`, 403);
+    }
+
+    try {
+      return await import(pathToFileURL(resolved).href);
+    } catch (error) {
+      throw new PluginError(
+        'plugin_failed',
+        `cannot load bundled module ${normalized}: ${error instanceof Error ? error.message : String(error)}`,
+        500,
+      );
+    }
   }
 
   private createPermissionedFetch(manifest: PluginManifest): typeof fetch {
@@ -647,6 +759,7 @@ export class PluginRegistry {
         id: row.plugin_id,
         name: row.plugin_id,
         version: 'unknown',
+        apiVersion: PLUGIN_API_VERSION,
         kind: 'tool' as const,
         entry: '',
         permissions: [],

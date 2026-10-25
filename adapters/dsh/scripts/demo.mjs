@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { tmpdir, homedir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { DshBridge } from '../src/bridge.mjs';
@@ -9,10 +9,21 @@ import { serveBridge } from '../src/server.mjs';
 import { DshBridgeClient } from '../src/client.mjs';
 import { digest } from '../src/common.mjs';
 
-const install = process.env.HEREIN_DSH_INSTALL || 'C:/Users/wzy_8/AppData/Local/Programs/DeepSeek Harness';
+// The demo drives a real DeepSeek Harness install, so the path must come from the
+// environment (or the platform default). Never hard-code a developer machine path.
+const install = process.env.HEREIN_DSH_INSTALL
+  ?? (process.platform === 'win32' && process.env.LOCALAPPDATA
+    ? join(process.env.LOCALAPPDATA, 'Programs', 'DeepSeek Harness')
+    : null);
+
+if (!install) {
+  console.error('[demo] DeepSeek Harness not found. Set HEREIN_DSH_INSTALL to its install directory.');
+  process.exit(2);
+}
+
 const root = await mkdtemp(join(tmpdir(), 'herein-dsh-demo-'));
 const keys = createAuthority(), token = randomBytes(32).toString('base64url');
-const desktop = join(process.env.USERPROFILE, '.dsh/profiles/desktop');
+const desktop = join(homedir(), '.dsh/profiles/desktop');
 const fileNames = ['cordis.yml', 'cordis.patch.yml', 'package.json', 'pnpm-workspace.yaml'];
 const hashes = async () => Object.fromEntries(await Promise.all(fileNames.map(async name => [name, digest(await readFile(join(desktop, name)))])));
 const before = await hashes(), steps = [];

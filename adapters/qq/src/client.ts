@@ -11,11 +11,13 @@ const DEFAULT_TOKEN_URL = 'https://bots.qq.com/app/getAppAccessToken';
 
 export class QQBotApiError extends Error {
   readonly status: number;
+  readonly code?: number;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: number) {
     super(message);
     this.name = 'QQBotApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -59,6 +61,16 @@ export class QQBotClient {
     }
 
     const parsed = JSON.parse(text) as unknown;
+    // QQ 的 token 接口在凭据错误时仍返回 HTTP 200，错误只体现在 code 字段。
+    if (isRecord(parsed) && typeof parsed.code === 'number' && parsed.code !== 0) {
+      const message = typeof parsed.message === 'string' ? parsed.message : 'unknown error';
+      throw new QQBotApiError(
+        response.status,
+        `code ${parsed.code}: ${message}`,
+        parsed.code,
+      );
+    }
+
     if (!isRecord(parsed) || typeof parsed.access_token !== 'string') {
       throw new QQBotApiError(-1, 'token response is missing access_token');
     }
@@ -87,7 +99,15 @@ export class QQBotClient {
       throw new QQBotApiError(response.status, text.slice(0, 300) || `HTTP ${response.status}`);
     }
 
-    return (text ? JSON.parse(text) : {}) as T;
+    const parsed = (text ? JSON.parse(text) : {}) as unknown;
+
+    // 部分接口同样是 HTTP 200 + code 报错，需要在成功分支里再判一次。
+    if (isRecord(parsed) && typeof parsed.code === 'number' && parsed.code !== 0) {
+      const message = typeof parsed.message === 'string' ? parsed.message : 'unknown error';
+      throw new QQBotApiError(response.status, `code ${parsed.code}: ${message}`, parsed.code);
+    }
+
+    return parsed as T;
   }
 
   getGateway(): Promise<QQGatewayResponse> {

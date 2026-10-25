@@ -40,7 +40,7 @@ describe('content recommender', () => {
       };
       expect(body.messages[0].content).toContain('候选：[{"id":"song-1"}]');
       expect(body.messages[0].content).toContain('品味：{"night":true}');
-      expect(body.messages[0].content).toContain('你是蓝蓝');
+      expect(body.messages[0].content).toContain('你是角色');
       return new Response(JSON.stringify({
         choices: [{
           message: {

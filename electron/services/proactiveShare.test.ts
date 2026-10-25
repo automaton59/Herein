@@ -45,13 +45,12 @@ describe('proactive song sharing', () => {
     const scheduler = new ProactiveShareScheduler({
       repos,
       llmConfig: { baseUrl: 'https://example.test/v1', apiKey: 'sk-test', model: 'test-model' },
-      source: {
-        search: vi.fn().mockResolvedValue({
-          songs: [{ id: 1, name: '夜曲', ar: [{ name: '周杰伦' }], al: { picUrl: 'https://img.test/1.jpg' } }],
-        }),
-        toplists: vi.fn().mockResolvedValue([]),
-        playlist: vi.fn().mockResolvedValue(null),
-      },
+      fetchCandidates: vi.fn().mockResolvedValue([{
+        itemId: '1',
+        title: '夜曲',
+        creator: '周杰伦',
+        coverUrl: 'https://img.test/1.jpg',
+      }]),
       promptPath,
       fetchImpl: llmFetch,
       publish: song => published.push(song),

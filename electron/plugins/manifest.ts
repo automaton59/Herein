@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {
+  PLUGIN_API_VERSION,
   PluginError,
   type PluginConfigProperty,
   type PluginConfigSchema,
@@ -19,6 +20,24 @@ const PERMISSION_KINDS: PluginPermissionKind[] = [
   'filesystem',
 ];
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'object', 'array'] as const;
+const CONFIG_FORMATS = ['text', 'password', 'url', 'path', 'directory'] as const;
+
+function asHelpUrl(value: unknown, field: string) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new PluginError('invalid_manifest', `${field} must be a non-empty string`);
+  }
+
+  const trimmed = value.trim();
+
+  // Docs links may be relative (e.g. `docs/PLUGIN-SETUP.md#dsh`) so they keep
+  // working in a cloned repository.
+  if (!/^https?:\/\//i.test(trimmed) && !/^[a-zA-Z0-9._~\-/]+(#[a-zA-Z0-9._~\-]+)?$/.test(trimmed)) {
+    throw new PluginError('invalid_manifest', `${field} must be an http(s) URL or a relative path`);
+  }
+
+  return trimmed;
+}
+
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -61,6 +80,10 @@ function parsePermission(value: unknown, index: number): PluginPermission {
   }
 
   return permission;
+}
+
+function isConfigFormat(value: unknown): value is NonNullable<PluginConfigProperty['format']> {
+  return typeof value === 'string' && (CONFIG_FORMATS as readonly string[]).includes(value);
 }
 
 function parseConfigProperty(value: unknown, key: string): PluginConfigProperty {
@@ -113,6 +136,35 @@ function parseConfigProperty(value: unknown, key: string): PluginConfigProperty 
     }
 
     property.maximum = value.maximum;
+  }
+
+  if (value.placeholder !== undefined) {
+    property.placeholder = asNonEmptyString(value.placeholder, `configSchema.properties.${key}.placeholder`);
+  }
+
+  if (value.format !== undefined) {
+    if (!isConfigFormat(value.format)) {
+      throw new PluginError(
+        'invalid_manifest',
+        `configSchema.properties.${key}.format must be one of ${CONFIG_FORMATS.join(', ')}`,
+      );
+    }
+
+    property.format = value.format;
+  }
+
+  if (value.examples !== undefined) {
+    if (!Array.isArray(value.examples)) {
+      throw new PluginError('invalid_manifest', `configSchema.properties.${key}.examples must be an array of strings`);
+    }
+
+    property.examples = value.examples.map((example, index) => (
+      asNonEmptyString(example, `configSchema.properties.${key}.examples[${index}]`)
+    ));
+  }
+
+  if (value.helpUrl !== undefined) {
+    property.helpUrl = asHelpUrl(value.helpUrl, `configSchema.properties.${key}.helpUrl`);
   }
 
   return property;
@@ -172,6 +224,20 @@ export function validatePluginManifest(raw: unknown): PluginManifest {
   const version = asNonEmptyString(raw.version, 'version');
   const kind = asNonEmptyString(raw.kind, 'kind');
 
+  const apiVersion = raw.apiVersion === undefined ? PLUGIN_API_VERSION : Number(raw.apiVersion);
+
+  if (!Number.isInteger(apiVersion) || apiVersion < 1) {
+    throw new PluginError('invalid_manifest', 'apiVersion must be a positive integer');
+  }
+
+  if (apiVersion > PLUGIN_API_VERSION) {
+    throw new PluginError(
+      'invalid_manifest',
+      `plugin requires plugin API v${apiVersion}, this build provides v${PLUGIN_API_VERSION};`
+      + ' update Herein to use it',
+    );
+  }
+
   if (!PLUGIN_KINDS.includes(kind as PluginKind)) {
     throw new PluginError('invalid_manifest', `kind must be one of ${PLUGIN_KINDS.join(', ')}`);
   }
@@ -196,12 +262,15 @@ export function validatePluginManifest(raw: unknown): PluginManifest {
     id,
     name,
     version,
+    apiVersion,
     kind: kind as PluginKind,
     ...(raw.description !== undefined
       ? { description: asNonEmptyString(raw.description, 'description') }
       : {}),
     entry,
     permissions,
+    ...(raw.setup !== undefined ? { setup: asNonEmptyString(raw.setup, 'setup') } : {}),
+    ...(raw.helpUrl !== undefined ? { helpUrl: asHelpUrl(raw.helpUrl, 'helpUrl') } : {}),
     ...(raw.configSchema !== undefined ? { configSchema: parseConfigSchema(raw.configSchema) } : {}),
   };
 }

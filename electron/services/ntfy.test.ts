@@ -15,7 +15,7 @@ describe('ntfy push', () => {
         tags: string[];
       };
       expect(body.topic).toBe('herein-test');
-      expect(body.title).toBe('蓝蓝转了一首歌');
+      expect(body.title).toBe('转了一首歌');
       expect(body.message).toContain('夜曲 — 周杰伦');
       expect(body.message).toContain('这个好听。');
       expect(body.tags).toEqual(['musical_note']);
@@ -40,7 +40,7 @@ describe('ntfy push', () => {
         message: string;
         tags: string[];
       };
-      expect(body.title).toBe('蓝蓝');
+      expect(body.title).toBe('小蓝');
       expect(body.message).toBe('刚看到个东西，想起你。');
       expect(body.tags).toEqual(['speech_balloon']);
       return new Response('{}', { status: 200 });
@@ -51,7 +51,7 @@ describe('ntfy push', () => {
       topic: 'herein-test',
       click: 'http://example.test',
     }, {
-      title: '蓝蓝',
+      title: '小蓝',
       message: '刚看到个东西，想起你。',
       tags: ['speech_balloon'],
     }, fetchImpl)).resolves.toBe(true);

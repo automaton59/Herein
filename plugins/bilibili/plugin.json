@@ -1,0 +1,44 @@
+{
+  "id": "bilibili",
+  "name": "B 站",
+  "version": "0.4.0",
+  "apiVersion": 1,
+  "kind": "source",
+  "description": "默认不登录：读公开推荐流和评论区。可选配置 B 站登录（凭据文件）并打开评论开关后，可以发评论/回复。",
+  "setup": "什么都不填就能拉推荐流、读评论。想让她登录：把浏览器 Cookie 写成 bilibili.json 放进用户数据目录；想让她回评论：再在配置里打开「允许发评论」。",
+  "helpUrl": "docs/PLUGIN-SETUP.md#bilibili",
+  "entry": "index.mjs",
+  "permissions": [
+    { "kind": "network", "value": "api.bilibili.com", "reason": "读取推荐流与评论区" },
+    { "kind": "network", "value": "bilibili.com", "reason": "读取推荐流与评论区" },
+    { "kind": "credentials", "value": "bilibili.json", "reason": "可选读取 B 站登录凭据（SESSDATA/bili_jct）" },
+    { "kind": "send", "value": "bilibili", "reason": "在已登录且打开 allowComment 开关时发送评论/回复" }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "limit": {
+        "type": "number",
+        "title": "每次扫描条数",
+        "description": "每次自动刷新抓多少条公开推荐，默认 20 条足够。",
+        "default": 20,
+        "minimum": 1,
+        "maximum": 50
+      },
+      "credentialsPath": {
+        "type": "string",
+        "title": "登录凭据文件（可选）",
+        "description": "内容是 {\"cookie\":\"SESSDATA=...; bili_jct=...\"} 的 JSON 文件。留空时按 用户数据目录/bilibili.json 找；没有该文件就保持匿名。",
+        "placeholder": "%APPDATA%\\herein\\data\\bilibili.json",
+        "format": "path"
+      },
+      "allowComment": {
+        "type": "boolean",
+        "title": "允许发评论",
+        "description": "总开关，默认关闭。打开且凭据有效后，postComment/reply 动作才会真的发出去；每次发送都会写进插件审计。",
+        "default": false
+      }
+    },
+    "additionalProperties": false
+  }
+}

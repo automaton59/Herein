@@ -20,9 +20,10 @@ node --test adapters/dsh/test/*.test.mjs
 以下目录均为**新建的专用目录**；密钥目录放在 bridge root 外，不能进仓库。Windows 的 `mode: 0600` 不是 ACL 隔离；需要多用户安全时由部署方设置 NTFS ACL，将私钥限定给审批者。
 
 ```powershell
-$taskDshInstall = 'C:\Users\wzy_8\AppData\Local\Programs\DeepSeek Harness'
-$taskDshRoot = 'D:\Herein\tmp\dsh-service'
-$taskDshKeys = 'D:\Herein\tmp\dsh-operator-keys'
+# 默认安装位置是 $env:LOCALAPPDATA\Programs\DeepSeek Harness；装在别处就先设置 HEREIN_DSH_INSTALL
+$taskDshInstall = if ($env:HEREIN_DSH_INSTALL) { $env:HEREIN_DSH_INSTALL } else { "$env:LOCALAPPDATA\Programs\DeepSeek Harness" }
+$taskDshRoot = "$env:USERPROFILE\dsh-service"
+$taskDshKeys = "$env:USERPROFILE\dsh-operator-keys"
 node adapters/dsh/scripts/cli.mjs keys --dir $taskDshKeys
 node adapters/dsh/scripts/cli.mjs serve --root $taskDshRoot --install $taskDshInstall --public-key "$taskDshKeys\approval-public.pem" --token-file "$taskDshKeys\transport-token" --port 8791
 ```

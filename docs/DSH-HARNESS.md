@@ -29,7 +29,15 @@ node adapters/dsh/scripts/cli.mjs serve `
 
 ## C 接入
 
-C 自动注册 DSH AgentProvider：
+DSH 现在是一个插件（`kind: agent`），不再有单独的 Agent 能力面板。
+
+1. 启动桥（同上）。
+2. 打开桌面「系统 → 能力插件」，找到 **DeepSeek Harness**，点「安装」。
+3. 在插件卡片里填 **桥地址** 与 **transport token**，点保存，再点「启用」。
+4. 插件详情里可以看到健康状态；`invoke('inventory')` / `invoke('call', { name, arguments })`
+   走 `/v1/inventory`、`/v1/call`。
+
+也可以继续用环境变量（优先级低于插件配置）：
 
 ```powershell
 $env:HEREIN_DSH_URL = 'http://127.0.0.1:8791'
@@ -37,14 +45,8 @@ $env:HEREIN_DSH_TOKEN = (Get-Content "$keys\transport-token" -Raw).Trim()
 npm run core:serve
 ```
 
-然后打开桌面“系统” → “Agent 能力”：
-
-- provider 显示 `DeepSeek Harness`；
-- `GET /v1/inventory` 的 capability 出现在列表；
-- 每个能力有 `call` 按钮和 JSON 参数输入；
-- 调用走 `/v1/call`，结果原样展示。
-
-C 只做发现和调用。安装/启停/移除/回滚在 DSH 侧需要**单独签署的审批**，C 不持有审批私钥；这些能力标记为 `lifecycle: 'external'`，控制台只显示“生命周期由 DSH 审批管理”，不提供会失败的按钮。
+C 只做发现和调用。安装/启停/移除/回滚 DSH **自己的**插件，在 DSH 侧需要单独签署的审批，
+C 不持有审批私钥，也不提供会失败的按钮。
 
 ## 边界
 
@@ -67,8 +69,9 @@ npm run test:dsh
 
 C 的接入测试：
 
-- `electron/plugins/dshProvider.test.ts`：inventory 映射、call、外部生命周期、离线健康、错误码。
-- `electron/core/server.test.ts`：`HEREIN_DSH_URL/TOKEN` 注册、`/v1/agents` 列表、`/v1/agents/dsh/.../invoke`、install 返回审批提示。
+- `electron/plugins/dshProvider.test.ts`：桥鉴权头、inventory、call、错误码。
+- `electron/plugins/builtin/dsh.test.ts`：插件清单、未配置降级、健康探测、非本机地址拒绝。
+- `electron/core/server.test.ts`：DSH 作为插件被列出 → 安装 → 启用 → 配 url/token → `call` → 卸载。
 
 ## 已知限制
 
