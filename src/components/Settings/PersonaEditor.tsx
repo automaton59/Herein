@@ -191,7 +191,7 @@ export function PersonaEditor() {
       const next = await client.refreshPersona();
 
       applyView(next);
-      setFeedback({ type: 'success', message: '已恢复为 private/persona 文件内容' });
+      setFeedback({ type: 'success', message: '已同步为 private/persona 文件内容' });
     } catch (error) {
       const message = error instanceof Error ? error.message : '恢复失败';
 
@@ -242,7 +242,7 @@ export function PersonaEditor() {
         <div className="flex flex-wrap items-center gap-3 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-100">
           <FileWarning size={16} className="shrink-0" />
           <span className="min-w-0 flex-1">
-            private/persona 文件在磁盘上已被修改。可以先「从文件恢复」应用新内容（会覆盖界面修改），或继续用下方内容保存。
+            private/persona 文件在磁盘上已被修改。可以先「从文件同步」应用新内容（会覆盖界面修改），或继续用下方内容保存。
           </span>
           <button
             type="button"
@@ -251,7 +251,7 @@ export function PersonaEditor() {
             className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-amber-600 px-3 text-[12px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
           >
             <RotateCcw size={12} />
-            从文件恢复
+            从文件同步
           </button>
         </div>
       )}
@@ -402,10 +402,10 @@ export function PersonaEditor() {
           className="inline-flex h-10 w-fit items-center justify-center gap-2 rounded-lg border border-[#E6E5F0] px-4 text-[13px] font-semibold text-[#3B4474] hover:bg-[#F1F2F9] disabled:opacity-50 dark:border-white/10 dark:text-sky-100 dark:hover:bg-white/10"
         >
           {status === 'restoring' ? <Loader2 className="animate-spin" size={14} /> : <RotateCcw size={14} />}
-          从文件恢复
+          从文件同步
         </button>
         <p className="text-[11px] leading-5 text-[#7A819A] dark:text-slate-400">
-          保存只写入本地数据库并立即生效；「从文件恢复」会丢弃界面修改并重新读取 private/persona。
+          保存只写入本地数据库并立即生效；「从文件同步」会丢弃界面修改并重新读取 private/persona。
         </p>
       </div>
     </div>

@@ -908,7 +908,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
           if (diskFingerprint !== null && stored !== null && diskFingerprint !== stored) {
             sendJson(response, 409, {
-              error: 'persona 文件已在磁盘上被修改，请先「从文件恢复」再保存编辑',
+              error: 'persona 文件已在磁盘上被修改，请先「从文件同步」再保存编辑',
             });
             return;
           }
