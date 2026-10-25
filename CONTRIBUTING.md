@@ -8,11 +8,13 @@
 
 `npm install` 的 `postinstall` 会用 `@electron/rebuild` 把 `better-sqlite3` 编到 Electron 的 ABI。这一步失败通常意味着 Electron 版本被改了。
 
+`packages/core` 和 `adapters/{bilibili,netease,qq}` 的 `dist/` 是 gitignore 的构建产物，但运行期和打包都依赖它们，所以 `npm run build` 会先编译这四个子包。单独改动某个子包后重跑 `npm run build`（或对应的 `build:<name>`）即可。
+
 ## 常用命令
 
 ```bash
 npm run electron:compile   # 编译主进程（改 electron/ 后必须跑）
-npm run build              # check:core + check:contrast + tsc + vite build
+npm run build              # 先编译子包（packages/core + adapters），再 check:core + check:contrast + tsc + vite build
 npm run test:electron      # 用 Electron 的 Node 跑 vitest（推荐的测试入口）
 npm run test:dsh           # DSH 适配器（没装 DSH 会自动 skip）
 npm run test:interaction   # 交互运行时

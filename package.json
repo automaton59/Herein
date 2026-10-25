@@ -5,7 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
-    "build": "npm run check:core && npm run check:contrast && tsc && vite build",
+    "build": "npm run build:core && npm run build:bilibili && npm run build:netease && npm run build:qq && npm run check:core && npm run check:contrast && tsc && vite build",
     "check:core": "node scripts/check-core-boundaries.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:persona": "npm run electron:compile && node scripts/check-persona.mjs",
