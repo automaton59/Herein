@@ -161,4 +161,55 @@ describe('persona editing API', () => {
     const view = await fetch(`http://127.0.0.1:${handle.port}/v1/persona`).then(r => r.json());
     expect(view).toMatchObject({ available: false, packId: null });
   });
+
+  it('re-anchors activeCharacterId when it points outside the loaded packs', async () => {
+    // Simulate another build's persona having run against this data
+    // directory: an unknown character row exists and is the active one.
+    const dataDir = mkdtempSync(path.join(tmpdir(), 'herein-persona-api-ghost-'));
+    tempDirs.push(dataDir);
+    const { openPhase2Database } = await import('../data/database');
+    const { createPhase2Repositories } = await import('../data/repositories');
+    const db = openPhase2Database(path.join(dataDir, 'app.db'));
+    const seedRepos = createPhase2Repositories(db);
+    seedRepos.characters.upsert({
+      id: 'ghost-companion',
+      name: '别的包的角色',
+      nickname: null,
+      description: '',
+      scenario: '',
+      firstMessage: '',
+      systemPrompt: '',
+      personalityCore: '',
+      speakingStyle: '',
+      valuesText: '',
+      boundaries: '',
+      avatarAssetId: null,
+      assetDir: null,
+    });
+    seedRepos.settings.set('activeCharacterId', 'ghost-companion');
+    db.close();
+
+    const packRoot = createPackDir();
+    const pack = await loadPersonaPack(packRoot);
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir,
+      personaPacks: new Map([[pack.manifest.id, pack]]),
+      seedPersonaPacks: true,
+    });
+    handles.push(handle);
+
+    const view = await fetch(`http://127.0.0.1:${handle.port}/v1/persona`).then(r => r.json());
+    expect(view).toMatchObject({
+      available: true,
+      packId: 'api-persona',
+      activeCharacterId: 'api-persona',
+    });
+
+    const characters = await fetch(`http://127.0.0.1:${handle.port}/v1/characters`).then(r => r.json());
+    expect(characters.characters).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'api-persona', name: '接口角色' })]),
+    );
+  });
 });

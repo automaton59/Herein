@@ -363,15 +363,17 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
   if (options.seedPersonaPacks && personaPacks.size > 0) {
     seedPersonaPacks(repos, personaPacks);
-    const active = repos.settings.get<string>('activeCharacterId');
+    let active = repos.settings.get<string>('activeCharacterId');
 
-    if (!active || !repos.characters.get(active)) {
-      const first = [...personaPacks.keys()][0];
-      repos.settings.set('activeCharacterId', first);
+    if (!active || !mutablePacks.has(active)) {
+      // The stored active character is unknown to the loaded packs (for
+      // example another build's persona ran against this data directory).
+      // Re-anchor to the bundled persona so chat and editing stay coherent.
+      active = [...personaPacks.keys()][0];
+      repos.settings.set('activeCharacterId', active);
     }
 
-    const primaryId = repos.settings.get<string>('activeCharacterId');
-    const primary = primaryId ? mutablePacks.get(primaryId) : undefined;
+    const primary = active ? mutablePacks.get(active) : undefined;
 
     if (primary) {
       const sync = syncPersonaIfChanged(repos, primary);
@@ -385,8 +387,17 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   ensureDefaultCharacter(repos);
 
   const activeBasePack = (): PersonaPack | undefined => {
-    const active = repos.settings.get<string>('activeCharacterId') ?? [...mutablePacks.keys()][0];
-    return active ? mutablePacks.get(active) : undefined;
+    const active = repos.settings.get<string>('activeCharacterId');
+
+    if (active) {
+      const pack = mutablePacks.get(active);
+
+      if (pack) {
+        return pack;
+      }
+    }
+
+    return [...mutablePacks.values()][0];
   };
 
   const personaEditState = (): PersonaEditState | null =>
@@ -435,6 +446,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
       available: true as const,
       packId: base.manifest.id,
       packVersion: base.manifest.version,
+      activeCharacterId: repos.settings.get<string>('activeCharacterId') ?? null,
       fileChanged,
       hasEdits: Boolean(edit),
       character: {

@@ -37,7 +37,7 @@
     "android:open": "npx cap open android",
     "electron:dev": "node scripts/run-electron-dev.cjs",
     "electron:build": "electron-builder",
-    "electron:build:dir": "electron-builder --win --x64 --dir --config.directories.output=../Herein-Releases/Herein-1.0.0-win --config.win.signAndEditExecutable=false --config.electronDist=node_modules/electron/dist && node -e \"require('fs').copyFileSync('node_modules/electron/dist/electron.exe', '../Herein-Releases/Herein-1.0.0-win/win-unpacked/Herein.exe')\"",
+    "electron:build:dir": "npm run build && npm run electron:compile && electron-builder --win --x64 --dir --config.directories.output=../Herein-Releases/Herein-1.0.0-win --config.win.signAndEditExecutable=false --config.electronDist=node_modules/electron/dist && node -e \"require('fs').copyFileSync('node_modules/electron/dist/electron.exe', '../Herein-Releases/Herein-1.0.0-win/win-unpacked/Herein.exe')\"",
     "qwen3-tts:serve": "python scripts/qwen3_tts_service.py --mode custom_voice --model tmp/models/qwen3-tts-customvoice --host 127.0.0.1 --port 9881 --no-flash-attn",
     "qwen3-tts-clone:serve": "python scripts/qwen3_tts_service.py --mode voice_clone --model tmp/models/qwen3-tts-base --host 127.0.0.1 --port 9882 --no-flash-attn",
     "start": "npm run native:rebuild:electron && npm run electron:compile && concurrently -k \"npm run dev -- --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env NODE_ENV=development npm run electron:dev\"",
