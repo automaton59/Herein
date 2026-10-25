@@ -60,4 +60,30 @@ describe('turn director', () => {
 
     expect(low.maxTokens).toBeLessThan(high.maxTokens);
   });
+
+  it('honours tuning overrides', () => {
+    // A 90-char vent is silent by default (threshold 60); raising the
+    // threshold past its length downgrades it to a light reaction.
+    const longVent = '累死'.repeat(30);
+    expect(directTurn({ userText: longVent, now }).act).toBe('silent');
+
+    const tuned = directTurn({ userText: longVent, now }, { ventLongChars: 200 });
+    expect(tuned.act).toBe('react');
+
+    // maxTokens bases are tunable.
+    const question = directTurn({ userText: '今晚吃什么', now });
+    expect(question.maxTokens).toBe(220);
+
+    const tunedQuestion = directTurn(
+      { userText: '今晚吃什么', now },
+      { maxTokens: { question: 999 } },
+    );
+    expect(tunedQuestion.maxTokens).toBe(999);
+
+    // Recent-reply window can be shortened so bare acks get a reaction again.
+    const justNow = new Date(now.getTime() - 10_000);
+    const bare = { userText: '嗯', now, lastAssistantAt: justNow.toISOString() };
+    expect(directTurn(bare).act).toBe('silent');
+    expect(directTurn(bare, { recentReplyWindowMs: 5_000 }).act).toBe('react');
+  });
 });

@@ -63,4 +63,19 @@ describe('assistant reply style', () => {
     expect(isSilenceRequest('别说话了，让我静静')).toBe(true);
     expect(isSilenceRequest('今天有点累')).toBe(false);
   });
+
+  it('honours tuning for bubble count and length', () => {
+    const threeLines = '第一句。|第二句。|第三句。';
+
+    expect(parseAssistantReply(threeLines).bubbles).toHaveLength(2);
+    expect(parseAssistantReply(threeLines, { maxBubbles: 3 }).bubbles).toHaveLength(3);
+
+    // Raising the char cap keeps a long single line in one bubble.
+    const long = '这句真的挺长的，'.repeat(9);
+    const untuned = parseAssistantReply(long);
+    const tuned = parseAssistantReply(long, { maxBubbleChars: 200 });
+
+    expect(untuned.bubbles.length).toBe(2);
+    expect(tuned.bubbles.length).toBe(1);
+  });
 });

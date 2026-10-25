@@ -35,6 +35,33 @@ export interface PersonaTemplateRef {
   required?: boolean;
 }
 
+export interface PersonaTurnDirectorTuning {
+  /** Vent messages at/above this length are listened to silently first. */
+  ventLongChars?: number;
+  /** Statements at/below this length get a light reaction instead of a reply. */
+  shortChars?: number;
+  /** Patience below this value keeps replies short. */
+  lowPatience?: number;
+  /** Bare acknowledgements within this window after a reply trigger silence. */
+  recentReplyWindowMs?: number;
+  maxTokens?: {
+    elaborate?: number;
+    question?: number;
+    ordinary?: number;
+    react?: number;
+  };
+}
+
+export interface PersonaReplyStyleTuning {
+  maxBubbles?: number;
+  maxBubbleChars?: number;
+}
+
+export interface PersonaTuning {
+  turnDirector?: PersonaTurnDirectorTuning;
+  replyStyle?: PersonaReplyStyleTuning;
+}
+
 export interface PersonaManifest {
   schemaVersion: 1;
   id: string;
@@ -42,6 +69,7 @@ export interface PersonaManifest {
   engine: string;
   character: string;
   templates: PersonaTemplateRef[];
+  tuning?: PersonaTuning;
 }
 
 export interface PersonaCharacterVoice {
@@ -105,6 +133,71 @@ export function isSafeRelativePath(value: string) {
   return normalized.split('/').every(part => part !== '..' && part !== '');
 }
 
+function validateTuningNumber(
+  value: unknown,
+  min: number,
+  max: number,
+  label: string,
+  errors: string[],
+) {
+  if (value === undefined) {
+    return;
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    errors.push(`${label} 必须是 ${min}–${max} 之间的数字`);
+  }
+}
+
+function validateTuning(tuning: unknown, errors: string[]) {
+  if (tuning === undefined) {
+    return;
+  }
+
+  if (!isRecord(tuning)) {
+    errors.push('tuning must be an object');
+    return;
+  }
+
+  if (tuning.turnDirector !== undefined) {
+    if (!isRecord(tuning.turnDirector)) {
+      errors.push('tuning.turnDirector must be an object');
+    } else {
+      const turn = tuning.turnDirector;
+
+      validateTuningNumber(turn.ventLongChars, 10, 500, 'tuning.turnDirector.ventLongChars', errors);
+      validateTuningNumber(turn.shortChars, 1, 100, 'tuning.turnDirector.shortChars', errors);
+      validateTuningNumber(turn.lowPatience, 0, 1, 'tuning.turnDirector.lowPatience', errors);
+      validateTuningNumber(turn.recentReplyWindowMs, 0, 600_000, 'tuning.turnDirector.recentReplyWindowMs', errors);
+
+      if (turn.maxTokens !== undefined) {
+        if (!isRecord(turn.maxTokens)) {
+          errors.push('tuning.turnDirector.maxTokens must be an object');
+        } else {
+          for (const key of ['elaborate', 'question', 'ordinary', 'react'] as const) {
+            validateTuningNumber(
+              turn.maxTokens[key],
+              16,
+              4096,
+              `tuning.turnDirector.maxTokens.${key}`,
+              errors,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  if (tuning.replyStyle !== undefined) {
+    if (!isRecord(tuning.replyStyle)) {
+      errors.push('tuning.replyStyle must be an object');
+    } else {
+      validateTuningNumber(tuning.replyStyle.maxBubbles, 1, 4, 'tuning.replyStyle.maxBubbles', errors);
+      validateTuningNumber(tuning.replyStyle.maxBubbleChars, 10, 200, 'tuning.replyStyle.maxBubbleChars', errors);
+    }
+  }
+}
+
 export function validatePersonaManifest(input: unknown): PersonaValidation<PersonaManifest> {
   const errors: string[] = [];
 
@@ -166,6 +259,8 @@ export function validatePersonaManifest(input: unknown): PersonaValidation<Perso
       }
     }
   }
+
+  validateTuning(input.tuning, errors);
 
   if (errors.length > 0) {
     return { ok: false, errors };

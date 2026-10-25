@@ -213,6 +213,41 @@ export class CoreHttpError extends Error {
   }
 }
 
+export interface CorePersonaTemplate {
+  id: string;
+  layer: string;
+  required: boolean;
+  edited: boolean;
+  text: string;
+}
+
+export interface CorePersonaView {
+  available: boolean;
+  packId: string | null;
+  packVersion?: string;
+  fileChanged?: boolean;
+  hasEdits?: boolean;
+  character?: {
+    name: string;
+    nickname: string;
+    relationshipFrame: string;
+    personality: { core: string[]; values: string[]; boundaries: string[] };
+    speakingStyle: { defaultAddress: string; occasionalAddress: string; examples: string[] };
+  };
+  templates?: CorePersonaTemplate[];
+}
+
+export interface CorePersonaEditInput {
+  name: string;
+  nickname: string;
+  relationshipFrame: string;
+  personalityCore: string[];
+  values: string[];
+  boundaries: string[];
+  speakingStyle: { defaultAddress: string; occasionalAddress: string; examples: string[] };
+  templates: Record<string, string>;
+}
+
 export class CoreClient {
   private readonly baseUrl: string;
   private readonly token: string;
@@ -251,6 +286,21 @@ export class CoreClient {
 
   health(): Promise<{ ok: boolean; version: string }> {
     return this.request('/health');
+  }
+
+  getPersona(): Promise<CorePersonaView> {
+    return this.request('/v1/persona');
+  }
+
+  putPersona(input: CorePersonaEditInput): Promise<CorePersonaView> {
+    return this.request('/v1/persona', {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    });
+  }
+
+  refreshPersona(): Promise<CorePersonaView> {
+    return this.request('/v1/persona/refresh', { method: 'POST' });
   }
 
   listMessages(characterId: string, limit = 100): Promise<{

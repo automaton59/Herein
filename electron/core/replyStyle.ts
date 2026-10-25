@@ -75,8 +75,8 @@ function filterAiIsh(text: string): string {
   return lines.join('\n').trim();
 }
 
-function splitLongBubble(text: string): [string, string] | null {
-  if (text.length <= MAX_BUBBLE_CHARS) {
+function splitLongBubble(text: string, maxBubbleChars: number): [string, string] | null {
+  if (text.length <= maxBubbleChars) {
     return null;
   }
 
@@ -129,7 +129,7 @@ function normalizeBubble(text: string): string {
   return bubble;
 }
 
-function splitIntoBubbles(text: string): string[] {
+function splitIntoBubbles(text: string, maxBubbles: number, maxBubbleChars: number): string[] {
   const parts = text
     .split(/\n+|\s*[|｜]\s*/)
     .map(normalizeBubble)
@@ -139,14 +139,14 @@ function splitIntoBubbles(text: string): string[] {
     return [];
   }
 
-  let bubbles = parts.slice(0, MAX_BUBBLES);
+  let bubbles = parts.slice(0, maxBubbles);
 
-  if (parts.length > MAX_BUBBLES) {
+  if (parts.length > maxBubbles) {
     bubbles = [parts[0], parts.slice(1).join(' ')];
   }
 
   if (bubbles.length === 1) {
-    const split = splitLongBubble(bubbles[0]);
+    const split = splitLongBubble(bubbles[0], maxBubbleChars);
 
     if (split) {
       bubbles = [normalizeBubble(split[0]), normalizeBubble(split[1])].filter(Boolean);
@@ -167,7 +167,20 @@ export function isSilenceRequest(text: string): boolean {
   return SILENCE_REQUEST.test(text);
 }
 
-export function parseAssistantReply(raw: string): ShapedAssistantReply {
+export interface ReplyStyleTuning {
+  maxBubbles?: number;
+  maxBubbleChars?: number;
+}
+
+function clampTuned(value: number | undefined, fallback: number, min: number, max: number): number {
+  if (value === undefined || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(min, Math.min(max, value));
+}
+
+export function parseAssistantReply(raw: string, tuning?: ReplyStyleTuning): ShapedAssistantReply {
   const trimmed = raw.trim();
 
   if (!trimmed || SILENT_MARKERS.some(pattern => pattern.test(trimmed))) {
@@ -175,7 +188,9 @@ export function parseAssistantReply(raw: string): ShapedAssistantReply {
   }
 
   const filtered = filterAiIsh(trimmed);
-  const bubbles = splitIntoBubbles(filtered);
+  const maxBubbles = clampTuned(tuning?.maxBubbles, MAX_BUBBLES, 1, 4);
+  const maxBubbleChars = clampTuned(tuning?.maxBubbleChars, MAX_BUBBLE_CHARS, 10, 200);
+  const bubbles = splitIntoBubbles(filtered, maxBubbles, maxBubbleChars);
 
   if (bubbles.length === 0) {
     return silent();

@@ -21,10 +21,10 @@ import {
   loadPersonaPacks,
   resolvePersonaRoot,
   selectPrimaryPersona,
-  syncPersonaCharacter,
   type PersonaPack,
   type PersonaRuntime,
 } from './persona';
+import { syncPersonaIfChanged } from './persona/editState';
 import { resolveDesktopPresence } from './presence/resolve';
 import { PresenceWindowManager, type PresenceBounds } from './presence/window';
 import type { DesktopPresenceState, DesktopShellState } from './presence/types';
@@ -722,7 +722,11 @@ function bootstrapPhase2() {
   const repos = getPhase2Repositories();
 
   if (persona) {
-    syncPersonaCharacter(repos, persona.pack);
+    const sync = syncPersonaIfChanged(repos, persona.pack);
+
+    if (sync.applied) {
+      mainLog(`persona sync: ${sync.reason}`);
+    }
   } else {
     ensureDefaultCharacter();
   }
@@ -1783,7 +1787,8 @@ app.whenReady().then(async () => {
     const repos = getPhase2Repositories();
 
     if (persona) {
-      syncPersonaCharacter(repos, persona.pack);
+      const sync = syncPersonaIfChanged(repos, persona.pack);
+      mainLog(`persona sync: ${sync.reason}`);
     } else {
       ensureDefaultCharacter();
     }

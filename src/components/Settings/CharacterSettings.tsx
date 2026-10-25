@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LockKeyhole, Sparkles } from 'lucide-react';
 import { useSettingsStore } from '../../stores/settings';
+import { PersonaEditor } from './PersonaEditor';
 
 type Feedback = {
   type: 'success' | 'error';
@@ -88,7 +89,7 @@ export function CharacterSettings() {
             />
           </label>
           <p className="text-[11px] leading-5 text-[#7A819A] dark:text-slate-400">
-            留空时聊天页不显示开场白；她会通过主动性机制在合适的时候自己开口。人格核心、说话方式和边界来自 private/persona，不在应用内编辑。
+            留空时聊天页不显示开场白；她会通过主动性机制在合适的时候自己开口。
           </p>
           <button
             type="button"
@@ -99,6 +100,14 @@ export function CharacterSettings() {
             保存开场白
           </button>
         </div>
+      </div>
+
+      <div>
+        <h2 className="settings-title">人设与提示词</h2>
+        <p className="settings-sub mb-4">
+          直接编辑人格内容，保存后立即生效。persona pack 文件仍是出厂默认，界面修改保存在本地数据库。
+        </p>
+        <PersonaEditor />
       </div>
 
       <div className="rounded-xl border border-[#E6E5F0] bg-[#F8F9FC] p-4 text-[12px] leading-6 text-[#5F6780] dark:border-white/10 dark:bg-white/[0.02] dark:text-slate-300">

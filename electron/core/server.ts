@@ -8,6 +8,7 @@ import { openPhase2Database, type Phase2Database } from '../data/database';
 import { migratePhase1JsonData } from '../data/migratePhase1';
 import {
   createPhase2Repositories,
+  type JsonValue,
   type MessageMaterial,
   type MessageRecord,
   type MessageSticker,
@@ -27,11 +28,22 @@ import { createMemoryStore } from '../data/memoryStore';
 import { MemoryRunner, recallMemory, extractExperiences } from '../memory';
 import {
   compilePersona,
+  loadPersonaPack,
   loadPersonaPacks,
   resolvePersonaRoot,
   seedPersonaPacks,
+  syncPersonaCharacter,
   type PersonaPack,
 } from '../persona';
+import {
+  PERSONA_EDIT_KEY,
+  PERSONA_FINGERPRINT_KEY,
+  applyPersonaEdit,
+  fingerprintPack,
+  syncPersonaIfChanged,
+  validatePersonaEditInput,
+  type PersonaEditState,
+} from '../persona/editState';
 import { applyLocalContent, loadLocalContent } from '../localContent';
 import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
 import {
@@ -345,6 +357,9 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   const repos = createPhase2Repositories(db);
   const memoryStore = createMemoryStore(db);
   const personaPacks = options.personaPacks ?? new Map<string, PersonaPack>();
+  // Persona packs are owned by the host process (main.ts); mutating this map
+  // in place keeps both sides consistent when files change on disk.
+  const mutablePacks = personaPacks as Map<string, PersonaPack>;
 
   if (options.seedPersonaPacks && personaPacks.size > 0) {
     seedPersonaPacks(repos, personaPacks);
@@ -354,9 +369,100 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
       const first = [...personaPacks.keys()][0];
       repos.settings.set('activeCharacterId', first);
     }
+
+    const primaryId = repos.settings.get<string>('activeCharacterId');
+    const primary = primaryId ? mutablePacks.get(primaryId) : undefined;
+
+    if (primary) {
+      const sync = syncPersonaIfChanged(repos, primary);
+
+      if (sync.applied) {
+        console.log(`persona sync: ${sync.reason}`);
+      }
+    }
   }
 
   ensureDefaultCharacter(repos);
+
+  const activeBasePack = (): PersonaPack | undefined => {
+    const active = repos.settings.get<string>('activeCharacterId') ?? [...mutablePacks.keys()][0];
+    return active ? mutablePacks.get(active) : undefined;
+  };
+
+  const personaEditState = (): PersonaEditState | null =>
+    repos.settings.get<PersonaEditState>(PERSONA_EDIT_KEY) ?? null;
+
+  /** Pack with in-app edits applied; what the compiler and engines should see. */
+  const effectivePack = (characterId: string): PersonaPack | undefined => {
+    const base = mutablePacks.get(characterId);
+
+    if (!base) {
+      return undefined;
+    }
+
+    const edit = personaEditState();
+    return edit ? applyPersonaEdit(base, edit) : base;
+  };
+
+  const personaViewState = async () => {
+    const base = activeBasePack();
+
+    if (!base) {
+      return {
+        available: false as const,
+        packId: null,
+        fileChanged: false,
+        hasEdits: false,
+      };
+    }
+
+    const stored = repos.settings.get<string>(PERSONA_FINGERPRINT_KEY) ?? null;
+    const edit = personaEditState();
+
+    let diskFingerprint: string | null = null;
+
+    try {
+      diskFingerprint = fingerprintPack(await loadPersonaPack(base.root));
+    } catch {
+      diskFingerprint = null;
+    }
+
+    const fileChanged = diskFingerprint !== null && stored !== null && diskFingerprint !== stored;
+    const effective = edit && !fileChanged ? applyPersonaEdit(base, edit) : base;
+    const character = effective.character;
+
+    return {
+      available: true as const,
+      packId: base.manifest.id,
+      packVersion: base.manifest.version,
+      fileChanged,
+      hasEdits: Boolean(edit),
+      character: {
+        name: character.name,
+        nickname: character.nickname ?? '',
+        relationshipFrame: character.relationshipFrame,
+        personality: {
+          core: character.personality.core,
+          values: character.personality.values ?? [],
+          boundaries: character.personality.boundaries ?? [],
+        },
+        speakingStyle: {
+          defaultAddress: character.speakingStyle.defaultAddress,
+          occasionalAddress: character.speakingStyle.occasionalAddress ?? '',
+          examples: character.speakingStyle.examples ?? [],
+        },
+      },
+      templates: [...base.templates.values()].map(({ ref }) => ({
+        id: ref.id,
+        layer: ref.layer,
+        required: Boolean(ref.required),
+        edited: Boolean(edit && !fileChanged && edit.templates[ref.id] !== undefined),
+        text: (edit && !fileChanged ? edit.templates[ref.id] : undefined)
+          ?? base.templates.get(ref.id)?.text
+          ?? '',
+      })),
+    };
+  };
 
   const localContent = await loadLocalContent();
 
@@ -577,7 +683,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     policy: options.initiative,
     materials: materialService,
     personaFor: characterId => {
-      const pack = personaPacks.get(characterId);
+      const pack = effectivePack(characterId);
 
       if (!pack) {
         return null;
@@ -765,6 +871,86 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         return;
       }
 
+      if (url.pathname === '/v1/persona') {
+        if (request.method === 'GET') {
+          sendJson(response, 200, await personaViewState());
+          return;
+        }
+
+        if (request.method === 'PUT') {
+          const base = activeBasePack();
+
+          if (!base) {
+            sendJson(response, 404, { error: 'no persona pack is active' });
+            return;
+          }
+
+          const stored = repos.settings.get<string>(PERSONA_FINGERPRINT_KEY) ?? null;
+          let diskFingerprint: string | null = null;
+
+          try {
+            diskFingerprint = fingerprintPack(await loadPersonaPack(base.root));
+          } catch {
+            diskFingerprint = null;
+          }
+
+          if (diskFingerprint !== null && stored !== null && diskFingerprint !== stored) {
+            sendJson(response, 409, {
+              error: 'persona 文件已在磁盘上被修改，请先「从文件恢复」再保存编辑',
+            });
+            return;
+          }
+
+          const body = asRecord(await readJson(request));
+          const result = validatePersonaEditInput(base, body);
+
+          if (!result.ok) {
+            sendJson(response, 400, { error: result.errors.join('；') });
+            return;
+          }
+
+          syncPersonaCharacter(repos, applyPersonaEdit(base, result.state));
+          repos.settings.set(PERSONA_EDIT_KEY, JSON.parse(JSON.stringify(result.state)) as JsonValue);
+          sendJson(response, 200, await personaViewState());
+          return;
+        }
+
+        sendJson(response, 405, { error: 'method not allowed' });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/persona/refresh') {
+        const base = activeBasePack();
+
+        if (!base) {
+          sendJson(response, 404, { error: 'no persona pack is active' });
+          return;
+        }
+
+        let fresh;
+
+        try {
+          fresh = await loadPersonaPack(base.root);
+        } catch (error) {
+          sendJson(response, 500, {
+            error: `重新读取 persona 文件失败：${error instanceof Error ? error.message : String(error)}`,
+          });
+          return;
+        }
+
+        mutablePacks.set(fresh.manifest.id, fresh);
+
+        if (fresh.manifest.id !== base.manifest.id) {
+          mutablePacks.delete(base.manifest.id);
+        }
+
+        syncPersonaCharacter(repos, fresh);
+        repos.settings.set(PERSONA_EDIT_KEY, null);
+        repos.settings.set(PERSONA_FINGERPRINT_KEY, fingerprintPack(fresh));
+        sendJson(response, 200, await personaViewState());
+        return;
+      }
+
       if (request.method === 'POST' && url.pathname === '/v1/chat') {
         const body = asRecord(await readJson(request));
         const characterId = requireString(body, 'characterId');
@@ -805,7 +991,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         }
 
         const audience = body.audience === 'group' ? 'group' : 'private';
-        const pack = personaPacks.get(character.id);
+        const pack = effectivePack(character.id);
         const persona = pack
           ? compilePersona(pack, {
             relationship: repos.relationships.get(character.id),
@@ -836,7 +1022,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             lastAssistantAt: previousAssistant?.timestamp ?? null,
             now: new Date(),
             affect,
-          })
+          }, pack?.manifest.tuning?.turnDirector)
           : null;
         const rememberOpenLoops = () => {
           if (!lastUser) {
@@ -1021,7 +1207,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         }
 
         const assistant = parseAssistantMetadata(completion.content);
-        const shaped = parseAssistantReply(assistant.text);
+        const shaped = parseAssistantReply(assistant.text, pack?.manifest.tuning?.replyStyle);
 
         if (shaped.silent) {
           if (persist && lastUser) {

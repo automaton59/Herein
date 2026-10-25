@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { Phase2Database } from './database';
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type PresentationEmotion = 'neutral' | 'happy' | 'sad' | 'angry' | 'shy' | 'excited' | 'worried' | 'playful' | 'serious';
 type PresentationRenderer = 'auto' | 'static' | 'video' | 'live2d';
 

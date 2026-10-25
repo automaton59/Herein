@@ -92,6 +92,23 @@ describe('persona pack', () => {
     await expect(loadPersonaPacks(parent)).rejects.toThrow(/duplicate persona pack id/);
   });
 
+  it('accepts valid tuning and rejects out-of-range values', async () => {
+    const root = await createPack();
+    const manifestPath = path.join(root, 'manifest.json');
+    const manifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+    manifest.tuning = {
+      turnDirector: { ventLongChars: 120, maxTokens: { question: 300 } },
+      replyStyle: { maxBubbles: 3 },
+    };
+    await writeFile(manifestPath, JSON.stringify(manifest), 'utf8');
+    const pack = await loadPersonaPack(root);
+    expect(pack.manifest.tuning?.turnDirector?.ventLongChars).toBe(120);
+
+    manifest.tuning = { replyStyle: { maxBubbles: 99 } };
+    await writeFile(manifestPath, JSON.stringify(manifest), 'utf8');
+    await expect(loadPersonaPack(root)).rejects.toThrow(/maxBubbles/);
+  });
+
   it('seeds the character and primary timeline once', async () => {
     const root = await createPack();
     const pack = await loadPersonaPack(root);
