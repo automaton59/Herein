@@ -59,14 +59,14 @@ export function DataSettings({ onExportBackup, onRestoreBackup }: DataSettingsPr
   };
 
   return (
-    <section className="space-y-5 rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
+    <section className="settings-card space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">数据与备份</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">管理本地 SQLite 数据库、角色资产和完整备份。</p>
+        <h2 className="settings-title">数据与备份</h2>
+        <p className="settings-sub">本地数据库、角色资产与完整备份。</p>
       </div>
 
       {feedback && (
-        <div className={`border-l-4 px-4 py-3 text-sm ${
+        <div className={`rounded-lg border-l-2 px-3 py-2 text-[12.5px] ${
           feedback.type === 'success'
             ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-100'
             : 'border-red-500 bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-100'
@@ -76,18 +76,18 @@ export function DataSettings({ onExportBackup, onRestoreBackup }: DataSettingsPr
         </div>
       )}
 
-      <div className="grid gap-4">
-        <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+      <div className="grid max-w-[720px] gap-3">
+        <div className="space-y-3 rounded-xl border border-[#E6E5F0] bg-[#F8F9FC] p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-sky-50">完整备份</h3>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">导出 manifest、app.db 和 assets。</p>
+            <h3 className="text-[13px] font-semibold text-[#1C2333] dark:text-sky-50">完整备份</h3>
+            <p className="mt-0.5 text-[11.5px] text-[#7A819A] dark:text-slate-400">manifest、数据库与资产。</p>
           </div>
-          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+          <label className="flex items-center gap-2 text-[12px] text-[#5F6780] dark:text-slate-300">
             <input
               type="checkbox"
               checked={includeSecrets}
               onChange={(event) => setIncludeSecrets(event.target.checked)}
-              className="h-4 w-4 rounded border-sky-200 text-sky-700 focus:ring-sky-200"
+              className="h-4 w-4 rounded border-[#D8DCF0] text-[#3B4474] focus:ring-[#9CA3D4]"
             />
             包含 API Key 密文
           </label>
@@ -95,35 +95,35 @@ export function DataSettings({ onExportBackup, onRestoreBackup }: DataSettingsPr
             type="button"
             onClick={() => void handleExport()}
             disabled={isWorking}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 font-medium text-white hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#3B4474] px-3 text-[12.5px] font-semibold text-[#FFFFFF] transition hover:bg-[#323962] disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-[#7C8FD0] dark:text-[#0B1020] dark:hover:bg-[#9CA3D4] dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
           >
-            <Download size={17} />
+            <Download size={15} />
             导出完整备份
           </button>
         </div>
 
-        <div className="space-y-3 rounded-xl border border-sky-100 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+        <div className="space-y-3 rounded-xl border border-[#E6E5F0] bg-[#F8F9FC] p-3.5 dark:border-white/10 dark:bg-white/[0.02]">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-sky-50">恢复备份</h3>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">恢复前会验证 manifest，并为当前数据创建快照。</p>
+            <h3 className="text-[13px] font-semibold text-[#1C2333] dark:text-sky-50">恢复备份</h3>
+            <p className="mt-0.5 text-[11.5px] text-[#7A819A] dark:text-slate-400">先校验，再为当前数据创建快照。</p>
           </div>
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">备份文件路径</span>
+            <span className="text-[12px] font-medium text-[#5F6780] dark:text-slate-300">备份文件路径</span>
             <input
               aria-label="备份文件路径"
               value={backupPath}
               onChange={(event) => setBackupPath(event.target.value)}
               placeholder="D:/backup/herein-backup.zip"
-              className="h-11 w-full rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:placeholder:text-slate-500 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
+              className="field"
             />
           </label>
           <button
             type="button"
             onClick={() => void handleRestore()}
             disabled={isWorking}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-4 font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] px-3 text-[12.5px] font-semibold text-[#41495C] transition hover:bg-[#F1F2F9] disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
           >
-            <RotateCcw size={17} />
+            <RotateCcw size={15} />
             恢复备份
           </button>
         </div>

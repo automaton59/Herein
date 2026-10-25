@@ -90,8 +90,8 @@ function normalizeIso(value: unknown, fallback = new Date().toISOString()) {
 }
 
 function normalizeCharacter(raw: StoredCharacter, index: number): CharacterRecord {
-  const id = normalizeString(raw.id, index === 0 ? 'al-1s-default' : `character_${index + 1}`);
-  const name = normalizeString(raw.name, index === 0 ? 'AL-1S' : `角色 ${index + 1}`);
+  const id = normalizeString(raw.id, index === 0 ? 'character_1' : `character_${index + 1}`);
+  const name = normalizeString(raw.name, index === 0 ? '新角色' : `角色 ${index + 1}`);
 
   return {
     id,
@@ -111,7 +111,7 @@ function normalizeCharacters(config: StoredConfig | null): CharacterRecord[] {
       : [];
 
   if (rawCharacters.length === 0) {
-    return [normalizeCharacter({ id: 'al-1s-default', name: 'AL-1S' }, 0)];
+    return [normalizeCharacter({ id: 'character_1', name: '新角色' }, 0)];
   }
 
   const used = new Set<string>();
@@ -240,10 +240,10 @@ export function migratePhase1JsonData({ db, dataDir }: MigratePhase1Options): Mi
     }
 
     const characterIds = new Set(characters.map(character => character.id));
-    const activeCharacterId = normalizeString(config?.activeCharacterId, characters[0]?.id ?? 'al-1s-default');
+    const activeCharacterId = normalizeString(config?.activeCharacterId, characters[0]?.id ?? 'character_1');
     repos.settings.set('activeCharacterId', characterIds.has(activeCharacterId) ? activeCharacterId : characters[0].id);
     repos.settings.set('activeProfileId', normalizeString(config?.activeProfileId, '') || null);
-    repos.settings.set('themeMode', normalizeString(config?.themeMode, 'system'));
+    repos.settings.set('themeMode', normalizeString(config?.themeMode, 'light'));
 
     normalizeProfiles(rawProfiles).forEach((profile, index) => {
       repos.apiProfiles.upsert({

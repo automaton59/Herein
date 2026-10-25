@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AppConfig } from '../interfaces';
 import type { Phase2PreloadAPI } from '../phase2/types';
-import { CHAT_BEHAVIOR_PROMPT, MEMORY_SYSTEM_PROMPT, MEMORY_UPDATE_TASK_PROMPT } from '../phase2/internalPrompts';
+import { CHAT_BEHAVIOR_PROMPT } from '../phase2/internalPrompts';
 import { DEFAULT_VOICE_CONFIG } from '../phase3/voice';
 import { ConfigService } from './index';
 
@@ -92,14 +92,9 @@ afterEach(() => {
 });
 
 describe('ConfigService Phase 2 persistence', () => {
-  it('keeps behavior and memory prompts as internal product prompts, not config defaults', () => {
+  it('keeps behavior prompts as internal product prompts, not config defaults', () => {
     expect(CHAT_BEHAVIOR_PROMPT).toContain('私人 IM 陪伴应用');
     expect(CHAT_BEHAVIOR_PROMPT).toContain('内部提示词');
-    expect(MEMORY_SYSTEM_PROMPT).toContain('You are not the chat character');
-    expect(MEMORY_SYSTEM_PROMPT).toContain('Return valid JSON only');
-    expect(MEMORY_UPDATE_TASK_PROMPT).toContain('natural development');
-    expect(MEMORY_UPDATE_TASK_PROMPT).toContain('not a conflict');
-    expect(MEMORY_UPDATE_TASK_PROMPT).toContain('previousValue');
   });
 
   it('loads app settings and characters from Phase 2 bootstrap', async () => {

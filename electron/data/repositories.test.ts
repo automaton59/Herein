@@ -582,14 +582,14 @@ describe('phase2 repositories', () => {
       id: 'acct-qq-1',
       platform: 'qq',
       externalId: 'bot-openid',
-      displayName: '海拾香',
+      displayName: '测试角色',
     });
     repos.identityLinks.upsert({
       id: 'link-1',
       platform: 'qq',
       externalId: 'member-openid',
       canonicalPersonId: 'person-1',
-      displayName: '蓝蓝',
+      displayName: '小蓝',
     });
 
     const observation = {
@@ -599,7 +599,7 @@ describe('phase2 repositories', () => {
       conversationId: 'group-openid',
       conversationKind: 'group' as const,
       actorId: 'member-openid',
-      actorName: '蓝蓝',
+      actorName: '小蓝',
       kind: 'message',
       content: '今天好累。',
       occurredAt: '2026-10-21T12:00:00.000Z',
@@ -621,7 +621,7 @@ describe('phase2 repositories', () => {
     expect(observations).toHaveLength(1);
     expect(observations[0]).toEqual(expect.objectContaining({
       id: 'obs-1',
-      actorName: '蓝蓝',
+      actorName: '小蓝',
       audience: 'group',
       provenance: 'owner',
       trust: 0.9,

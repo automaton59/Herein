@@ -41,6 +41,8 @@ function messageFingerprint(message: Message) {
     message.timestamp instanceof Date ? message.timestamp.toISOString() : String(message.timestamp),
     message.emotion ?? '',
     message.voiceInstruct ?? '',
+    message.sticker?.id ?? '',
+    message.material?.url ?? '',
     message.reasoning ?? '',
     message.status ?? '',
   ]);
@@ -63,14 +65,15 @@ export function diffMessagesForCoreSync(
 
 export function getConfiguredCoreClient(): CoreClient | null {
   try {
-    const baseUrl = localStorage.getItem(CORE_URL_KEY);
+    const injected = typeof window !== 'undefined' ? window.hereinCore : undefined;
+    const baseUrl = localStorage.getItem(CORE_URL_KEY) || injected?.url;
     if (!baseUrl) {
       return null;
     }
 
     return new CoreClient({
       baseUrl,
-      token: localStorage.getItem(CORE_TOKEN_KEY) || undefined,
+      token: localStorage.getItem(CORE_TOKEN_KEY) || injected?.token || undefined,
     });
   } catch {
     return null;
@@ -187,8 +190,15 @@ export async function loadPersistentChatHistory() {
     const client = createPhase2Client();
     const bootstrap = await client.bootstrap();
     const conversations: Conversation[] = [];
+    const personaId = bootstrap.persona?.id ?? bootstrap.settings.activeCharacterId;
+    // The product has one fixed companion. Loading obsolete contact timelines
+    // would put other identities back into renderer state and make the chat
+    // header depend on whichever conversation was persisted last.
+    const charactersToLoad = bootstrap.persona
+      ? bootstrap.characters.filter(character => character.id === bootstrap.persona?.id)
+      : bootstrap.characters;
 
-    for (const character of bootstrap.characters) {
+    for (const character of charactersToLoad) {
       const timeline = await client.timeline.getPrimary(character.id);
 
       if (!timeline) {
@@ -200,7 +210,7 @@ export async function loadPersistentChatHistory() {
     }
 
     const activeConversationId = conversations.find(
-      conversation => conversation.characterId === bootstrap.settings.activeCharacterId,
+      conversation => conversation.characterId === personaId,
     )?.id ?? conversations[0]?.id ?? null;
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations, activeConversationId }));
@@ -227,6 +237,33 @@ export async function loadPersistentChatHistory() {
   const legacyHistory = loadChatHistory();
   await writeJSONFile(FILE_NAME, legacyHistory);
   return legacyHistory;
+}
+
+export async function clearPersistentChatHistory(conversation: Conversation) {
+  if (!hasPhase2Storage()) {
+    return;
+  }
+
+  const core = getConfiguredCoreClient();
+
+  if (core) {
+    try {
+      await core.health();
+      await core.clearTimeline(conversation.characterId);
+      const syncState = readCoreSyncState();
+      syncState[conversation.id] = {};
+      writeCoreSyncState(syncState);
+      return;
+    } catch (error) {
+      console.warn('Core clear failed; falling back to IPC', error);
+    }
+  }
+
+  try {
+    await createPhase2Client().timeline.clearMessages(conversation.id);
+  } catch (error) {
+    console.warn('Failed to clear stored chat history:', error);
+  }
 }
 
 export async function savePersistentChatHistory(conversations: Conversation[], activeConversationId: string | null) {

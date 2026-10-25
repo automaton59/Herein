@@ -2,27 +2,24 @@ import React from 'react';
 import {
   Activity,
   Bot,
-  CloudSun,
   Database,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FolderOpen,
+  Globe,
   Loader2,
   MessageCircle,
   Plug,
   RefreshCw,
-  Route,
   Server,
   Sparkles,
   Trash2,
   Volume2,
-  Wifi,
-  WifiOff,
+  Wrench,
 } from 'lucide-react';
 import {
   CoreClient,
-  type CoreAgentCapability,
-  type CoreAgentList,
-  type CoreCharacterSummary,
-  type CoreInitiativeResult,
-  type CorePluginAudit,
   type CorePluginHealth,
   type CorePluginSummary,
   type CorePluginView,
@@ -30,29 +27,11 @@ import {
   type CoreStatusComponent,
 } from '../../services/coreClient';
 import { CORE_TOKEN_KEY, CORE_URL_KEY } from '../../services/chatHistory';
-
-interface WeatherResult {
-  location: {
-    name: string;
-    country?: string;
-    latitude: number;
-    longitude: number;
-  };
-  current: {
-    temperatureC: number;
-    apparentC?: number;
-    humidity?: number;
-    windKph?: number;
-    weather: string;
-    weatherCode?: number;
-    observedAt?: string;
-  };
-  source: string;
-  cached: boolean;
-}
+import { useSettingsStore } from '../../stores/settings';
+import { SelectMenu } from '../UI/SelectMenu';
 
 function createCoreClient() {
-  const baseUrl = localStorage.getItem(CORE_URL_KEY)?.trim();
+  const baseUrl = (localStorage.getItem(CORE_URL_KEY) || window.hereinCore?.url || '').trim();
 
   if (!baseUrl) {
     return null;
@@ -60,22 +39,22 @@ function createCoreClient() {
 
   return new CoreClient({
     baseUrl,
-    token: localStorage.getItem(CORE_TOKEN_KEY)?.trim() || undefined,
+    token: (localStorage.getItem(CORE_TOKEN_KEY) || window.hereinCore?.token || '').trim() || undefined,
   });
 }
 
-function statusTone(component: CoreStatusComponent | undefined) {
+function statusDotTone(component: CoreStatusComponent | undefined) {
   switch (component?.status) {
     case 'ok':
-      return 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/20';
+      return 'bg-aqua-400 shadow-[0_0_0_3px_rgba(124,200,234,0.18)]';
     case 'degraded':
-      return 'text-amber-700 bg-amber-50 border-amber-100 dark:text-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20';
+      return 'bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.16)]';
     case 'unavailable':
-      return 'text-sky-800 bg-sky-50 border-sky-100 dark:text-sky-200 dark:bg-sky-700/10 dark:border-sky-500/20';
+      return 'bg-rose-400 shadow-[0_0_0_3px_rgba(251,113,133,0.14)]';
     case 'unconfigured':
-      return 'text-slate-600 bg-slate-50 border-slate-200 dark:text-slate-300 dark:bg-white/5 dark:border-white/10';
+      return 'bg-slate-300';
     default:
-      return 'text-slate-500 bg-slate-50 border-slate-200 dark:text-slate-400 dark:bg-white/5 dark:border-white/10';
+      return 'bg-slate-300';
   }
 }
 
@@ -107,6 +86,32 @@ function pluginHealthLabel(health: CorePluginHealth) {
   }
 }
 
+function pluginHealthChip(health: CorePluginHealth) {
+  switch (health.status) {
+    case 'ok':
+      return 'bg-emerald-50 text-emerald-700 ring-emerald-200/70 dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/20';
+    case 'degraded':
+      return 'bg-amber-50 text-amber-700 ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-400/20';
+    case 'failed':
+      return 'bg-rose-50 text-rose-700 ring-rose-200/70 dark:bg-rose-500/10 dark:text-rose-300 dark:ring-rose-400/20';
+    default:
+      return 'bg-slate-100 text-slate-600 ring-slate-200/70 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10';
+  }
+}
+
+function pluginKindIcon(kind: string) {
+  switch (kind) {
+    case 'tool':
+      return <Wrench size={15} />;
+    case 'source':
+      return <Globe size={15} />;
+    case 'agent':
+      return <Bot size={15} />;
+    default:
+      return <Plug size={15} />;
+  }
+}
+
 function formatUptime(ms: number) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   const hours = Math.floor(seconds / 3600);
@@ -130,19 +135,125 @@ function statusCard(
   detail?: string,
 ) {
   return (
-    <div className="rounded-2xl border border-sky-100 bg-white/85 p-4 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
+    <div className="rounded-xl border border-[#E6E5F0] bg-[#FFFFFF] p-3 dark:border-white/10 dark:bg-[#0E1424]">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-sky-100">
-          <span className="text-sky-700 dark:text-sky-300">{icon}</span>
-          {label}
+        <div className="flex min-w-0 items-center gap-2 text-[12px] font-semibold text-[#41495C] dark:text-slate-200">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[#F6F7FC] text-[#3B4474] dark:bg-white/5 dark:text-sky-200">
+            {icon}
+          </span>
+          <span className="truncate">{label}</span>
         </div>
-        <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusTone(component)}`}>
+        <span
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusDotTone(component)}`}
+          title={statusLabel(component)}
+        />
+      </div>
+      <div className="mt-2 flex items-baseline justify-between gap-2">
+        <span className="truncate text-[11px] text-[#69718A] dark:text-slate-400">
+          {detail || component?.message || '—'}
+        </span>
+        <span className="shrink-0 text-[10px] font-medium text-[#7A819A] dark:text-slate-500">
           {statusLabel(component)}
         </span>
       </div>
-      <div className="mt-3 truncate text-xs text-slate-500 dark:text-slate-400">
-        {detail || component?.message || '—'}
-      </div>
+    </div>
+  );
+}
+
+type PluginConfigProperty = NonNullable<NonNullable<CorePluginView['manifest']['configSchema']>['properties']>[string];
+
+function isBlank(value: unknown) {
+  return value === undefined
+    || value === null
+    || (typeof value === 'string' && !value.trim());
+}
+
+function readableError(error: unknown) {
+  const raw = error instanceof Error ? error.message : String(error ?? '操作失败');
+
+  try {
+    const parsed = JSON.parse(raw) as { detail?: unknown; error?: unknown };
+
+    if (typeof parsed.detail === 'string' && parsed.detail) {
+      return parsed.detail;
+    }
+
+    if (typeof parsed.error === 'string' && parsed.error) {
+      return parsed.error;
+    }
+  } catch {
+    // Not JSON; use the raw text.
+  }
+
+  return raw;
+}
+
+function validateDraft(
+  entries: Array<[string, PluginConfigProperty]>,
+  required: string[],
+  draft: Record<string, unknown>,
+) {
+  const errors: Record<string, string> = {};
+
+  for (const key of required) {
+    if (isBlank(draft[key])) {
+      errors[key] = '这一项必须填写';
+    }
+  }
+
+  for (const [key, property] of entries) {
+    const value = draft[key];
+
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+
+    if (property.type === 'number' && typeof value === 'number') {
+      if (property.minimum !== undefined && value < property.minimum) {
+        errors[key] = `不能小于 ${property.minimum}`;
+      }
+
+      if (property.maximum !== undefined && value > property.maximum) {
+        errors[key] = `不能大于 ${property.maximum}`;
+      }
+    }
+
+    if (property.type === 'string' && typeof value === 'string' && property.format === 'url' && value.trim()) {
+      if (!/^https?:\/\//i.test(value.trim())) {
+        errors[key] = '请填写完整地址，例如 http://127.0.0.1:8791';
+      }
+    }
+  }
+
+  return errors;
+}
+
+function ConfigFieldHint({
+  property,
+  onPick,
+}: {
+  property: PluginConfigProperty;
+  onPick?: () => void;
+}) {
+  if (!property.description && !onPick) {
+    return null;
+  }
+
+  return (
+    <div className="mt-1 flex items-start justify-between gap-2">
+      <p className="min-w-0 text-[11px] leading-4 text-[#7A819A] dark:text-slate-500">
+        {property.description}
+      </p>
+      {onPick && (
+        <button
+          type="button"
+          onClick={onPick}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-sky-100 bg-white px-1.5 py-1 text-[11px] text-slate-600 transition hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+        >
+          <FolderOpen size={11} />
+          选择
+        </button>
+      )}
     </div>
   );
 }
@@ -156,16 +267,29 @@ function PluginConfigEditor({
   busy: boolean;
   onSave: (config: Record<string, unknown>) => Promise<void>;
 }) {
-  const properties = plugin.manifest.configSchema?.properties ?? {};
-  const entries = Object.entries(properties);
+  const schema = plugin.manifest.configSchema;
+  const entries = Object.entries(schema?.properties ?? {}) as Array<[string, PluginConfigProperty]>;
+  const required = schema?.required ?? [];
   const [draft, setDraft] = React.useState<Record<string, unknown>>({ ...plugin.config });
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [revealed, setRevealed] = React.useState<Record<string, boolean>>({});
+  const [saved, setSaved] = React.useState(false);
+
+  const missing = required.filter(key => isBlank(draft[key]));
+  const [open, setOpen] = React.useState(false);
 
   React.useEffect(() => {
     setDraft({ ...plugin.config });
+    setErrors({});
+    setSaved(false);
   }, [plugin.manifest.id, plugin.updatedAt]);
 
   if (entries.length === 0) {
-    return null;
+    return (
+      <p className="mt-3 rounded-lg border border-dashed border-sky-100 px-3 py-2 text-[11.5px] leading-5 text-[#69718A] dark:border-white/10 dark:text-slate-400">
+        {plugin.manifest.setup || '这个插件不需要配置，安装并启用即可。'}
+      </p>
+    );
   }
 
   const update = (key: string, value: unknown) => {
@@ -180,45 +304,142 @@ function PluginConfigEditor({
 
       return next;
     });
+    setErrors(current => {
+      if (!current[key]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const pickPath = async (key: string, property: PluginConfigProperty) => {
+    const dialog = window.hereinShell?.dialog;
+
+    if (!dialog) {
+      return;
+    }
+
+    const picked = await dialog.pickFile({
+      title: property.title || '选择路径',
+      mode: property.format === 'directory' ? 'directory' : 'file',
+    });
+
+    if (picked) {
+      update(key, picked);
+    }
+  };
+
+  const submit = async () => {
+    const nextErrors = validateDraft(entries, required, draft);
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setOpen(true);
+      return;
+    }
+
+    try {
+      await onSave(draft);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2400);
+    } catch (error) {
+      const message = readableError(error);
+      const field = /config\.([A-Za-z0-9_]+)/.exec(message)?.[1];
+
+      if (field) {
+        setErrors({ [field]: message.replace(/^config\.[A-Za-z0-9_]+\s*/, '') });
+      } else {
+        setErrors({ __form: message });
+      }
+
+      setOpen(true);
+    }
   };
 
   return (
-    <details className="mt-3 rounded-xl border border-sky-100 bg-white/70 px-3 py-2 dark:border-sky-900/40 dark:bg-white/[0.03]">
-      <summary className="cursor-pointer text-xs font-medium text-sky-700 dark:text-sky-200">
-        配置
+    <details
+      className="mt-3 rounded-xl border border-sky-100 bg-white/70 px-3 py-2 dark:border-sky-900/40 dark:bg-white/[0.03]"
+      open={open}
+      onToggle={event => setOpen(event.currentTarget.open)}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium text-sky-700 dark:text-sky-200">
+        <span className="inline-flex items-center gap-1.5">
+          配置
+          {missing.length > 0 && (
+            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200/70 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-400/20">
+              还差 {missing.length} 项
+            </span>
+          )}
+        </span>
+        <span className="text-[11px] font-normal text-[#7A819A] dark:text-slate-500">
+          {open ? '收起' : '展开'}
+        </span>
       </summary>
+
+      {plugin.manifest.setup && (
+        <p className="mt-2 rounded-lg bg-[#F6F7FC] px-2.5 py-2 text-[11.5px] leading-5 text-[#69718A] dark:bg-white/5 dark:text-slate-400">
+          {plugin.manifest.setup}
+        </p>
+      )}
+
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {entries.map(([key, property]) => {
           const value = draft[key];
           const label = property.title || key;
+          const isRequired = required.includes(key);
+          const error = errors[key];
+          const inputTone = error
+            ? 'border-rose-300 focus:border-rose-400 dark:border-rose-400/40'
+            : 'border-sky-100 focus:border-sky-400 dark:border-sky-900/50';
+
+          const hint = (
+            <ConfigFieldHint
+              property={property}
+              onPick={property.format === 'path' || property.format === 'directory'
+                ? () => void pickPath(key, property)
+                : undefined}
+            />
+          );
 
           if (property.enum) {
             return (
-              <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
-                {label}
-                <select
+              <div key={key} className="block text-xs text-slate-600 dark:text-slate-300">
+                <span className="mb-1 block font-medium">
+                  {label}
+                  {isRequired && <span className="ml-0.5 text-rose-500">*</span>}
+                </span>
+                <SelectMenu
                   value={String(value ?? '')}
-                  onChange={event => update(key, event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-sky-100 bg-white px-2 py-1.5 text-xs outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
-                >
-                  {property.enum.map(option => (
-                    <option key={String(option)} value={String(option)}>{String(option)}</option>
-                  ))}
-                </select>
-              </label>
+                  onChange={next => update(key, next)}
+                  options={property.enum.map(option => ({
+                    value: String(option),
+                    label: String(option),
+                  }))}
+                />
+                {hint}
+                {error && <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-300">{error}</p>}
+              </div>
             );
           }
 
           if (property.type === 'boolean') {
             return (
-              <label key={key} className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
-                <input
-                  type="checkbox"
-                  checked={Boolean(value)}
-                  onChange={event => update(key, event.target.checked)}
-                  className="h-4 w-4 rounded border-sky-200 text-sky-700"
-                />
-                {label}
+              <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
+                <span className="flex items-center gap-2 font-medium">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(value)}
+                    onChange={event => update(key, event.target.checked)}
+                    className="h-4 w-4 rounded border-sky-200 text-sky-700"
+                  />
+                  {label}
+                  {isRequired && <span className="text-rose-500">*</span>}
+                </span>
+                {hint}
+                {error && <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-300">{error}</p>}
               </label>
             );
           }
@@ -226,39 +447,115 @@ function PluginConfigEditor({
           if (property.type === 'number') {
             return (
               <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
-                {label}
+                <span className="mb-1 block font-medium">
+                  {label}
+                  {isRequired && <span className="ml-0.5 text-rose-500">*</span>}
+                </span>
                 <input
                   type="number"
                   value={typeof value === 'number' ? value : ''}
                   min={property.minimum}
                   max={property.maximum}
+                  placeholder={property.placeholder}
                   onChange={event => update(key, event.target.value === '' ? undefined : Number(event.target.value))}
-                  className="mt-1 w-full rounded-lg border border-sky-100 bg-white px-2 py-1.5 text-xs outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
+                  className={`mt-1 w-full rounded-lg border bg-white px-2.5 py-1.5 text-xs outline-none transition dark:bg-[#07131f] dark:text-sky-50 ${inputTone}`}
                 />
+                {hint}
+                {error && <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-300">{error}</p>}
               </label>
             );
           }
 
+          const masked = property.format === 'password';
+          const show = revealed[key] === true;
+
           return (
             <label key={key} className="block text-xs text-slate-600 dark:text-slate-300">
-              {label}
-              <input
-                value={typeof value === 'string' ? value : ''}
-                onChange={event => update(key, event.target.value)}
-                className="mt-1 w-full rounded-lg border border-sky-100 bg-white px-2 py-1.5 text-xs outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
-              />
+              <span className="mb-1 block font-medium">
+                {label}
+                {isRequired && <span className="ml-0.5 text-rose-500">*</span>}
+              </span>
+              <span className="relative block">
+                <input
+                  type={masked && !show ? 'password' : 'text'}
+                  value={typeof value === 'string' ? value : ''}
+                  placeholder={property.placeholder || property.examples?.[0]}
+                  onChange={event => update(key, event.target.value)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  className={`mt-1 w-full rounded-lg border bg-white px-2.5 py-1.5 text-xs outline-none transition dark:bg-[#07131f] dark:text-sky-50 ${inputTone} ${masked ? 'pr-8' : ''}`}
+                />
+                {masked && (
+                  <button
+                    type="button"
+                    onClick={() => setRevealed(current => ({ ...current, [key]: !show }))}
+                    className="absolute right-1.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded text-[#7A819A] hover:bg-sky-50 hover:text-sky-700 dark:text-slate-400 dark:hover:bg-white/10"
+                    aria-label={show ? '隐藏' : '显示'}
+                    title={show ? '隐藏' : '显示'}
+                  >
+                    {show ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                )}
+              </span>
+              {hint}
+              {!value && property.examples && property.examples.length > 0 && (
+                <span className="mt-1.5 flex flex-wrap gap-1">
+                  {property.examples.map(example => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => update(key, example)}
+                      className="rounded-md border border-sky-100 bg-white px-1.5 py-0.5 text-[10.5px] text-slate-500 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </span>
+              )}
+              {error && <p className="mt-1 text-[11px] text-rose-600 dark:text-rose-300">{error}</p>}
             </label>
           );
         })}
       </div>
-      <button
-        type="button"
-        onClick={() => void onSave(draft)}
-        disabled={busy}
-        className="mt-3 rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:opacity-50"
-      >
-        {busy ? '保存中…' : '保存配置'}
-      </button>
+
+      {errors.__form && (
+        <p className="mt-2 rounded-lg bg-rose-50 px-2.5 py-1.5 text-[11.5px] text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+          {errors.__form}
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy}
+          className="rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:opacity-50"
+        >
+          {busy ? '保存中…' : '保存配置'}
+        </button>
+        {saved && <span className="text-[11px] text-emerald-600 dark:text-emerald-300">已保存</span>}
+        {plugin.manifest.helpUrl && (
+          /^https?:\/\//i.test(plugin.manifest.helpUrl) ? (
+            <button
+              type="button"
+              onClick={() => void window.hereinShell?.dialog?.openExternal(plugin.manifest.helpUrl as string)}
+              className="ml-auto inline-flex items-center gap-1 text-[11px] text-[#7A819A] hover:text-sky-700 dark:text-slate-500 dark:hover:text-sky-300"
+              title={plugin.manifest.helpUrl}
+            >
+              <ExternalLink size={11} />
+              配置文档
+            </button>
+          ) : (
+            <span
+              className="ml-auto inline-flex items-center gap-1 text-[11px] text-[#7A819A] dark:text-slate-500"
+              title={`仓库文档：${plugin.manifest.helpUrl}`}
+            >
+              <ExternalLink size={11} />
+              {plugin.manifest.helpUrl}
+            </span>
+          )
+        )}
+      </div>
     </details>
   );
 }
@@ -267,22 +564,11 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
   const [status, setStatus] = React.useState<CoreStatus | null>(null);
   const [plugins, setPlugins] = React.useState<CorePluginView[]>([]);
   const [summary, setSummary] = React.useState<CorePluginSummary | null>(null);
-  const [characters, setCharacters] = React.useState<CoreCharacterSummary[]>([]);
-  const [characterId, setCharacterId] = React.useState('');
-  const [agents, setAgents] = React.useState<CoreAgentList>({ providers: [], capabilities: [] });
-  const [agentBusy, setAgentBusy] = React.useState('');
-  const [agentInputs, setAgentInputs] = React.useState<Record<string, string>>({});
-  const [agentOutput, setAgentOutput] = React.useState<{ id: string; text: string } | null>(null);
-  const [initiativeResult, setInitiativeResult] = React.useState<CoreInitiativeResult | null>(null);
-  const [initiativeBusy, setInitiativeBusy] = React.useState(false);
-  const [audit, setAudit] = React.useState<CorePluginAudit[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState('');
-  const [weatherCity, setWeatherCity] = React.useState('');
-  const [weatherResult, setWeatherResult] = React.useState<WeatherResult | null>(null);
-
-  const weather = plugins.find(plugin => plugin.manifest.id === 'weather');
+  const isApiConfigured = useSettingsStore(state => state.isConfigured);
+  const connectionStatus = useSettingsStore(state => state.connectionStatus);
 
   const load = React.useCallback(async () => {
     const core = createCoreClient();
@@ -295,33 +581,20 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
     setLoading(true);
 
     try {
-      const [nextStatus, nextPlugins, nextAudit, nextCharacters, nextAgents] = await Promise.all([
+      const [nextStatus, nextPlugins] = await Promise.all([
         core.status(),
         core.listPlugins(),
-        core.pluginAudit(12),
-        core.listCharacters(),
-        core.listAgents().catch(() => ({ providers: [], capabilities: [] } as CoreAgentList)),
       ]);
       setStatus(nextStatus);
       setPlugins(nextPlugins.plugins);
       setSummary(nextPlugins.summary);
-      setAudit(nextAudit.audit);
-      setCharacters(nextCharacters.characters);
-      setAgents(nextAgents);
-      setCharacterId(current => current || nextCharacters.characters[0]?.id || '');
       setError('');
-
-      const nextWeather = nextPlugins.plugins.find(plugin => plugin.manifest.id === 'weather');
-      if (nextWeather && !weatherCity) {
-        const city = nextWeather.config.city;
-        setWeatherCity(typeof city === 'string' ? city : '');
-      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Core 连接失败');
     } finally {
       setLoading(false);
     }
-  }, [weatherCity]);
+  }, []);
 
   React.useEffect(() => {
     void load();
@@ -340,7 +613,7 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
       await action();
       await load();
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : '操作失败');
+      setError(readableError(actionError));
     } finally {
       setBusyId(null);
     }
@@ -366,110 +639,69 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
   const removePlugin = async (pluginId: string) => {
     const core = createCoreClient();
     if (!core) return;
-    await runPluginAction(pluginId, async () => {
-      await core.removePlugin(pluginId);
-      if (pluginId === 'weather') {
-        setWeatherResult(null);
-      }
-    });
+    await runPluginAction(pluginId, () => core.removePlugin(pluginId));
   };
 
-  const saveWeather = async () => {
+  // Saving rethrows so the config form can show field-level errors; a later
+  // health check tells the user whether the new settings actually work.
+  const savePluginConfig = async (pluginId: string, config: Record<string, unknown>) => {
     const core = createCoreClient();
-    if (!core || !weather || !weatherCity.trim()) return;
-    await runPluginAction('weather', async () => {
-      await core.updatePluginConfig('weather', {
-        ...weather.config,
-        city: weatherCity.trim(),
-      });
-      if (!weather.enabled) {
-        await core.enablePlugin('weather');
-      }
-    });
-  };
 
-  const queryWeather = async () => {
-    const core = createCoreClient();
-    if (!core || !weather) return;
-    await runPluginAction('weather', async () => {
-      const response = await core.invokePlugin<WeatherResult>('weather', 'current');
-      setWeatherResult(response.result);
-    });
-  };
+    if (!core) {
+      throw new Error('还没有配置 Core 地址');
+    }
 
-  const runInitiative = async () => {
-    const core = createCoreClient();
-    if (!core) return;
-    setInitiativeBusy(true);
+    setBusyId(pluginId);
     setError('');
 
     try {
-      const result = await core.runInitiative(characterId || undefined);
-      setInitiativeResult(result);
+      await core.updatePluginConfig(pluginId, config);
+
+      try {
+        await core.checkPluginHealth(pluginId);
+      } catch {
+        // Health is best-effort; the config itself was saved.
+      }
+
       await load();
-    } catch (initiativeError) {
-      setError(initiativeError instanceof Error ? initiativeError.message : '主动性运行失败');
+    } catch (saveError) {
+      setError(readableError(saveError));
+      throw saveError;
     } finally {
-      setInitiativeBusy(false);
+      setBusyId(null);
     }
   };
 
-  const runAgentAction = async (
-    capability: CoreAgentCapability,
-    key: string,
-    action: (core: CoreClient) => Promise<unknown>,
-  ) => {
+  const checkPlugin = async (pluginId: string) => {
     const core = createCoreClient();
     if (!core) return;
-    setAgentBusy(`${capability.id}:${key}`);
-    setError('');
-
-    try {
-      const result = await action(core);
-      setAgentOutput({
-        id: capability.id,
-        text: JSON.stringify(result, null, 2),
-      });
-      await load();
-    } catch (agentError) {
-      setError(agentError instanceof Error ? agentError.message : 'Agent 操作失败');
-    } finally {
-      setAgentBusy('');
-    }
+    await runPluginAction(pluginId, () => core.checkPluginHealth(pluginId));
   };
 
-  const invokeAgentAction = (capability: CoreAgentCapability, action: string) => {
-    let input: unknown = {};
+  const installedCount = plugins.filter(plugin => plugin.installed).length;
+  const enabledCount = plugins.filter(plugin => plugin.enabled).length;
 
-    try {
-      input = JSON.parse(agentInputs[capability.id]?.trim() || '{}') as unknown;
-    } catch {
-      setError('Agent 调用参数必须是合法 JSON');
-      return;
-    }
-
-    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-      setError('Agent 调用参数必须是 JSON 对象');
-      return;
-    }
-
-    void runAgentAction(capability, `action:${action}`, core => (
-      core.invokeAgent(capability.providerId, capability.id, action, input)
-    ));
-  };
+  // 「对话」跟着 API 的连通状态走：能连上模型就能聊，不再单独显示一个永远未知的交互端口。
+  const conversation: CoreStatusComponent = !isApiConfigured
+    ? { status: 'unconfigured', message: '还没有配置模型 API' }
+    : connectionStatus === 'online'
+      ? { status: 'ok', message: 'API 在线' }
+      : connectionStatus === 'checking'
+        ? { status: 'degraded', message: '正在连接' }
+        : { status: 'unavailable', message: '已断开，去 API 设置点「连接」' };
 
   return (
-    <div className="h-full overflow-y-auto bg-[radial-gradient(circle_at_top_left,#eef9ff_0,#f8fcff_38%,#ffffff_100%)] px-5 py-6 text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,#082036_0,#06111d_45%,#02070c_100%)] dark:text-sky-50">
+    <div className="h-full overflow-y-auto px-5 py-6 text-slate-900 dark:text-sky-50">
       <div className="mx-auto max-w-6xl space-y-5">
-        <header className="flex flex-wrap items-start justify-between gap-3">
+        <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-sky-700 dark:text-sky-300">
-              <Activity size={14} />
-              Herein Control
+            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7A819A] dark:text-slate-500">
+              <Activity size={13} />
+              System
             </div>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight">她的系统</h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Core、声音、模型和插件，一眼看清她现在能不能被找到。
+            <h1 className="mt-1 text-[22px] font-semibold tracking-tight text-[#1C2333] dark:text-sky-50">系统</h1>
+            <p className="mt-1 text-[12.5px] text-[#69718A] dark:text-slate-400">
+              Core、声音、模型与插件。
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -477,16 +709,16 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
               type="button"
               onClick={() => void load()}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white/80 px-3 py-2 text-sm font-medium text-sky-700 shadow-sm transition hover:bg-sky-50 disabled:opacity-50 dark:border-sky-800 dark:bg-[#0b1b2b] dark:text-sky-200 dark:hover:bg-[#10263a]"
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-[#41495C] transition hover:bg-[#F1F2F9] disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
             >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               刷新
             </button>
             {onOpenSettings && (
               <button
                 type="button"
                 onClick={onOpenSettings}
-                className="rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+                className="h-9 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] px-3 text-[12px] font-semibold text-[#41495C] transition hover:bg-[#F1F2F9] dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
               >
                 设置
               </button>
@@ -495,427 +727,175 @@ export function SystemPage({ onOpenSettings }: { onOpenSettings?: () => void }) 
         </header>
 
         {error && (
-          <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800 dark:border-sky-500/20 dark:bg-sky-700/10 dark:text-sky-200">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[12.5px] text-rose-700 dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200">
             {error}
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {statusCard('Core', status?.components.core, <Server size={16} />, status ? `v${status.version} · ${formatUptime(status.uptimeMs)}` : undefined)}
           {statusCard('数据库', status?.components.db, <Database size={16} />)}
           {statusCard('模型', status?.components.llm, <Sparkles size={16} />, status?.components.llm.detail?.model as string | undefined)}
+          {statusCard('对话', conversation, <MessageCircle size={16} />)}
           {statusCard('声音', status?.components.tts, <Volume2 size={16} />, status?.components.tts.latencyMs ? `${status.components.tts.latencyMs}ms` : undefined)}
           {statusCard('插件', status?.components.plugins, <Plug size={16} />, summary ? `${summary.enabled}/${summary.installed} 已启用` : undefined)}
-          {statusCard('Agent', status?.components.agents, <Bot size={16} />, status?.components.agents.message)}
-          {statusCard('隧道', status?.components.relay, <Route size={16} />, status?.components.relay.latencyMs ? `${status.components.relay.latencyMs}ms` : status?.components.relay.message)}
-          {statusCard('交互', status?.components.interaction, <MessageCircle size={16} />, status?.components.interaction.latencyMs ? `${status.components.interaction.latencyMs}ms` : status?.components.interaction.message)}
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-          <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">能力插件</h2>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  插件只提供能力，什么时候用由运行时决定。
-                </p>
-              </div>
-              <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700 dark:bg-sky-500/10 dark:text-sky-200">
-                {summary?.total ?? plugins.length} 个可用
+        <section className="rounded-2xl border border-[#E6E5F0] bg-[#FFFFFF] p-5 shadow-[0_18px_40px_-40px_rgba(59,68,116,0.3)] dark:border-white/10 dark:bg-[#0E1424]">
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#EEEEF6] pb-4 dark:border-white/5">
+            <div>
+              <h2 className="text-lg font-semibold">插件管理</h2>
+              <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500 dark:text-slate-400">
+                能力由插件提供，什么时候用由运行时决定。安装、启用、配置和卸载都在这里完成。
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-[#F6F7FC] px-3 py-1 text-xs font-medium text-[#3B4474] dark:bg-white/5 dark:text-sky-200">
+                {plugins.length} 个插件 · {enabledCount} 启用 · {installedCount} 已安装
               </span>
             </div>
+          </div>
 
-            <div className="mt-4 space-y-3">
-              {plugins.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-sky-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-sky-800 dark:text-slate-400">
-                  还没有发现插件。把插件目录放到 <code>plugins/</code> 下。
-                </div>
-              )}
+          <div className="mt-4 grid gap-3">
+            {plugins.length === 0 && (
+              <div className="rounded-2xl border border-dashed border-sky-200 px-4 py-10 text-center text-sm text-slate-500 dark:border-sky-800 dark:text-slate-400">
+                还没有发现插件。把插件目录放到 <code>plugins/</code> 下。
+              </div>
+            )}
 
-              {plugins.map(plugin => (
-                <div
+            {plugins.map(plugin => {
+              const busy = busyId === plugin.manifest.id;
+              const schema = plugin.manifest.configSchema;
+              const required = schema?.required ?? [];
+              const missingRequired = plugin.installed
+                ? required.filter(key => isBlank(plugin.config[key]))
+                : [];
+              // A disabled plugin keeps whatever health it had when it stopped,
+              // which quickly turns into a stale claim; only show it while running.
+              const healthNote = plugin.installed && plugin.enabled && plugin.health.status !== 'ok'
+                ? plugin.health.message
+                : undefined;
+
+              return (
+                <article
                   key={plugin.manifest.id}
-                  className="rounded-2xl border border-sky-100 bg-sky-50/35 p-4 dark:border-sky-900/40 dark:bg-white/[0.03]"
+                  className="flex flex-col rounded-xl border border-[#E6E5F0] bg-[#F8F9FC] p-4 transition hover:border-[#C9CCE3] dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold">{plugin.manifest.name}</span>
-                        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">
-                          {plugin.manifest.kind}
-                        </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          plugin.health.status === 'ok'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                            : plugin.health.status === 'degraded'
-                              ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
-                              : 'bg-slate-100 text-slate-600 dark:bg-white/5 dark:text-slate-300'
-                        }`}>
-                          {pluginHealthLabel(plugin.health)}
-                        </span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-[#3B4474] ring-1 ring-[#E6E5F0] dark:bg-white/5 dark:text-sky-200 dark:ring-white/10">
+                        {pluginKindIcon(plugin.manifest.kind)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate text-[14px] font-semibold text-[#1C2333] dark:text-sky-50">
+                            {plugin.manifest.name}
+                          </span>
+                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">
+                            {plugin.manifest.kind}
+                          </span>
+                          {plugin.installed ? (
+                            plugin.enabled ? (
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${pluginHealthChip(plugin.health)}`}>
+                                {pluginHealthLabel(plugin.health)}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-400 dark:ring-white/10">
+                                已停用
+                              </span>
+                            )
+                          ) : (
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-slate-400 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-500 dark:ring-white/10">
+                              未安装
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1.5 text-[12px] leading-5 text-[#69718A] dark:text-slate-400">
+                          {plugin.manifest.description || '没有描述'}
+                        </p>
+                        {missingRequired.length > 0 && (
+                          <p className="mt-1 text-[11.5px] font-medium text-amber-700 dark:text-amber-300">
+                            还差：{missingRequired.map(key => schema?.properties[key]?.title || key).join('、')}
+                          </p>
+                        )}
                       </div>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {plugin.manifest.description || '没有描述'}
-                      </p>
-                      {plugin.lastError && (
-                        <p className="mt-2 text-xs text-sky-700 dark:text-sky-300">{plugin.lastError}</p>
-                      )}
-                      {plugin.installed && plugin.manifest.id !== 'weather' && (
-                        <PluginConfigEditor
-                          plugin={plugin}
-                          busy={busyId === plugin.manifest.id}
-                          onSave={async config => {
-                            const core = createCoreClient();
-                            if (!core) return;
-                            await runPluginAction(plugin.manifest.id, () => (
-                              core.updatePluginConfig(plugin.manifest.id, config)
-                            ));
-                          }}
-                        />
-                      )}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2">
-                      {!plugin.installed ? (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {busy ? (
+                        <Loader2 size={15} className="animate-spin text-[#7A819A] dark:text-slate-400" />
+                      ) : !plugin.installed ? (
                         <button
                           type="button"
                           onClick={() => void installPlugin(plugin.manifest.id)}
-                          disabled={busyId === plugin.manifest.id}
-                          className="rounded-xl bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:opacity-50"
+                          className="rounded-lg bg-[#3B4474] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#323962]"
                         >
                           安装
                         </button>
                       ) : (
                         <>
+                          {plugin.enabled && (
+                            <button
+                              type="button"
+                              onClick={() => void checkPlugin(plugin.manifest.id)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-sky-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+                              title="立即检查一次"
+                            >
+                              <Activity size={13} />
+                              检查
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => void togglePlugin(plugin)}
-                            disabled={busyId === plugin.manifest.id}
-                            className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                               plugin.enabled
-                                ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
-                                : 'bg-sky-500 text-white hover:bg-sky-800'
+                                ? 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                                : 'bg-[#3B4474] text-white hover:bg-[#323962]'
                             }`}
                           >
                             {plugin.enabled ? '停用' : '启用'}
                           </button>
-                          {plugin.manifest.id === 'weather' && (
-                            <button
-                              type="button"
-                              onClick={() => void removePlugin(plugin.manifest.id)}
-                              disabled={busyId === plugin.manifest.id}
-                              className="rounded-xl border border-slate-200 bg-white p-1.5 text-slate-400 transition hover:text-sky-700 disabled:opacity-50 dark:border-white/10 dark:bg-white/5"
-                              aria-label={`卸载 ${plugin.manifest.name}`}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => void removePlugin(plugin.manifest.id)}
+                            className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-400 transition hover:text-rose-600 dark:border-white/10 dark:bg-white/5 dark:hover:text-rose-300"
+                            aria-label={`卸载 ${plugin.manifest.name}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </section>
 
-          <div className="space-y-5">
-            <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
-              <div className="flex items-center gap-2">
-                <CloudSun size={18} className="text-sky-700 dark:text-sky-300" />
-                <h2 className="text-lg font-semibold">天气插件</h2>
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                第一个用来验证插件系统的能力：安装、配置、健康、调用、审计。
-              </p>
-
-              {!weather?.installed ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-sky-200 px-4 py-6 text-center text-sm text-slate-500 dark:border-sky-800 dark:text-slate-400">
-                  先安装天气插件。
-                </div>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-slate-300">
-                    城市
-                    <input
-                      value={weatherCity}
-                      onChange={event => setWeatherCity(event.target.value)}
-                      placeholder="杭州"
-                      className="mt-1 w-full rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm outline-none transition focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
-                    />
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void saveWeather()}
-                      disabled={busyId === 'weather' || !weatherCity.trim()}
-                      className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:opacity-50"
-                    >
-                      保存并{weather.enabled ? '重启' : '启用'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void queryWeather()}
-                      disabled={busyId === 'weather' || !weather.enabled}
-                      className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 disabled:opacity-50 dark:border-sky-800 dark:bg-white/5 dark:text-sky-200"
-                    >
-                      {busyId === 'weather' ? <Loader2 size={13} className="animate-spin" /> : <Wifi size={13} />}
-                      查询天气
-                    </button>
-                  </div>
-
-                  {weatherResult ? (
-                    <div className="rounded-2xl bg-sky-50/70 p-4 dark:bg-sky-500/10">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-semibold">{Math.round(weatherResult.current.temperatureC)}°</span>
-                        <span className="text-sm text-slate-600 dark:text-slate-300">{weatherResult.current.weather}</span>
-                      </div>
-                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        {weatherResult.location.name}
-                        {weatherResult.current.apparentC !== undefined ? ` · 体感 ${Math.round(weatherResult.current.apparentC)}°` : ''}
-                        {weatherResult.current.humidity !== undefined ? ` · 湿度 ${Math.round(weatherResult.current.humidity)}%` : ''}
-                        {weatherResult.cached ? ' · 缓存' : ''}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">
-                      <WifiOff size={14} />
-                      {weather.enabled ? '还没有查询过。' : '插件未启用。'}
-                    </div>
+                  {plugin.lastError && (
+                    <p className="mt-2.5 rounded-lg bg-rose-50 px-2.5 py-1.5 text-[11.5px] leading-5 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+                      {plugin.lastError}
+                    </p>
                   )}
-                </div>
-              )}
-            </section>
 
-            <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
-              <div className="flex items-center gap-2">
-                <Sparkles size={18} className="text-sky-700 dark:text-sky-300" />
-                <h2 className="text-lg font-semibold">主动性</h2>
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                手动跑一次策略：免打扰、冷却、每日预算、在场判断都在这条链路里。
-              </p>
+                  {healthNote && healthNote !== plugin.lastError && (
+                    <p className={`mt-2.5 rounded-lg px-2.5 py-1.5 text-[11.5px] leading-5 ${
+                      plugin.health.status === 'failed'
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200'
+                        : 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200'
+                    }`}>
+                      {healthNote}
+                    </p>
+                  )}
 
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <select
-                  value={characterId}
-                  onChange={event => setCharacterId(event.target.value)}
-                  className="min-w-0 flex-1 rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-50"
-                >
-                  {characters.length === 0 && <option value="">没有角色</option>}
-                  {characters.map(character => (
-                    <option key={character.id} value={character.id}>{character.name}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => void runInitiative()}
-                  disabled={initiativeBusy || !characterId}
-                  className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-800 disabled:opacity-50"
-                >
-                  {initiativeBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                  运行一次
-                </button>
-              </div>
-
-              {initiativeResult && (
-                <div className="mt-3 rounded-2xl bg-sky-50/70 px-4 py-3 text-xs dark:bg-sky-500/10">
-                  <div className="font-medium text-slate-700 dark:text-sky-100">
-                    {initiativeResult.status === 'spoke' ? '说了' : initiativeResult.status === 'skipped' ? '没说' : '失败'}
-                  </div>
-                  <div className="mt-1 text-slate-500 dark:text-slate-300">
-                    {initiativeResult.message || initiativeResult.reason || initiativeResult.error || '—'}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
-              <h2 className="text-lg font-semibold">最近审计</h2>
-              <div className="mt-3 space-y-2">
-                {audit.length === 0 && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">还没有插件操作。</p>
-                )}
-                {audit.slice(0, 8).map(entry => (
-                  <div key={entry.id} className="flex items-center justify-between gap-3 text-xs">
-                    <span className="truncate text-slate-600 dark:text-slate-300">
-                      {entry.pluginId} · {entry.action}
-                    </span>
-                    <span className={entry.status === 'ok' ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300'}>
-                      {entry.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  {plugin.installed && (
+                    <PluginConfigEditor
+                      plugin={plugin}
+                      busy={busy}
+                      onSave={config => savePluginConfig(plugin.manifest.id, config)}
+                    />
+                  )}
+                </article>
+              );
+            })}
           </div>
-        </div>
-
-        <section className="rounded-3xl border border-sky-100 bg-white/85 p-5 shadow-sm dark:border-sky-900/40 dark:bg-[#0b1b2b]/80">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Bot size={18} className="text-sky-700 dark:text-sky-300" />
-                <h2 className="text-lg font-semibold">Agent 能力</h2>
-              </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                DSH 等 agent provider 暴露的能力；装什么、启停、调用都走同一条权限/审计边界。
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {agents.providers.map(provider => (
-                <span
-                  key={provider.id}
-                  className={`rounded-full px-3 py-1 text-[11px] font-medium ${
-                    provider.health.status === 'ok'
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
-                  }`}
-                >
-                  {provider.name} · {pluginHealthLabel(provider.health)}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {agents.capabilities.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-sky-200 px-4 py-8 text-center text-sm text-slate-500 dark:border-sky-800 dark:text-slate-400">
-              还没有 agent provider。配置 HEREIN_DSH_URL / HEREIN_DSH_TOKEN 后，DSH 能力会出现在这里。
-            </div>
-          ) : (
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {agents.capabilities.map(capability => {
-                const installed = capability.installed !== false;
-                const enabled = capability.enabled !== false;
-                const external = capability.lifecycle === 'external';
-                const busy = agentBusy.startsWith(`${capability.id}:`);
-
-                return (
-                  <div
-                    key={`${capability.providerId}:${capability.id}`}
-                    className="rounded-2xl border border-sky-100 bg-sky-50/35 p-4 dark:border-sky-900/40 dark:bg-white/[0.03]"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{capability.name}</span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500 ring-1 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10">
-                            {capability.providerId}
-                          </span>
-                          {external && (
-                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">
-                              DSH 审批
-                            </span>
-                          )}
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                            capability.health.status === 'ok'
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                              : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
-                          }`}>
-                            {pluginHealthLabel(capability.health)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          {capability.description || `${capability.id} · v${capability.version}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    {external && (
-                      <div className="mt-3 rounded-xl border border-sky-100 bg-white/60 px-3 py-2 text-[11px] text-slate-500 dark:border-sky-900/40 dark:bg-white/[0.03] dark:text-slate-400">
-                        生命周期由 DSH 审批管理；C 只读发现和调用。
-                      </div>
-                    )}
-
-                    {(capability.actions?.length ?? 0) > 0 && (
-                      <label className="mt-3 block text-[11px] text-slate-500 dark:text-slate-400">
-                        调用参数（JSON）
-                        <textarea
-                          value={agentInputs[capability.id] ?? '{}'}
-                          onChange={event => setAgentInputs(current => ({
-                            ...current,
-                            [capability.id]: event.target.value,
-                          }))}
-                          rows={2}
-                          spellCheck={false}
-                          className="mt-1 w-full rounded-xl border border-sky-100 bg-white px-3 py-2 font-mono text-[11px] leading-5 text-slate-700 outline-none focus:border-sky-400 dark:border-sky-900/50 dark:bg-[#07131f] dark:text-sky-100"
-                        />
-                      </label>
-                    )}
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {!external && (
-                        !installed ? (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void runAgentAction(
-                              capability,
-                              'install',
-                              core => core.installAgent(capability.providerId, capability.id),
-                            )}
-                            className="rounded-lg bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                          >
-                            安装
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => void runAgentAction(
-                                capability,
-                                enabled ? 'disable' : 'enable',
-                                core => enabled
-                                  ? core.disableAgent(capability.providerId, capability.id)
-                                  : core.enableAgent(capability.providerId, capability.id),
-                              )}
-                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-                                enabled
-                                  ? 'border border-slate-200 bg-white text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'
-                                  : 'bg-sky-700 text-white'
-                              }`}
-                            >
-                              {enabled ? '停用' : '启用'}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => void runAgentAction(
-                                capability,
-                                'remove',
-                                core => core.removeAgent(capability.providerId, capability.id),
-                              )}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500 disabled:opacity-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
-                            >
-                              移除
-                            </button>
-                          </>
-                        )
-                      )}
-                      {(capability.actions ?? []).map(action => (
-                        <button
-                          key={action}
-                          type="button"
-                          disabled={busy || (!external && !enabled)}
-                          onClick={() => invokeAgentAction(capability, action)}
-                          className="rounded-lg border border-sky-200 bg-white px-3 py-1.5 text-xs font-medium text-sky-700 disabled:opacity-50 dark:border-sky-800 dark:bg-white/5 dark:text-sky-200"
-                        >
-                          {action}
-                        </button>
-                      ))}
-                    </div>
-
-                    {agentOutput?.id === capability.id && (
-                      <pre className="mt-3 max-h-40 overflow-auto rounded-xl bg-slate-950/5 p-3 text-[11px] leading-5 text-slate-600 dark:bg-black/20 dark:text-slate-300">
-                        {agentOutput.text}
-                      </pre>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </section>
       </div>
     </div>

@@ -1,6 +1,5 @@
 import type { Phase2Database } from '../data/database';
 import type { PluginRegistry } from '../plugins/registry';
-import type { AgentProviderRegistry } from '../plugins/agentProvider';
 import type { InteractionDispatcher } from './interaction';
 import { loadLlmConfig, type LlmConfig } from './llm';
 
@@ -14,7 +13,6 @@ export interface RelayStatusOptions {
 export interface CoreStatusOptions {
   db: Phase2Database;
   pluginRegistry: PluginRegistry;
-  agentRegistry?: AgentProviderRegistry;
   relay?: RelayStatusOptions;
   interaction?: InteractionDispatcher;
   startedAt: number;
@@ -208,35 +206,23 @@ export async function buildCoreStatus(options: CoreStatusOptions): Promise<CoreS
     detail: { ...pluginSummary },
   };
 
-  let agents: StatusComponent = {
-    status: 'ok',
-    message: 'no agent providers',
+  // 「Agent」不再是独立子系统：agent-kind 插件就是 agent。状态只汇报这些插件的健康。
+  const agentPlugins = options.pluginRegistry
+    .list()
+    .filter(plugin => plugin.manifest.kind === 'agent');
+  const agentFailed = agentPlugins.filter(plugin => plugin.health.status === 'failed').length;
+  const agentDegraded = agentPlugins.filter(plugin => plugin.health.status === 'degraded').length;
+  const agents: StatusComponent = {
+    status: agentFailed > 0 ? 'degraded' : agentDegraded > 0 ? 'degraded' : 'ok',
+    message: agentPlugins.length === 0
+      ? 'no agent plugins'
+      : `${agentPlugins.filter(plugin => plugin.installed && plugin.enabled).length}/${agentPlugins.length} agent plugins enabled`,
+    detail: {
+      plugins: agentPlugins.length,
+      failed: agentFailed,
+      degraded: agentDegraded,
+    },
   };
-
-  if (options.agentRegistry) {
-    try {
-      const list = await options.agentRegistry.list();
-      const failed = list.providers.filter(provider => provider.health.status === 'failed').length;
-      const degraded = list.providers.filter(provider => provider.health.status === 'degraded').length;
-      agents = {
-        status: failed > 0 ? 'degraded' : degraded > 0 ? 'degraded' : 'ok',
-        message: list.providers.length === 0
-          ? 'no agent providers'
-          : `${list.capabilities.length} capabilities / ${list.providers.length} providers`,
-        detail: {
-          providers: list.providers.length,
-          capabilities: list.capabilities.length,
-          failed,
-          degraded,
-        },
-      };
-    } catch (error) {
-      agents = {
-        status: 'degraded',
-        message: error instanceof Error ? error.message : 'agent provider status failed',
-      };
-    }
-  }
 
   const components = {
     core: {

@@ -1,141 +1,174 @@
 # 此间
 
-此间（Herein）是一个本地优先的私人 IM 陪伴应用，使用 React、TypeScript 和 Electron 构建。
+本地优先的私人陪伴桌面应用。用 Electron + React + TypeScript 搭建，数据全部留在本机。
 
-它的目标不是做角色扮演工作台，也不是做 SillyTavern 的轻量版。核心体验应该像打开一个熟悉的聊天对象：联系人、聊天气泡、本地历史、稳定人格、持续关系、用户可控的记忆。
+不是角色扮演工作台，也不是 SillyTavern 的轻量版。打开它就应该是打开一个熟悉的在场者：一个由私有 persona 包固定的角色、一个已经待在桌面上的 Live2D 形象、一段有连续记忆的私密对话。
 
-## 当前状态
+---
 
-Phase 2 已基本收尾。核心产品链路已经落地，剩余 Phase 2 工作主要是真实 Electron smoke、打包验证和发布前打磨。当前已经具备：
+## 它解决什么
 
-- Electron + Vite 开发启动流程。
-- OpenAI-compatible API profile。
-- Electron 下通过 `safeStorage` 加密 API key，并保存进 SQLite。
-- Electron IPC 访问 SQLite 本地数据底座。
-- Phase 1 JSON 数据迁移进 `app.db`。
-- 多角色；每个角色一条主聊天时间线。
-- 消息编辑、重新生成、撤回打断、删除后续。
-- 主聊天隐藏 thinking/reasoning。
-- 情绪标签从正文剥离，仅保存为 metadata。
-- 基于角色、总结、记忆的上下文装配。
-- 后台会话总结和结构化记忆抽取。
-- 聊天侧记忆面板与全局记忆设置。
-- 此间内部角色档案导入导出。
-- 完整备份/恢复 zip，包含 manifest、`app.db` 和 assets。
-- Light、Dark、System 主题。
+通用聊天机器人每一轮都从零开始。此间把三件事做成了长期状态：
+
+- **人格是装备，不是提示词。** persona pack 定义身份、语气、边界和关系框架，启动时编译进 system prompt，聊天页没有角色选择器。
+- **记忆是数据结构，不是聊天记录拼接。** 消息、摘要、结构化记忆分层存储，按预算召回，你可以查看、编辑、停用、固定每一条。
+- **在场是常态，不是功能开关。** 桌面形象独立于聊天窗口存在，关掉主窗口它还在，托盘托管整个 Core。
+
+## 能力
+
+### 对话
+
+固定单一角色，流式输出。支持编辑重发、重新生成、撤回、删除后重来。`thinking` 区块折叠不展示，情绪标签被解析成元数据而不是可见文本——它驱动形象表情和语音语气，不污染正文。
+
+### 记忆
+
+三层结构：
+
+| 层 | 内容 |
+|---|---|
+| 消息 | 原始对话，可编辑重生成 |
+| 摘要 | 后台按窗口滚动生成的叙事版本 |
+| 记忆条目 | 抽取出的偏好、事实、状态变化、共同经历，带来源和置信度 |
+
+召回按 token 预算分段落打包，不是把历史整段塞进上下文。记忆面板支持逐条查看、编辑、停用、固定、手动添加。
+
+### 桌面形象
+
+Live2D（Cubism 2 与 4）透明窗口，独立于主窗口。可置顶、可拖动、位置记忆。表情随对话情绪切换，口型跟随语音幅度。关主窗口退到托盘时形象继续在线。
+
+### 语音
+
+本地 TTS（Qwen3 系列）与 ASR 走独立服务进程，需要自备模型权重。语音对话有一条独立的交互运行时，与文字聊天共用同一条时间线。
+
+### 主动性
+
+不是定时推送。主动性会读当前关系状态、未完成的话题和最近的情绪，判断这时该不该开口，再用人格自己的语气说出来——主动消息和回复共用同一份 persona。
+
+### 插件
+
+插件是能力扩展点，不是脚本注入。每个插件声明自己的 `kind`、`permissions`（网络域名、凭据、发送、安装、文件系统）和 `configSchema`，设置面板据此自动生成表单、做字段校验、显示健康状态。
+
+| 插件 | 类型 | 说明 |
+|---|---|---|
+| 天气 | tool | Open-Meteo，无需 key |
+| 表情包 | tool | 按情绪从本地套组选图 |
+| B 站 | source | 直播/动态作为上下文素材 |
+| 网易云 | source | 只读：搜索、歌词、公开歌单 |
+| QQ Bot | channel | 单聊与群 @ 收发 |
+| DSH | agent | 桥接 DeepSeek Harness |
+
+全部手动配置，不依赖模型去猜。逐项字段和验证步骤见 [docs/PLUGIN-SETUP.md](docs/PLUGIN-SETUP.md)。
+
+### 多端
+
+桌面是主形态。内嵌 Core 是一个独立的 HTTP 服务（`npm run core:serve` 可单独跑），Android 客户端通过局域网连它，带 token 鉴权。Android 目前是实验性的。
+
+## 架构
+
+```text
+┌─ Electron 主进程 ────────────────────────────────┐
+│  窗口 / 托盘 / 桌面形象 / IPC / 单实例             │
+│  ┌─ 内嵌 Core（HTTP + SSE） ───────────────────┐  │
+│  │  对话编排 · 上下文组装 · 记忆读写 · 主动性    │  │
+│  │  插件注册表 · 素材路由 · 凭据解密             │  │
+│  └──────────────────────────────────────────────┘  │
+│  适配器（B站 / 网易云 / QQ / DSH，动态 import）      │
+└───────────────────────────────────────────────────┘
+                    ↕ IPC
+┌─ 渲染层（React + Zustand + Tailwind） ────────────┐
+│  聊天 · 记忆面板 · 设置 · 系统 · 桌面形象渲染       │
+└───────────────────────────────────────────────────┘
+```
+
+`src/` 不能直接引用 `electron/` 的实现，只能走 preload 暴露的 IPC 契约——`npm run check:core` 守这条线。
+
+Core 单独成层的原因：它要能被手机、被第二个进程、被未来的别的壳复用，而不是和 BrowserWindow 绑死。
 
 ## 快速开始
 
-### 前置要求
+### 环境
 
-- Node.js 18+
-- npm
+Node.js 22+。**Electron 固定 42.4.0**，不要升级——新版没有 `better-sqlite3` 的预编译产物。
 
-### 安装依赖
+### 安装
 
 ```bash
 npm install
 ```
 
-### 启动 Electron 应用
+`postinstall` 会把 `better-sqlite3` 编到 Electron 的 ABI。
+
+### 准备私有层
+
+这一步需要自己建。仓库里是引擎，不是人格：`private/` 被 `.gitignore` 排除是有意的，因为 persona pack、Live2D 素材和凭据属于个人内容，不是源码。
+
+```bash
+cp -r examples/persona-minimal private/persona/my-companion
+# 改 manifest.json 与 character.json 的 id，两处必须一致
+npm run check:persona
+```
+
+没有 pack 时应用会明确报错，而不是悄悄退回某个内置角色——这是故意的。
+
+API 密钥、QQ Bot 凭据、同步服务器配置放在 `private/credentials/`，模板见 [`examples/credentials/`](examples/README.md)。persona pack 的契约见 [docs/PERSONA.md](docs/PERSONA.md)。
+
+### 启动
 
 ```bash
 npm start
 ```
 
-这是推荐的开发和使用入口。
+首次启动会进入设置页，新建一个 OpenAI-compatible API profile 后才能聊天。
 
-### 构建检查
+### 构建
 
 ```bash
-npm run build
-npm run electron:compile
+npm run build                # 边界检查 + 对比度检查 + tsc + vite build
+npm run electron:compile     # 编译主进程
+npm run electron:build:dir   # 免安装目录，输出到 ../Herein-Releases
 ```
-
-`npm run dev` 仍可启动 Vite 浏览器开发服务器，用于有限的前端调试。但 Phase 2 的长期数据层是 Electron-first SQLite，浏览器模式不再作为完整产品目标。
-
-## 配置 API
-
-在应用设置中：
-
-1. 新建 API profile。
-2. 选择 OpenAI-compatible provider。
-3. 填写 API key、model，必要时填写 base URL。
-4. 测试连接。
-5. 回到聊天界面开始使用。
-
-此间应尽量保持 API 中立。OpenAI、DeepSeek、OpenRouter、AnyRouter、OpenCode 或其他兼容端点都应通过 profile 和 adapter 消化差异，而不是把 provider 逻辑散落在 UI 里。
 
 ## 数据与隐私
 
-Electron 数据位于：
+数据落在 `%APPDATA%\herein\data\`：
 
 ```text
-%APPDATA%\herein\data\
+app.db          # SQLite：消息、记忆、关系、插件注册表
+assets/         # 导入的角色素材、表情包
+backups/        # 完整备份
+exports/        # 角色档案导出
 ```
 
-当前长期数据：
+- API key 用 Electron `safeStorage` 加密后存库，不落明文。
+- 完整备份默认排除密钥密文。
+- 所有网络请求都由你自己的 profile 配置发起，项目本身不上报任何数据。
+- 只读查看：见 [docs/local-data-and-secrets.md](docs/local-data-and-secrets.md)。
 
-- `app.db`
-- `assets/`
-- `backups/`
-- `exports/`
+## 文档
 
-Phase 1 JSON 文件（`config.json`、`chat-history.json`、`api-profiles.json`）现在只作为迁移输入和保留备份。Electron 下 API key 会优先使用 `safeStorage` 加密；完整备份默认排除 API key 密文。
+**使用**
 
-详见 [docs/local-data-and-secrets.md](docs/local-data-and-secrets.md)。
+- [persona pack 契约](docs/PERSONA.md) — 人格怎么定义、有哪些变量
+- [插件配置](docs/PLUGIN-SETUP.md) — 每个插件的字段、命令、验证、排错
+- [测试怎么跑](docs/TESTING.md)
+- [数据落盘与密钥](docs/local-data-and-secrets.md)
+- [示例模板](examples/README.md)
 
-## Phase 2 实现
+**设计**
 
-Phase 2 围绕这些决策实现：
+- [项目背景与路线](docs/PROJECT-BACKGROUND-AND-ROADMAP.md)
+- [架构与核心决策](docs/HANDOVER.md)
+- [在场感设计](docs/DESKTOP-PRESENCE.md)
+- [桌面形象与 Live2D](docs/LIVE2D.md)
+- [插件系统](docs/PLUGINS.md)
+- [主动性](docs/INITIATIVE.md)
+- [语音与 TTS](docs/TTS.md) · [本地语音](docs/LOCAL-VOICE.md) · [交互端口](docs/INTERACTION-PORT.md)
 
-- SQLite-first、Electron-first，使用 `better-sqlite3` 打长期可靠数据底座。
-- 每个角色默认只有一条主聊天时间线。
-- 角色像联系人，不是剧情卡存档。
-- 会话总结负责承接长对话。
-- 结构化记忆记录重要事实、偏好、状态变化和共同经历。
-- 自动总结和记忆抽取直接入库，不用每次弹窗确认。
-- 用户可以查看、编辑、禁用、置顶、手动新增记忆。
-- 可配置全局记忆/总结 API profile，默认跟随当前聊天模型。
-- 聊天、总结、抽取 prompt 是内部产品逻辑，不作为用户可编辑设置暴露。
-- 支持此间内部角色档案导入导出。
-- 全量备份/恢复导出 zip，包含 `manifest.json`、`app.db` 和 `assets/`。
-- SillyTavern 只作为实现参考，不作为 Phase 2 兼容目标。
+**其他**
 
-完整设计见：
+- [贡献指南](CONTRIBUTING.md)
+- [内部记录](docs/internal/README.md) — 阶段进度与自检报告，会过期
 
-- [Phase 2 设计文档](docs/superpowers/specs/2026-06-19-phase2-personality-relationship-memory-assets-design.md)
-- [项目背景与路线图](docs/PROJECT-BACKGROUND-AND-ROADMAP.md)
-- [交接文档](docs/HANDOVER.md)
-- [Phase 3 交接文档](docs/PHASE3-HANDOVER.md)
+## 许可
 
-## 项目结构
-
-```text
-electron/
-  main.ts
-  preload.ts
-src/
-  components/
-    Chat/
-    Memory/
-    Settings/
-  services/
-    phase2/
-    llm/
-    storage/
-    config/
-  stores/
-docs/
-```
-
-## 路线图
-
-- **Phase 1：私人 IM MVP**，已完成。
-- **Phase 2：人格、关系、记忆与角色资产**，包括 SQLite 数据底座、单角色单主时间线、记忆管理、角色档案导入导出、备份恢复；基本收尾。
-- **Phase 3：角色存在感与视频聊天方向**，包括展示状态、表情资产、Live2D 或等价动态形象、状态管线和可选语音。
-- **Phase 4+：功能池**，包括正式打包、移动端评估、可控主动聊天、工具调用、同步/备份、插件等。
-
-## 许可证
-
-MIT
+MIT，见 [LICENSE](LICENSE)。

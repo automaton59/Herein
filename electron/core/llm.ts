@@ -7,6 +7,7 @@ export interface LlmConfig {
   model: string;
   temperature?: number;
   maxTokens?: number;
+  chatTemplateKwargs?: Record<string, unknown>;
 }
 
 export interface LlmMessage {
@@ -107,51 +108,79 @@ export async function chatCompletion(
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 60_000);
 
   try {
-    const response = await fetchImpl(url, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${config.apiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: options.temperature ?? config.temperature ?? 0.8,
-        max_tokens: options.maxTokens ?? config.maxTokens ?? 256,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
-    const text = await response.text();
+    const requested = options.maxTokens ?? config.maxTokens ?? 256;
+    const attempts = Array.from(new Set([
+      requested,
+      Math.min(4096, Math.max(2048, requested * 4)),
+    ]));
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      throw new Error(`LLM HTTP ${response.status}: ${text.slice(0, 500)}`);
+    for (const maxTokens of attempts) {
+      const response = await fetchImpl(url, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${config.apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages,
+          temperature: options.temperature ?? config.temperature ?? 0.8,
+          max_tokens: maxTokens,
+          stream: false,
+          ...(config.chatTemplateKwargs
+            ? { chat_template_kwargs: config.chatTemplateKwargs }
+            : {}),
+        }),
+        signal: controller.signal,
+      });
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new Error(`LLM HTTP ${response.status}: ${text.slice(0, 500)}`);
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text) as unknown;
+      } catch {
+        throw new Error(`LLM returned non-JSON response: ${text.slice(0, 300)}`);
+      }
+
+      if (!isRecord(parsed) || !Array.isArray(parsed.choices) || !isRecord(parsed.choices[0])) {
+        throw new Error('LLM response is missing choices[0]');
+      }
+
+      const choice = parsed.choices[0];
+      const message = choice.message;
+
+      if (isRecord(message) && typeof message.content === 'string' && message.content.trim()) {
+        const content = message.content
+          .replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, '')
+          .trim();
+
+        if (content) {
+          return {
+            content,
+            model: typeof parsed.model === 'string' ? parsed.model : config.model,
+            usage: usageFrom(parsed.usage),
+            latencyMs: Date.now() - started,
+          };
+        }
+      }
+
+      // Reasoning models can spend the whole budget in reasoning_content and
+      // return content: null / "". Retry once with a budget that leaves room
+      // for the visible answer.
+      const reasoning = isRecord(message) && typeof message.reasoning_content === 'string';
+      lastError = new Error(
+        reasoning
+          ? 'LLM used its whole token budget on reasoning before answering'
+          : 'LLM response is missing choices[0].message.content',
+      );
     }
 
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text) as unknown;
-    } catch {
-      throw new Error(`LLM returned non-JSON response: ${text.slice(0, 300)}`);
-    }
-
-    if (!isRecord(parsed) || !Array.isArray(parsed.choices) || !isRecord(parsed.choices[0])) {
-      throw new Error('LLM response is missing choices[0]');
-    }
-
-    const choice = parsed.choices[0];
-    const message = choice.message;
-
-    if (!isRecord(message) || typeof message.content !== 'string') {
-      throw new Error('LLM response is missing choices[0].message.content');
-    }
-
-    return {
-      content: message.content,
-      model: typeof parsed.model === 'string' ? parsed.model : config.model,
-      usage: usageFrom(parsed.usage),
-      latencyMs: Date.now() - started,
-    };
+    throw lastError ?? new Error('LLM response is empty');
   } finally {
     clearTimeout(timeout);
   }

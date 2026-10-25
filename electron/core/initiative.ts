@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { createPhase2Repositories, MessageRecord } from '../data/repositories';
+import type {
+  CharacterRecord,
+  createPhase2Repositories,
+  MessageRecord,
+} from '../data/repositories';
+import type { CompiledPersona } from '../persona/compiler';
 import type { CoreEventBus } from './eventBus';
 import {
   chatCompletion,
@@ -18,23 +23,31 @@ export interface InitiativePolicy {
   enabled: boolean;
   quietHours: InitiativeQuietHours;
   dailyLimit: number;
+  attentionBudget: number;
   cooldownMs: number;
   minIdleMs: number;
 }
 
 export const DEFAULT_INITIATIVE_POLICY: InitiativePolicy = {
   enabled: true,
-  quietHours: { start: '23:30', end: '08:00' },
+  quietHours: { start: '01:30', end: '08:00' },
   dailyLimit: 3,
+  attentionBudget: 10,
   cooldownMs: 90 * 60 * 1000,
   minIdleMs: 20 * 60 * 1000,
 };
+
+export interface InitiativeMaterialProvider {
+  hasFresh: (maxAgeMs?: number) => boolean;
+  block: (limit?: number, maxAgeMs?: number) => string;
+}
 
 export interface InitiativeGateInput {
   now: Date;
   messages: MessageRecord[];
   policy: InitiativePolicy;
   hasMaterial: boolean;
+  attentionSpent?: number;
 }
 
 export interface InitiativeGateResult {
@@ -62,6 +75,8 @@ export interface InitiativeEngineOptions {
   fetchImpl?: typeof fetch;
   policy?: Partial<InitiativePolicy>;
   now?: () => Date;
+  materials?: InitiativeMaterialProvider;
+  personaFor?: (characterId: string) => CompiledPersona | null | undefined;
   notify?: (message: string) => Promise<void> | void;
   onSpoken?: (message: string) => Promise<void> | void;
   logger?: {
@@ -74,6 +89,7 @@ export interface InitiativeSchedulerOptions {
   engine: Pick<InitiativeEngine, 'run'>;
   getCharacterId: () => string | null;
   intervalMs?: number;
+  startDelayMs?: number;
   onResult?: (result: InitiativeRunResult) => void;
   logger?: {
     warn?: (message: string, detail?: unknown) => void;
@@ -83,6 +99,7 @@ export interface InitiativeSchedulerOptions {
 export class InitiativeScheduler {
   private readonly options: InitiativeSchedulerOptions;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private startTimer: ReturnType<typeof setTimeout> | null = null;
   private ticking = false;
 
   constructor(options: InitiativeSchedulerOptions) {
@@ -94,7 +111,15 @@ export class InitiativeScheduler {
       return;
     }
 
-    const interval = this.options.intervalMs ?? 30 * 60 * 1000;
+    const interval = this.options.intervalMs ?? 10 * 60 * 1000;
+    const startDelay = this.options.startDelayMs ?? 5000;
+
+    this.startTimer = setTimeout(() => {
+      this.startTimer = null;
+      void this.tick();
+    }, startDelay);
+    this.startTimer.unref?.();
+
     this.timer = setInterval(() => {
       void this.tick();
     }, interval);
@@ -102,6 +127,11 @@ export class InitiativeScheduler {
   }
 
   stop() {
+    if (this.startTimer) {
+      clearTimeout(this.startTimer);
+      this.startTimer = null;
+    }
+
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
@@ -205,6 +235,10 @@ export function evaluateInitiativeGate(input: InitiativeGateInput): InitiativeGa
     return { ...base, allowed: false, reason: 'daily limit reached' };
   }
 
+  if ((input.attentionSpent ?? 0) >= policy.attentionBudget) {
+    return { ...base, allowed: false, reason: 'attention budget reached' };
+  }
+
   if (lastProactiveAt) {
     const elapsed = now.getTime() - new Date(lastProactiveAt).getTime();
 
@@ -228,11 +262,37 @@ export function evaluateInitiativeGate(input: InitiativeGateInput): InitiativeGa
   return { ...base, allowed: true, reason: 'allowed' };
 }
 
+function buildPersonaBlock(
+  character: CharacterRecord,
+  persona: CompiledPersona | null,
+): string {
+  if (persona) {
+    return [
+      persona.identity,
+      persona.relationship,
+      character.speakingStyle && `说话方式：\n${character.speakingStyle}`,
+    ].filter(Boolean).join('\n\n');
+  }
+
+  return [
+    `你是${character.name}。`,
+    character.description,
+    character.personalityCore && `人格：${character.personalityCore}`,
+    character.speakingStyle && `说话方式：${character.speakingStyle}`,
+    character.valuesText && `价值观：${character.valuesText}`,
+    character.boundaries && `边界：${character.boundaries}`,
+  ].filter(Boolean).join('\n');
+}
+
 function buildInitiativePrompt(input: {
   now: Date;
+  character: CharacterRecord;
+  persona: CompiledPersona | null;
   messages: MessageRecord[];
   summary: string | null;
   experiences: Array<{ title: string; reaction: string; summary: string }>;
+  materialBlock: string;
+  openLoops: Array<{ text: string; createdAt: string }>;
 }) {
   const transcript = input.messages
     .slice(-16)
@@ -243,10 +303,27 @@ function buildInitiativePrompt(input: {
       .map(experience => `- ${experience.title}：${experience.reaction || experience.summary}`)
       .join('\n')
     : '- 无';
+  const lastAt = input.messages[input.messages.length - 1]?.timestamp;
+  const idleMinutes = lastAt && Number.isFinite(Date.parse(lastAt))
+    ? Math.max(0, Math.round((input.now.getTime() - Date.parse(lastAt)) / 60_000))
+    : null;
+  const localTime = new Intl.DateTimeFormat('zh-CN', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(input.now);
 
   return [
-    '你是“蓝蓝”的主动性层，不是聊天角色。你只判断“现在是否值得主动发一条消息”，以及发什么。',
-    `现在：${input.now.toISOString()}`,
+    '你在替她判断“现在是否值得主动发一条消息”，以及发什么。下面的身份、关系和说话方式是她本人的；你写出的消息必须是她会亲手发的那种，不是通用助手的播报。',
+    '',
+    '【你是谁】',
+    buildPersonaBlock(input.character, input.persona),
+    '',
+    '【现在】',
+    `现在：${input.now.toISOString()}（当地 ${localTime}）`,
+    idleMinutes === null ? '' : `距上次对话：${idleMinutes} 分钟`,
     '',
     '最近对话：',
     transcript || '（空）',
@@ -257,11 +334,26 @@ function buildInitiativePrompt(input: {
     '她自己的生活/最近经历：',
     experiences,
     '',
+    '她最近看到的（系统刚替她查的，不是用户说的）：',
+    input.materialBlock || '（无）',
+    '',
+    '没接住的线头：',
+    input.openLoops.length
+      ? input.openLoops.map(loop => `- ${loop.text}（${loop.createdAt.slice(0, 10)}）`).join('\n')
+      : '（无）',
+    '',
     '规则：',
-    '- 默认不说。只有具体时机、未收尾的承接、她自己的经历值得分享时才说。',
-    '- 不要“在吗”“干嘛呢”这类索取注意力的句子；不要催促回复；不要客服式关心。',
-    '- 一条短消息，1–2 句，像随手发来的。',
-    '- 如果用户刚说过话、在忙、在难过但不需要打扰，或没有新内容，就不说。',
+    '- 默认不说。只有具体时机、未收尾的承接、她自己的经历或念头值得分享时才说。',
+    '- 如果有线头且已经过了至少半天，优先承接；同一个线头不要反复提。',
+    '- 如果距上次对话超过 4 小时，且有具体材料，可以主动说一条；优先承接上次没说完的事。',
+    '- 如果“她最近看到的”里有具体内容，就挑一条说具体的，不要泛泛说“看到一个视频/听到一首歌”。',
+    '- 也可以只是单纯想说话：不用等插件材料，给一个具体的、低风险的由头（刚在做什么、突然想到什么、刚才遇到的小事）。不要为了起头编造可验证的现实事件。',
+    '- 不要把“想说话”写成索取注意力：不用“在”“在吗”“干嘛呢”“理理我”这类单字或试探句。',
+    '- 不要在消息里播报列表；一次只挑一条。',
+    '- 不要催促回复；不要客服式关心；不要内疚话术。',
+    '- 主动消息优先用陈述句，给对方留不回复的空间；问句最多三成。',
+    '- 一条短消息，1–2 句，像随手发来的；用她自己的语气，不要变成播报或客服。',
+    '- 如果用户刚说过话、在忙、在难过但不需要打扰，或确实没有具体内容，就不说。',
     '',
     '只返回一个 JSON 对象，不要 markdown：',
     '{"shouldSpeak":true|false,"reason":"一句话原因","message":"要发的话，不说就空字符串"}',
@@ -269,10 +361,18 @@ function buildInitiativePrompt(input: {
 }
 
 function parseDecision(raw: string): { shouldSpeak: boolean; reason: string; message: string } | null {
+  const trimmed = raw.trim();
+  const unfenced = trimmed
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+  const start = unfenced.indexOf('{');
+  const end = unfenced.lastIndexOf('}');
+  const candidate = start >= 0 && end > start ? unfenced.slice(start, end + 1) : unfenced;
   let parsed: unknown;
 
   try {
-    parsed = JSON.parse(raw) as unknown;
+    parsed = JSON.parse(candidate) as unknown;
   } catch {
     return null;
   }
@@ -303,6 +403,8 @@ export class InitiativeEngine {
   private readonly fetchImpl: typeof fetch;
   private readonly policy: InitiativePolicy;
   private readonly now: () => Date;
+  private readonly materials?: InitiativeMaterialProvider;
+  private readonly personaFor?: InitiativeEngineOptions['personaFor'];
   private readonly notify?: InitiativeEngineOptions['notify'];
   private readonly onSpoken?: InitiativeEngineOptions['onSpoken'];
   private readonly logger: InitiativeEngineOptions['logger'];
@@ -314,6 +416,8 @@ export class InitiativeEngine {
     this.llmConfigPath = options.llmConfigPath;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.now = options.now ?? (() => new Date());
+    this.materials = options.materials;
+    this.personaFor = options.personaFor;
     this.notify = options.notify;
     this.onSpoken = options.onSpoken;
     this.policy = {
@@ -342,14 +446,35 @@ export class InitiativeEngine {
       }
 
       const now = this.now();
+      const persona = this.personaFor?.(input.characterId) ?? null;
       const messages = this.repos.messages.listRecent(timeline.id, 200);
+
+      if (messages.length === 0) {
+        return { status: 'skipped', reason: 'no conversation yet' };
+      }
+
       const summary = this.repos.summaries.getByTimeline(timeline.id);
       const experiences = this.repos.experiences.listRecent(5);
+      const openLoops = this.repos.openLoops.listOpen(input.characterId, 5);
+      const materialBlock = this.materials?.block(6) ?? '';
+      this.repos.initiativeBids.markStaleIgnored(input.characterId);
+      const recentBids = this.repos.initiativeBids.listRecent(input.characterId, 30);
+      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const spent = recentBids
+        .filter(bid => bid.createdAt >= dayStart && bid.status === 'sent')
+        .reduce((sum, bid) => sum + (bid.channel === 'text' ? 2 : bid.channel === 'voice' ? 4 : bid.channel === 'push' ? 3 : 0), 0);
+      const recentIgnored = recentBids.filter(bid => bid.outcome === 'ignored').slice(0, 3).length;
+
+      if (recentIgnored >= 3) {
+        return { status: 'skipped', reason: 'recent proactive messages were ignored' };
+      }
+
       const gate = evaluateInitiativeGate({
         now,
         messages,
         policy: this.policy,
-        hasMaterial: messages.length > 0 || experiences.length > 0,
+        hasMaterial: messages.length > 0 || experiences.length > 0 || Boolean(materialBlock),
+        attentionSpent: spent,
       });
 
       if (!gate.allowed) {
@@ -368,12 +493,19 @@ export class InitiativeEngine {
           role: 'user',
           content: buildInitiativePrompt({
             now,
+            character,
+            persona,
             messages,
             summary: summary?.content ?? null,
             experiences: experiences.map(experience => ({
               title: experience.title,
               reaction: experience.reaction,
               summary: experience.summary,
+            })),
+            materialBlock,
+            openLoops: openLoops.map(loop => ({
+              text: loop.text,
+              createdAt: loop.createdAt,
             })),
           }),
         }],
@@ -406,6 +538,16 @@ export class InitiativeEngine {
       };
 
       this.repos.messages.append(message);
+      this.repos.initiativeBids.create({
+        id: `bid_${randomUUID()}`,
+        characterId: input.characterId,
+        timelineId: timeline.id,
+        kind: openLoops.length > 0 ? 'continuation' : materialBlock ? 'share' : 'idle_thought',
+        channel: 'text',
+        score: 1,
+        status: 'sent',
+        createdAt: timestamp,
+      });
       this.events.publish('assistant.proactive', {
         characterId: input.characterId,
         timelineId: timeline.id,

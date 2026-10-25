@@ -1,4 +1,34 @@
 // Core message type
+export interface MessageBubble {
+  text: string;
+  delayMs?: number;
+}
+
+export interface MessageSticker {
+  id: string;
+  name: string;
+  /** Core-relative asset path, e.g. `/assets/stickers/开心/a.webp`. */
+  url: string;
+  pack?: string;
+  emotion?: string;
+}
+
+/**
+ * A video/song card attached to a reply. `url` is an external share link that
+ * must be opened in the user's browser (via hereinShell) — never loaded as an
+ * <img>/<iframe> source, and never fetched eagerly (remote cover images are
+ * deliberately not rendered, matching the sticker privacy rule).
+ */
+export interface MessageMaterial {
+  id: string;
+  kind: 'video' | 'song';
+  source: 'bilibili' | 'netease';
+  title: string;
+  creator: string | null;
+  url: string | null;
+  coverUrl: string | null;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -6,8 +36,12 @@ export interface Message {
   timestamp: Date;
   emotion?: string;
   voiceInstruct?: string;
+  sticker?: MessageSticker | null;
+  material?: MessageMaterial | null;
   reasoning?: string;
   status?: 'pending' | 'sent' | 'failed';
+  readAt?: Date;
+  bubbles?: MessageBubble[];
 }
 
 export interface Conversation {
@@ -41,7 +75,10 @@ export interface ChatResponse {
   content: string;
   emotion?: string;
   voiceInstruct?: string;
+  sticker?: MessageSticker | null;
+  material?: MessageMaterial | null;
   reasoning?: string;
+  bubbles?: MessageBubble[];
   usage?: {
     promptTokens: number;
     completionTokens: number;
@@ -160,4 +197,6 @@ export interface AppConfig {
   memoryProfileMode: 'follow-chat' | 'custom';
   memoryProfileId?: string | null;
   summaryTriggerMessageCount: number;
+  /** False after the user presses 「断开」 in the API settings. */
+  connectionAuto?: boolean;
 }

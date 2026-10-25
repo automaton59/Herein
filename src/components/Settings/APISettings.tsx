@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Plus, RefreshCw, Save, Trash2, Wifi } from 'lucide-react';
+import { Eye, EyeOff, PlugZap, Plus, RefreshCw, Save, Trash2, Unplug, Wifi } from 'lucide-react';
 import { useSettingsStore } from '../../stores/settings';
 import type { LLMConfig, LLMModelInfo } from '../../services/interfaces';
 import { resolveLLMBaseURL } from '../../services/llm/endpoints';
@@ -89,12 +89,15 @@ export function APISettings() {
     activeProfileId,
     isConfigured,
     connectionStatus,
+    connectionAuto,
     lastConnectionError,
     updateLLMConfig,
     createAPIProfile,
     selectAPIProfile,
     deleteAPIProfile,
     checkConnection,
+    connectConnection,
+    disconnectConnection,
   } = useSettingsStore();
 
   const activeProfile = useMemo(
@@ -106,6 +109,7 @@ export function APISettings() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [models, setModels] = useState<LLMModelInfo[]>([]);
@@ -198,6 +202,34 @@ export function APISettings() {
     }
   };
 
+  const handleToggleConnection = async () => {
+    if (connectionStatus === 'online') {
+      disconnectConnection();
+      setFeedback({ type: 'warning', message: '已断开连接，后台不会自动重连；发送消息前点「连接」恢复。' });
+      return;
+    }
+
+    const errors = validateConfig(localConfig);
+
+    if (errors.length > 0) {
+      setFeedback({ type: 'error', message: errors.join('；') });
+      return;
+    }
+
+    setIsConnecting(true);
+    setFeedback(null);
+
+    try {
+      await updateLLMConfig(normalizeConfig(localConfig), profileName);
+      const ok = await connectConnection();
+      setFeedback(ok
+        ? { type: 'success', message: '已连接' }
+        : { type: 'error', message: '连接失败，请检查 Key、Base URL 和模型' });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const handleTest = async () => {
     const errors = validateConfig(localConfig);
 
@@ -235,12 +267,14 @@ export function APISettings() {
   };
 
   return (
-    <section className="rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
+    <section className="settings-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">API 设置</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {isConfigured ? `当前状态：${getStatusLabel(connectionStatus)}` : '请先补全 API 配置'}
+          <h2 className="settings-title">API 设置</h2>
+          <p className="settings-sub">
+            {isConfigured
+              ? `当前状态：${getStatusLabel(connectionStatus)}${connectionAuto ? '' : '（已手动断开，不会自动重连）'}`
+              : '请先补全 API 配置'}
           </p>
           {lastConnectionError && (
             <p className="mt-1 line-clamp-2 text-xs text-red-500 dark:text-red-300">{lastConnectionError}</p>
@@ -280,11 +314,12 @@ export function APISettings() {
         </div>
       )}
 
-      <div className="mt-5 grid gap-4">
+      <div className="mt-5 grid max-w-[720px] gap-4">
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">API Profile</span>
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <SelectMenu
+              className="min-w-[240px] flex-1"
               value={activeProfileId || ''}
               onChange={(nextProfileId) => void selectAPIProfile(nextProfileId)}
               options={apiProfiles.map((profile) => ({
@@ -296,18 +331,18 @@ export function APISettings() {
             <button
               type="button"
               onClick={handleCreateProfile}
-              className="inline-flex h-11 items-center gap-1 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
+              className="inline-flex h-10 items-center gap-1 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] px-3 text-[12.5px] font-semibold text-[#41495C] hover:bg-[#F1F2F9] dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
             >
-              <Plus size={16} />
+              <Plus size={15} />
               新建
             </button>
             <button
               type="button"
               onClick={handleDeleteProfile}
               disabled={apiProfiles.length <= 1}
-              className="inline-flex h-11 items-center gap-1 rounded-xl border border-red-100 bg-white px-3 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300 dark:border-red-400/20 dark:bg-white/5 dark:text-red-300 dark:hover:bg-red-500/10 dark:disabled:border-white/10 dark:disabled:text-slate-600"
+              className="inline-flex h-10 items-center gap-1 rounded-lg border border-red-100 bg-[#FFFFFF] px-3 text-[12.5px] font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300 dark:border-red-400/20 dark:bg-white/5 dark:text-red-300 dark:hover:bg-red-500/10 dark:disabled:border-white/10 dark:disabled:text-slate-600"
             >
-              <Trash2 size={16} />
+              <Trash2 size={15} />
               删除
             </button>
           </div>
@@ -336,7 +371,7 @@ export function APISettings() {
 
         <label className="grid gap-1.5">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">API Key</span>
-          <div className="flex min-w-0 rounded-xl border border-sky-100 bg-white focus-within:border-sky-300 focus-within:ring-2 focus-within:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:focus-within:border-sky-300/60 dark:focus-within:ring-sky-300/10">
+          <div className="field-group flex min-w-0 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] dark:border-white/10 dark:bg-white/5">
             <input
               type={showKey ? 'text' : 'password'}
               value={localConfig.apiKey}
@@ -346,7 +381,7 @@ export function APISettings() {
               }}
               placeholder="sk-..."
               spellCheck={false}
-              className="min-w-0 flex-1 rounded-l-xl bg-transparent px-3 py-2 text-slate-950 outline-none dark:text-sky-50"
+              className="min-w-0 flex-1 rounded-l-lg bg-transparent px-3 py-2 text-slate-950 outline-none dark:text-sky-50"
             />
             <button
               type="button"
@@ -379,14 +414,14 @@ export function APISettings() {
                 value={localConfig.model}
                 onChange={(event) => setLocalConfig({ ...localConfig, model: event.target.value })}
                 placeholder="先获取模型，或手动输入模型 id"
-                className="h-11 min-w-0 flex-1 rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:placeholder:text-slate-500 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
+                className="field min-w-0 flex-1"
               />
             )}
             <button
               type="button"
               onClick={handleLoadModels}
               disabled={isLoadingModels}
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-4 font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] px-3 text-[12.5px] font-semibold text-[#41495C] hover:bg-[#F1F2F9] disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
             >
               <RefreshCw size={16} className={isLoadingModels ? 'animate-spin' : ''} />
               {isLoadingModels ? '获取中' : '获取模型'}
@@ -409,26 +444,40 @@ export function APISettings() {
                 setModels([]);
               }}
               placeholder="https://api.example.com/v1"
-              className="h-11 w-full rounded-xl border border-sky-100 px-3 text-slate-950 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:placeholder:text-slate-500 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10"
+              className="field"
             />
           </label>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <button
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 font-medium text-white shadow-sm shadow-sky-200 hover:bg-sky-800 disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#3B4474] px-4 text-[12.5px] font-semibold text-[#FFFFFF] hover:bg-[#323962] disabled:cursor-not-allowed disabled:bg-slate-300 dark:bg-[#7C8FD0] dark:text-[#0B1020] dark:hover:bg-[#9CA3D4] dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
           >
             <Save size={17} />
             {isSaving ? '保存中' : '保存 Profile'}
           </button>
           <button
             type="button"
+            onClick={() => void handleToggleConnection()}
+            disabled={isConnecting || connectionStatus === 'checking'}
+            aria-label={connectionStatus === 'online' ? '断开连接' : '连接 API'}
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border px-4 text-[12.5px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              connectionStatus === 'online'
+                ? 'border-[#F3D2D2] bg-[#FFF7F7] text-[#B23B3B] hover:bg-[#FDECEC] dark:border-rose-400/20 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/20'
+                : 'border-[#C9D3EE] bg-[#F4F7FF] text-[#3B4474] hover:bg-[#E9EFFC] dark:border-sky-400/20 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/20'
+            }`}
+          >
+            {connectionStatus === 'online' ? <Unplug size={17} /> : <PlugZap size={17} />}
+            {isConnecting ? '连接中' : connectionStatus === 'online' ? '断开' : '连接'}
+          </button>
+          <button
+            type="button"
             onClick={handleTest}
             disabled={isTesting}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-sky-100 bg-white px-4 font-medium text-slate-700 hover:bg-sky-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#E6E5F0] bg-[#FFFFFF] px-4 text-[12.5px] font-semibold text-[#41495C] hover:bg-[#F1F2F9] disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10 dark:disabled:text-slate-600"
           >
             <Wifi size={17} />
             {isTesting ? '测试中' : '测试连接'}

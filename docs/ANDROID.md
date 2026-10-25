@@ -68,8 +68,10 @@ npm run core:serve
 3. 打开 APP，填：
 
 ```text
-http://192.168.1.3:8787
+http://<电脑的局域网 IP>:8787
 ```
+
+在 PC 上 `ipconfig` 查 IPv4 地址，例如 `192.168.1.10`。
 
 4. Token 填 `HEREIN_CORE_TOKEN`；如果 Core 只绑 `127.0.0.1`，手机连不上，必须绑 `0.0.0.0`。
 5. Windows 防火墙要放行 8787（如果当前网络是 Public）。

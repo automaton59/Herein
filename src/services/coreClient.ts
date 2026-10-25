@@ -4,6 +4,24 @@ export interface CoreClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+export interface CoreSticker {
+  id: string;
+  name: string;
+  url: string;
+  pack?: string;
+  emotion?: string;
+}
+
+export interface CoreMaterial {
+  id: string;
+  kind: 'video' | 'song';
+  source: 'bilibili' | 'netease';
+  title: string;
+  creator: string | null;
+  url: string | null;
+  coverUrl: string | null;
+}
+
 export interface CoreTimelineMessage {
   id: string;
   timelineId: string;
@@ -12,6 +30,8 @@ export interface CoreTimelineMessage {
   timestamp: string;
   emotion?: string | null;
   voiceInstruct?: string | null;
+  sticker?: CoreSticker | null;
+  material?: CoreMaterial | null;
   status?: string | null;
 }
 
@@ -21,18 +41,34 @@ export interface CoreTimeline {
   title: string;
 }
 
+export interface CoreReplyBubble {
+  text: string;
+  delayMs?: number;
+}
+
 export interface CoreChatResult {
-  message: {
+  message?: {
+    id?: string;
     role: 'assistant';
     content: string;
+    emotion?: string | null;
+    voiceInstruct?: string | null;
+    sticker?: CoreSticker | null;
+    material?: CoreMaterial | null;
+    bubbles?: CoreReplyBubble[];
+  } | null;
+  silent?: boolean;
+  presence?: {
+    emotion?: string | null;
+    notice?: string | null;
   };
-  model: string;
+  model?: string;
   usage?: {
     promptTokens?: number;
     completionTokens?: number;
     totalTokens?: number;
   };
-  latencyMs: number;
+  latencyMs?: number;
   persisted: boolean;
   timelineId: string;
 }
@@ -91,6 +127,10 @@ export interface CorePluginManifest {
     value?: string;
     reason?: string;
   }>;
+  /** Short manual-setup instructions rendered above the config fields. */
+  setup?: string;
+  /** Link to this plugin's section in the setup docs (http(s) or repo-relative). */
+  helpUrl?: string;
   configSchema?: {
     type: 'object';
     properties: Record<string, {
@@ -101,6 +141,10 @@ export interface CorePluginManifest {
       enum?: Array<string | number>;
       minimum?: number;
       maximum?: number;
+      placeholder?: string;
+      format?: 'text' | 'password' | 'url' | 'path' | 'directory';
+      examples?: string[];
+      helpUrl?: string;
     }>;
     required?: string[];
     additionalProperties?: boolean;
@@ -158,49 +202,6 @@ export interface CoreInitiativeResult {
   error?: string;
 }
 
-export interface CoreAgentHealth {
-  status: 'ok' | 'degraded' | 'failed' | 'unknown';
-  message?: string;
-  checkedAt: string;
-}
-
-export interface CoreAgentProvider {
-  id: string;
-  name: string;
-  health: CoreAgentHealth;
-}
-
-export interface CoreAgentCapability {
-  providerId: string;
-  id: string;
-  name: string;
-  version: string;
-  description?: string;
-  permissions: Array<{
-    kind: 'network' | 'credentials' | 'send' | 'install' | 'filesystem';
-    value?: string;
-    reason?: string;
-  }>;
-  health: CoreAgentHealth;
-  installed?: boolean;
-  enabled?: boolean;
-  lifecycle?: 'managed' | 'external';
-  actions?: string[];
-  inputSchema?: unknown;
-}
-
-export interface CoreAgentList {
-  providers: CoreAgentProvider[];
-  capabilities: CoreAgentCapability[];
-}
-
-export interface CoreAgentOperation {
-  providerId: string;
-  capabilityId: string;
-  status: 'applied' | 'restart-required' | 'failed';
-  message?: string;
-  detail?: Record<string, unknown>;
-}
 
 export class CoreHttpError extends Error {
   readonly status: number;
@@ -220,7 +221,10 @@ export class CoreClient {
   constructor(options: CoreClientOptions) {
     this.baseUrl = options.baseUrl.trim().replace(/\/+$/, '');
     this.token = options.token?.trim() ?? '';
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    // Bind the platform fetch to its global receiver. Calling an extracted
+    // `window.fetch` as a method (this.fetchImpl(...)) makes Chromium throw
+    // "Failed to execute 'fetch' on 'Window': Illegal invocation".
+    this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
 
     if (!this.baseUrl) {
       throw new Error('Core base URL is required');
@@ -254,6 +258,12 @@ export class CoreClient {
     messages: CoreTimelineMessage[];
   }> {
     return this.request(`/v1/timeline/${encodeURIComponent(characterId)}/messages?limit=${limit}`);
+  }
+
+  clearTimeline(characterId: string): Promise<{ ok: boolean; deleted: number }> {
+    return this.request(`/v1/timeline/${encodeURIComponent(characterId)}/messages`, {
+      method: 'DELETE',
+    });
   }
 
   syncMessages(
@@ -291,14 +301,17 @@ export class CoreClient {
   chat(
     characterId: string,
     messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>,
-    options: { maxTokens?: number; temperature?: number; persist?: boolean } = {},
+    options: { maxTokens?: number; temperature?: number; persist?: boolean; signal?: AbortSignal } = {},
   ): Promise<CoreChatResult> {
     return this.request('/v1/chat', {
       method: 'POST',
+      signal: options.signal,
       body: JSON.stringify({
         characterId,
         messages,
-        ...options,
+        maxTokens: options.maxTokens,
+        temperature: options.temperature,
+        persist: options.persist,
       }),
     });
   }
@@ -365,6 +378,13 @@ export class CoreClient {
     });
   }
 
+  checkPluginHealth(id: string): Promise<{ plugin: CorePluginView }> {
+    return this.request(`/v1/plugins/${encodeURIComponent(id)}/health`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
   invokePlugin<T = unknown>(
     id: string,
     action: string,
@@ -415,54 +435,4 @@ export class CoreClient {
     });
   }
 
-  listAgents(): Promise<CoreAgentList> {
-    return this.request('/v1/agents');
-  }
-
-  installAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
-    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/install`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-  }
-
-  enableAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
-    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/enable`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-  }
-
-  disableAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
-    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/disable`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-  }
-
-  removeAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
-    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/remove`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-  }
-
-  rollbackAgent(providerId: string, capabilityId: string): Promise<CoreAgentOperation> {
-    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/rollback`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
-  }
-
-  invokeAgent<T = unknown>(
-    providerId: string,
-    capabilityId: string,
-    action: string,
-    input?: unknown,
-  ): Promise<{ result: T }> {
-    return this.request(`/v1/agents/${encodeURIComponent(providerId)}/${encodeURIComponent(capabilityId)}/invoke`, {
-      method: 'POST',
-      body: JSON.stringify({ action, input }),
-    });
-  }
 }

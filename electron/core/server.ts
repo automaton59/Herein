@@ -8,9 +8,12 @@ import { openPhase2Database, type Phase2Database } from '../data/database';
 import { migratePhase1JsonData } from '../data/migratePhase1';
 import {
   createPhase2Repositories,
+  type MessageMaterial,
   type MessageRecord,
+  type MessageSticker,
 } from '../data/repositories';
 import { buildCoreChatPrompt } from './chatContext';
+import { parseAssistantMetadata } from './assistantMeta';
 import { CoreEventBus, type CoreEvent } from './eventBus';
 import {
   chatCompletion,
@@ -20,36 +23,55 @@ import {
   type LlmMessage,
 } from './llm';
 import { buildCoreStatus } from './status';
-import { CoreMemoryRunner } from './memory';
+import { createMemoryStore } from '../data/memoryStore';
+import { MemoryRunner, recallMemory, extractExperiences } from '../memory';
+import {
+  compilePersona,
+  loadPersonaPacks,
+  resolvePersonaRoot,
+  seedPersonaPacks,
+  type PersonaPack,
+} from '../persona';
+import { applyLocalContent, loadLocalContent } from '../localContent';
 import { InitiativeEngine, InitiativeScheduler, type InitiativePolicy } from './initiative';
+import {
+  MaterialService,
+  materialShortId,
+  pickMaterialForReply,
+  type MaterialItem,
+} from './materials';
+import { parseAssistantReply } from './replyStyle';
+import { directTurn, type TurnDecision } from './turnDirector';
+import { affectPrompt, computeAffect } from './affect';
+import { extractOpenLoops } from './openLoops';
 import { InteractionDispatcher, HttpInteractionPort, AInteractionPort } from './interaction';
+import type { InteractionPort } from './interaction';
 import { AInteractionSession } from './aInteractionSession';
 import { VoiceConversation } from './voiceConversation';
 import { PluginRegistry } from '../plugins/registry';
 import { PluginError } from '../plugins/types';
-import { AgentProviderRegistry, type AgentProvider } from '../plugins/agentProvider';
-import { createDshAgentProvider } from '../plugins/dshProvider';
-import {
-  scanBilibiliFeed,
-  type BilibiliFeedSource,
-} from '../services/bilibiliActivity';
+import { createStickerPicker } from './stickers';
+import { createPluginEventSink, type PluginChannelMessage } from './pluginEvents';
+import { createQQReply } from '../services/qqResponder';
 import {
   recommendContent,
   type RecommendationGate,
 } from '../services/contentRecommender';
-import {
-  getNeteaseCandidates,
-  type NeteaseCandidateSource,
-} from '../services/neteaseCandidates';
 import { ProactiveShareScheduler } from '../services/proactiveShare';
 import { ntfyConfigFromEnv, publishNtfy, publishNtfyMessage } from '../services/ntfy';
-import { BILIBILI_MANIFEST, createBilibiliPlugin } from '../plugins/builtin/bilibili';
-import { NETEASE_MANIFEST, createNeteasePlugin } from '../plugins/builtin/netease';
-import { QQ_MANIFEST, createQQPlugin } from '../plugins/builtin/qq';
 
 export const CORE_SERVER_VERSION = '0.1.0';
 export const DEFAULT_CORE_HOST = '127.0.0.1';
 export const DEFAULT_CORE_PORT = 8787;
+
+/**
+ * A user message that smells like it is still inside a material conversation
+ * (follow-ups, link requests, "one more"). The intent regexes in
+ * MaterialService decide when to *refresh* plugins; this decides when to put
+ * the latest local material back in front of the character so follow-ups do not
+ * degenerate into invented titles.
+ */
+const MATERIAL_CONTEXT_HINT = /视频|B站|b站|哔哩|bilibili|音乐|歌|链接|地址|推|刷|翻/;
 
 export interface CoreServerOptions {
   host?: string;
@@ -57,6 +79,7 @@ export interface CoreServerOptions {
   dataDir?: string;
   dbPath?: string;
   assetsDir?: string;
+  assetDirs?: string[];
   pluginsDir?: string;
   pluginFetch?: typeof fetch;
   token?: string;
@@ -65,8 +88,13 @@ export interface CoreServerOptions {
   llmConfig?: LlmConfig;
   llmConfigPath?: string;
   llmFetch?: typeof fetch;
-  bilibiliSource?: BilibiliFeedSource;
-  neteaseSource?: NeteaseCandidateSource;
+  /**
+   * Application root for `ctx.loadModule()`; defaults to the process cwd. In a
+   * packaged build pass the app path (asar root) so bundled adapters resolve.
+   */
+  appRoot?: string;
+  /** Test seam: pre-loaded modules served by `ctx.loadModule()`. */
+  bundledModules?: Record<string, unknown>;
   contentPromptPath?: string;
   proactiveShare?: {
     enabled: boolean;
@@ -81,16 +109,17 @@ export interface CoreServerOptions {
     enabled?: boolean;
     triggerMessageCount?: number;
   };
+  experienceAuto?: boolean;
+  personaPacks?: ReadonlyMap<string, PersonaPack>;
+  seedPersonaPacks?: boolean;
   initiative?: Partial<InitiativePolicy>;
   initiativeAuto?: {
     enabled: boolean;
     intervalMs?: number;
   };
-  agentProviders?: AgentProvider[];
-  dsh?: {
-    url?: string;
-    token?: string;
-    fetchImpl?: typeof fetch;
+  materialsAuto?: {
+    enabled?: boolean;
+    intervalMs?: number;
   };
   relayUrl?: string;
   relayToken?: string;
@@ -103,9 +132,13 @@ export interface CoreServerOptions {
     fetchImpl?: typeof fetch;
     timeoutMs?: number;
   };
+  interactionPort?: InteractionPort;
   voice?: {
     enabled?: boolean;
     characterId?: string;
+    llmConfig?: LlmConfig;
+    llmConfigPath?: string;
+    maxTokens?: number;
   };
 }
 
@@ -208,7 +241,7 @@ function ensureDefaultCharacter(repos: ReturnType<typeof createPhase2Repositorie
     name: '新角色',
     description: '一个温柔、机敏、有点俏皮的 AI 女友。',
     scenario: '',
-    firstMessage: '我在。今天想从哪里聊起？',
+    firstMessage: '',
     systemPrompt: '',
     personalityCore: '温柔、机敏、有陪伴感。',
     speakingStyle: '自然、具体、轻松。',
@@ -217,7 +250,7 @@ function ensureDefaultCharacter(repos: ReturnType<typeof createPhase2Repositorie
   });
   repos.timelines.ensurePrimaryForCharacter('herein-default', '新角色');
   repos.settings.set('activeCharacterId', 'herein-default');
-  repos.settings.set('themeMode', 'system');
+  repos.settings.set('themeMode', 'light');
 }
 
 function stringParam(url: URL, name: string) {
@@ -269,6 +302,12 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   const assetsDir = path.resolve(
     options.assetsDir ?? process.env.HEREIN_ASSETS_DIR ?? path.join(dataDir, 'assets'),
   );
+  const assetDirs = [...new Set(
+    (options.assetDirs ?? [
+      assetsDir,
+      path.join(process.cwd(), 'private', 'assets'),
+    ]).map(dir => path.resolve(dir)),
+  )];
   const ttsUrl = (options.ttsUrl ?? process.env.HEREIN_TTS_URL ?? 'http://127.0.0.1:9881').replace(/\/+$/, '');
   const ttsFetch = options.ttsFetch ?? fetch;
 
@@ -283,7 +322,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   const interactionUrl = options.interaction?.url ?? process.env.HEREIN_INTERACTION_URL;
   const interactionEndpointFile = options.interaction?.endpointFile
     ?? process.env.HEREIN_INTERACTION_ENDPOINT;
-  const interactionPort = interactionEndpointFile
+  const interactionPort = options.interactionPort ?? (interactionEndpointFile
     ? new AInteractionPort({
       endpointFile: interactionEndpointFile,
       fetchImpl: options.interaction?.fetchImpl,
@@ -298,54 +337,96 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         fetchImpl: options.interaction?.fetchImpl,
         timeoutMs: options.interaction?.timeoutMs,
       })
-      : undefined;
-  const interactionConfigured = Boolean(interactionEndpointFile || interactionUrl);
+      : undefined);
+  const interactionConfigured = Boolean(options.interactionPort || interactionEndpointFile || interactionUrl);
   const interactionDispatcher = new InteractionDispatcher(interactionPort);
   const db: Phase2Database = openPhase2Database(dbPath);
   migratePhase1JsonData({ db, dataDir });
   const repos = createPhase2Repositories(db);
+  const memoryStore = createMemoryStore(db);
+  const personaPacks = options.personaPacks ?? new Map<string, PersonaPack>();
+
+  if (options.seedPersonaPacks && personaPacks.size > 0) {
+    seedPersonaPacks(repos, personaPacks);
+    const active = repos.settings.get<string>('activeCharacterId');
+
+    if (!active || !repos.characters.get(active)) {
+      const first = [...personaPacks.keys()][0];
+      repos.settings.set('activeCharacterId', first);
+    }
+  }
+
   ensureDefaultCharacter(repos);
+
+  const localContent = await loadLocalContent();
+
+  if (localContent) {
+    applyLocalContent(repos, localContent);
+  }
 
   const pluginsDir = path.resolve(
     options.pluginsDir ?? process.env.HEREIN_PLUGINS_DIR ?? path.join(process.cwd(), 'plugins'),
   );
+  const privatePluginsDir = path.resolve(
+    process.env.HEREIN_PRIVATE_PLUGINS_DIR ?? path.join(process.cwd(), 'private', 'plugins'),
+  );
   const pluginRegistry = new PluginRegistry({
     db,
-    pluginsDir,
+    pluginsDir: [pluginsDir, privatePluginsDir],
+    assetsDirs: assetDirs,
+    // The resolved dataDir, not options.dataDir: a standalone `core:serve`
+    // process gets it from HEREIN_DATA_DIR, and plugins rely on ctx.dataDir.
+    dataDir,
+    appRoot: options.appRoot ?? process.cwd(),
+    ...(options.bundledModules ? { bundledModules: options.bundledModules } : {}),
     fetchImpl: options.pluginFetch,
   });
-  pluginRegistry.registerBuiltin(BILIBILI_MANIFEST, () => createBilibiliPlugin({
-    repos,
-    source: options.bilibiliSource,
-  }));
-  pluginRegistry.registerBuiltin(NETEASE_MANIFEST, () => createNeteasePlugin({
-    source: options.neteaseSource,
-  }));
-  pluginRegistry.registerBuiltin(QQ_MANIFEST, () => createQQPlugin({
+
+  // The event sink is where plugin-originated data becomes durable. Plugins
+  // report observations and channel messages; the Core owns the database, the
+  // persona and the model — replies are generated here, not in the plugin.
+  const qqReply = createQQReply({
     repos,
     llmConfig: options.llmConfig,
     llmConfigPath: options.llmConfigPath,
     fetchImpl: options.llmFetch,
-    configPath: options.qqListener?.configPath,
-    autoReply: options.qqListener?.autoReply,
+  });
+
+  pluginRegistry.setEventSink(createPluginEventSink({
+    repos,
+    onChannelMessage: (pluginId, message: PluginChannelMessage) => (
+      pluginId === 'qq' ? qqReply(message) : Promise.resolve(null)
+    ),
+    sendReply: async (pluginId, message, reply) => {
+      await pluginRegistry.invoke(pluginId, 'send', {
+        conversationId: message.conversationId,
+        conversationKind: message.conversationKind,
+        content: reply,
+        msgId: message.msgId,
+      });
+    },
   }));
+
   await pluginRegistry.initialize();
 
-  const agentProviderRegistry = new AgentProviderRegistry();
+  const stickerPicker = createStickerPicker({ plugins: pluginRegistry });
 
-  for (const provider of options.agentProviders ?? []) {
-    agentProviderRegistry.register(provider);
-  }
+  const materialService = new MaterialService({
+    repos,
+    plugins: pluginRegistry,
+    logger: {
+      info: (message, detail) => console.log(message, detail ?? ''),
+      warn: (message, detail) => console.warn(message, detail ?? ''),
+    },
+  });
+  const materialsAutoEnabled = options.materialsAuto?.enabled
+    ?? process.env.NODE_ENV !== 'test';
 
-  const dshUrl = options.dsh?.url ?? process.env.HEREIN_DSH_URL;
-  const dshToken = options.dsh?.token ?? process.env.HEREIN_DSH_TOKEN;
-
-  if (dshUrl && dshToken) {
-    agentProviderRegistry.register(createDshAgentProvider({
-      url: dshUrl,
-      token: dshToken,
-      fetchImpl: options.dsh?.fetchImpl,
-    }));
+  if (materialsAutoEnabled) {
+    materialService.startAutoRefresh({
+      intervalMs: options.materialsAuto?.intervalMs
+        ?? (Number.parseInt(process.env.HEREIN_MATERIAL_INTERVAL_MS ?? '', 10) || 45 * 60 * 1000),
+    });
   }
 
   const qqEnabled = options.qqListener?.enabled ?? process.env.HEREIN_QQ_ENABLED === '1';
@@ -370,33 +451,93 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   const events = new CoreEventBus();
   const sseClients = new Set<ServerResponse>();
 
-  const memoryRunner = new CoreMemoryRunner({
+  const memoryRunner = new MemoryRunner({
     repos,
+    store: memoryStore,
     llmConfig: options.llmConfig,
     llmConfigPath: options.llmConfigPath,
     fetchImpl: options.llmFetch,
-    enabled: options.memory?.enabled,
-    triggerMessageCount: options.memory?.triggerMessageCount,
+    enabled: options.memory?.enabled ?? repos.settings.get<boolean>('memoryEnabled') ?? true,
+    triggerMessageCount: options.memory?.triggerMessageCount
+      ?? repos.settings.get<number>('summaryTriggerMessageCount')
+      ?? 20,
   });
 
-  const voiceConversation = interactionEndpointFile && options.voice?.enabled !== false
+  const triggerExperienceExtraction = () => {
+    if (!options.experienceAuto) {
+      return;
+    }
+
+    const characterId = repos.settings.get<string>('activeCharacterId')
+      ?? repos.characters.list()[0]?.id;
+
+    if (!characterId) {
+      return;
+    }
+
+    void (async () => {
+      let config = options.llmConfig;
+
+      if (!config) {
+        try {
+          config = await loadLlmConfig(options.llmConfigPath);
+        } catch {
+          return;
+        }
+      }
+
+      await extractExperiences({
+        repos,
+        store: memoryStore,
+        characterId,
+        llmConfig: config,
+        fetchImpl: options.llmFetch,
+      });
+    })().catch(error => {
+      console.warn('experience extraction failed:', error);
+    });
+  };
+
+  const voiceConversation = interactionPort && options.voice?.enabled !== false
     && process.env.HEREIN_VOICE_ENABLED !== '0'
     ? new VoiceConversation({
       repos,
       events,
       memoryRunner,
       dispatcher: interactionDispatcher,
-      llmConfig: options.llmConfig,
-      llmConfigPath: options.llmConfigPath,
+      materials: materialService,
+      llmConfig: options.voice?.llmConfig ?? options.llmConfig,
+      llmConfigPath: options.voice?.llmConfigPath ?? options.llmConfigPath,
       fetchImpl: options.llmFetch,
       characterId: options.voice?.characterId ?? process.env.HEREIN_VOICE_CHARACTER_ID,
+      maxTokens: options.voice?.maxTokens ?? 2048,
+      waitForSpeechCompletion: options.interactionPort ? false : undefined,
+      maxSpeechParts: options.interactionPort ? 1 : undefined,
+      interject: options.interactionPort ? false : undefined,
+      backchannel: options.interactionPort ? false : undefined,
+      logger: {
+        info: (message, detail) => console.log(message, detail ?? ''),
+        warn: (message, detail) => console.warn(message, detail ?? ''),
+      },
     })
     : null;
   const aInteractionSession = voiceConversation && interactionEndpointFile
     ? new AInteractionSession({
       endpointFile: interactionEndpointFile,
       fetchImpl: options.interaction?.fetchImpl,
+      logger: {
+        warn: (message, detail) => console.warn(message, detail ?? ''),
+      },
       onEvent: event => {
+        if (process.env.HEREIN_VOICE_DEBUG === '1') {
+          const transcript = event as { text?: unknown; final?: unknown };
+          console.log('[voice] event', JSON.stringify({
+            type: event.type,
+            final: transcript.final,
+            characters: typeof transcript.text === 'string' ? transcript.text.length : undefined,
+          }));
+        }
+
         if (event.type === 'transcript') {
           const transcript = event as { text?: unknown; final?: unknown; turnId?: unknown };
 
@@ -409,6 +550,17 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         } else if (event.type === 'interrupted') {
           voiceConversation.interrupt();
           events.publish('interaction.interrupted', event);
+        } else if (event.type === 'speech.completed' || event.type === 'speech.failed') {
+          voiceConversation.handleSpeechEvent(event);
+          events.publish('interaction.speech', event);
+        } else if (event.type === 'vad') {
+          const vad = event as { state?: unknown };
+
+          if (vad.state === 'start' || vad.state === 'end') {
+            voiceConversation.handleVad(vad.state);
+          }
+
+          events.publish('interaction.vad', event);
         } else if (event.type === 'presence') {
           events.publish('interaction.presence', event);
         }
@@ -423,9 +575,27 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     llmConfigPath: options.llmConfigPath,
     fetchImpl: options.llmFetch,
     policy: options.initiative,
+    materials: materialService,
+    personaFor: characterId => {
+      const pack = personaPacks.get(characterId);
+
+      if (!pack) {
+        return null;
+      }
+
+      try {
+        return compilePersona(pack, {
+          relationship: repos.relationships.get(characterId),
+          audience: 'private',
+        });
+      } catch (error) {
+        console.warn('initiative persona compile failed:', error);
+        return null;
+      }
+    },
     notify: ntfyConfig
       ? message => publishNtfyMessage(ntfyConfig, {
-        title: '蓝蓝',
+        title: 'Herein',
         message,
         tags: ['speech_balloon'],
       }).then(() => undefined)
@@ -441,7 +611,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
   });
 
   const initiativeAutoEnabled = options.initiativeAuto?.enabled
-    ?? process.env.HEREIN_INITIATIVE_AUTO === '1';
+    ?? (process.env.NODE_ENV !== 'test' && process.env.HEREIN_INITIATIVE_AUTO !== '0');
   const initiativeScheduler = initiativeAutoEnabled
     ? new InitiativeScheduler({
       engine: initiative,
@@ -449,10 +619,16 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         ?? repos.characters.list()[0]?.id
         ?? null,
       intervalMs: options.initiativeAuto?.intervalMs
-        ?? (Number.parseInt(process.env.HEREIN_INITIATIVE_INTERVAL_MS ?? '', 10) || 30 * 60 * 1000),
+        ?? (Number.parseInt(process.env.HEREIN_INITIATIVE_INTERVAL_MS ?? '', 10) || 10 * 60 * 1000),
+      startDelayMs: 20_000,
     })
     : null;
   initiativeScheduler?.start();
+
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(`initiative auto: ${initiativeAutoEnabled ? 'on' : 'off'}`);
+    console.log(`materials auto: ${materialsAutoEnabled ? 'on' : 'off'}`);
+  }
 
   let proactiveScheduler: ProactiveShareScheduler | null = null;
 
@@ -489,20 +665,29 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
       void (async () => {
         try {
           const relative = decodeURIComponent(url.pathname.slice('/assets/'.length));
-          const target = path.resolve(assetsDir, relative);
 
-          if (target !== assetsDir && !target.startsWith(`${assetsDir}${path.sep}`)) {
-            sendJson(response, 403, { error: 'invalid asset path' });
-            return;
+          for (const root of assetDirs) {
+            const target = path.resolve(root, relative);
+
+            if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+              continue;
+            }
+
+            try {
+              const data = await readFile(target);
+              response.writeHead(200, {
+                'content-type': contentTypeFor(target),
+                'content-length': data.byteLength,
+                'cache-control': 'no-cache',
+              });
+              response.end(data);
+              return;
+            } catch {
+              continue;
+            }
           }
 
-          const data = await readFile(target);
-          response.writeHead(200, {
-            'content-type': contentTypeFor(target),
-            'content-length': data.byteLength,
-            'cache-control': 'no-cache',
-          });
-          response.end(data);
+          sendJson(response, 404, { error: 'asset not found' });
         } catch {
           sendJson(response, 404, { error: 'asset not found' });
         }
@@ -526,6 +711,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           dataDir,
           dbPath,
           assetsDir,
+          assetDirs,
           characters: repos.characters.list().length,
         });
         return;
@@ -618,14 +804,190 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           throw new Error('messages must include at least one user message');
         }
 
-        const systemPrompt = typeof body.system === 'string' && body.system.trim()
+        const audience = body.audience === 'group' ? 'group' : 'private';
+        const pack = personaPacks.get(character.id);
+        const persona = pack
+          ? compilePersona(pack, {
+            relationship: repos.relationships.get(character.id),
+            audience,
+          })
+          : undefined;
+        let systemPrompt = typeof body.system === 'string' && body.system.trim()
           ? body.system
-          : buildCoreChatPrompt({
+          : '';
+        const lastUser = [...llmMessages].reverse().find(message => message.role === 'user');
+        const persist = body.persist !== false;
+        const previousAssistant = repos.messages
+          .listRecent(timeline.id, 10)
+          .reverse()
+          .find(message => message.role === 'assistant');
+        const previousAffect = repos.affectState.get(characterId);
+        const affect = computeAffect({
+          characterId,
+          now: new Date(),
+          recent: llmMessages,
+          previous: previousAffect,
+        });
+        repos.affectState.upsert(affect);
+        const turn: TurnDecision | null = lastUser
+          ? directTurn({
+            userText: lastUser.content,
+            recent: llmMessages,
+            lastAssistantAt: previousAssistant?.timestamp ?? null,
+            now: new Date(),
+            affect,
+          })
+          : null;
+        const rememberOpenLoops = () => {
+          if (!lastUser) {
+            return;
+          }
+
+          repos.initiativeBids.markLatestSentAsReplied(characterId);
+
+          const existing = new Set(
+            repos.openLoops.listOpen(characterId, 20).map(loop => loop.text),
+          );
+
+          for (const text of extractOpenLoops(lastUser.content)) {
+            if (existing.has(text)) {
+              continue;
+            }
+
+            repos.openLoops.create({
+              id: randomUUID(),
+              characterId,
+              timelineId: timeline.id,
+              text,
+              sourceMessageId: clientMessageId,
+              status: 'open',
+              createdAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            });
+          }
+        };
+
+        if (turn?.act === 'silent' && lastUser) {
+          if (persist) {
+            repos.messages.append({
+              id: randomUUID(),
+              timelineId: timeline.id,
+              role: 'user',
+              content: lastUser.content,
+              timestamp: new Date().toISOString(),
+              status: 'sent',
+            });
+          }
+
+          rememberOpenLoops();
+
+          events.publish('presence.reaction', {
+            characterId,
+            timelineId: timeline.id,
+            emotion: 'neutral',
+            notice: '在听',
+          });
+
+          const silentResponse = {
+            silent: true,
+            turn,
+            presence: { emotion: 'neutral', notice: '在听' },
+            persisted: persist,
+            timelineId: timeline.id,
+          };
+
+          if (idempotencyKey) {
+            repos.chatIdempotency.put(idempotencyKey, silentResponse);
+          }
+
+          sendJson(response, 200, silentResponse);
+          return;
+        }
+
+        let materialBlock: string | undefined;
+        let fedMaterials: MaterialItem[] = [];
+
+        if (!systemPrompt && lastUser) {
+          try {
+            const context = await materialService.contextForText(lastUser.content);
+
+            materialBlock = context.block || undefined;
+            fedMaterials = context.items;
+          } catch (error) {
+            console.warn('chat material context failed:', error);
+          }
+
+          // 续聊兜底：意图正则追不上"再给一个""这次给个链接"这类指代式追问。
+          // 只要对话处在素材语境，就把库里最新的真实素材重新摆到她面前——
+          // blockWithItems 只读本地库，不触发网络刷新。
+          if (!materialBlock && MATERIAL_CONTEXT_HINT.test(lastUser.content)) {
+            try {
+              const fallback = materialService.blockWithItems(6);
+
+              if (fallback.text) {
+                materialBlock = fallback.text;
+                fedMaterials = fallback.items;
+              }
+            } catch {
+              // No local material either; the reply then simply has none.
+            }
+          }
+
+          // 追问链接：不再要求之前挂过卡片（否则没挂过卡的会话永远进不了
+          // 这个分支）。只要手头有真实素材，就直接把编号摆出来。
+          if (/链接|在哪看|哪里看|地址|发我/.test(lastUser.content)) {
+            const linkable = fedMaterials
+              .map(item => materialShortId(item))
+              .filter((id): id is string => Boolean(id));
+
+            if (linkable.length > 0) {
+              materialBlock = [
+                '【她刚提到的】用户想要内容的链接。',
+                `直接把编号告诉他：${linkable.join(' / ')}。不用道歉，不用解释系统，一两句话就行。`,
+              ].join('\n');
+            }
+          }
+        }
+
+        if (!systemPrompt) {
+          const pluginNames = pluginRegistry.list()
+            .filter(plugin => plugin.installed && plugin.enabled)
+            .map(plugin => `- ${plugin.manifest.name}（${plugin.manifest.id}）`);
+          const pluginBlock = pluginNames.length > 0
+            ? ['【你这边开着的插件】', ...pluginNames].join('\n')
+            : undefined;
+          const recall = recallMemory({
+            store: memoryStore,
+            brief: {
+              characterId,
+              timelineId: timeline.id,
+              audience,
+              purpose: 'chat',
+              situation: lastUser?.content ?? '',
+              messageId: clientMessageId,
+              packVersion: persona?.packVersion ?? null,
+            },
+          });
+
+          systemPrompt = buildCoreChatPrompt({
             repos,
             character,
             timeline,
-            audience: body.audience === 'group' ? 'group' : 'private',
+            audience,
+            persona,
+            memoryBlock: recall.text || undefined,
+            materialBlock,
+            pluginBlock,
           });
+
+          const guidance = turn?.act === 'react'
+            ? '只回一个短反应，最多 15 个字；不要追问，不要解释。'
+            : turn?.act === 'elaborate'
+              ? '可以展开到 3–4 句，先给结论；不要客服腔。'
+              : '1–2 句，最多两个气泡；先接住眼前这句话。';
+
+          systemPrompt = `${systemPrompt}\n\n${affectPrompt(affect)}\n\n【这一轮】\n${guidance}`;
+        }
 
         let config = options.llmConfig;
         if (!config) {
@@ -647,7 +1009,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             ...llmMessages,
           ], {
             temperature: typeof body.temperature === 'number' ? body.temperature : undefined,
-            maxTokens: typeof body.maxTokens === 'number' ? body.maxTokens : undefined,
+            maxTokens: typeof body.maxTokens === 'number' ? body.maxTokens : turn?.maxTokens,
             fetchImpl: options.llmFetch,
           });
         } catch (error) {
@@ -658,10 +1020,88 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           return;
         }
 
-        const persist = body.persist !== false;
+        const assistant = parseAssistantMetadata(completion.content);
+        const shaped = parseAssistantReply(assistant.text);
+
+        if (shaped.silent) {
+          if (persist && lastUser) {
+            repos.messages.append({
+              id: randomUUID(),
+              timelineId: timeline.id,
+              role: 'user',
+              content: lastUser.content,
+              timestamp: new Date().toISOString(),
+              status: 'sent',
+            });
+          }
+
+          rememberOpenLoops();
+
+          events.publish('presence.reaction', {
+            characterId,
+            timelineId: timeline.id,
+            emotion: assistant.emotion ?? 'neutral',
+            notice: '在听',
+          });
+
+          const silentResponse = {
+            silent: true,
+            turn,
+            presence: {
+              emotion: assistant.emotion ?? 'neutral',
+              notice: '在听',
+            },
+            persisted: persist,
+            timelineId: timeline.id,
+          };
+
+          if (idempotencyKey) {
+            repos.chatIdempotency.put(idempotencyKey, silentResponse);
+          }
+
+          sendJson(response, 200, silentResponse);
+          return;
+        }
+
+        const replyText = shaped.text;
+        let assistantMessageId: string | null = null;
+
+        // 表情是锦上添花：插件缺失、目录为空或限流时静默跳过，绝不影响回复。
+        let sticker: MessageSticker | null = null;
+
+        try {
+          sticker = await stickerPicker.pick({
+            emotion: assistant.emotion,
+            text: replyText,
+            recent: repos.messages.listRecent(timeline.id, 12),
+          });
+        } catch {
+          sticker = null;
+        }
+
+        // 素材卡片：只有当她的回复确实提到了刚刷到的内容（标题命中）才挂上。
+        // 命中与否由 pickMaterialForReply 决定，卡片永远不会凭空出现。
+        let material: MessageMaterial | null = null;
+
+        try {
+          const matched = pickMaterialForReply(fedMaterials, replyText);
+
+          material = matched
+            ? {
+              id: matched.id,
+              kind: matched.kind,
+              source: matched.source,
+              title: matched.title,
+              creator: matched.creator,
+              url: matched.url,
+              coverUrl: matched.coverUrl,
+            }
+            : null;
+        } catch {
+          material = null;
+        }
 
         if (persist) {
-          const lastUser = [...llmMessages].reverse().find(message => message.role === 'user');
           const timestamp = new Date().toISOString();
 
           if (lastUser) {
@@ -675,11 +1115,16 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             });
           }
 
+          assistantMessageId = randomUUID();
           repos.messages.append({
-            id: randomUUID(),
+            id: assistantMessageId,
             timelineId: timeline.id,
             role: 'assistant',
-            content: completion.content,
+            content: replyText,
+            emotion: assistant.emotion ?? null,
+            voiceInstruct: assistant.voiceInstruct ?? null,
+            sticker,
+            material,
             timestamp: new Date(Date.now() + 1).toISOString(),
             status: 'sent',
           });
@@ -687,6 +1132,15 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             characterId,
             timelineId: timeline.id,
             model: completion.model,
+            message: {
+              id: assistantMessageId,
+              content: replyText,
+              emotion: assistant.emotion ?? null,
+              voiceInstruct: assistant.voiceInstruct ?? null,
+              sticker,
+              material,
+              bubbles: shaped.bubbles,
+            },
           });
           void memoryRunner.run({
             characterId,
@@ -694,16 +1148,25 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           });
         }
 
+        rememberOpenLoops();
+
         const chatResponse = {
           message: {
+            ...(assistantMessageId ? { id: assistantMessageId } : {}),
             role: 'assistant',
-            content: completion.content,
+            content: replyText,
+            ...(assistant.emotion ? { emotion: assistant.emotion } : {}),
+            ...(assistant.voiceInstruct ? { voiceInstruct: assistant.voiceInstruct } : {}),
+            ...(sticker ? { sticker } : {}),
+            ...(material ? { material } : {}),
+            bubbles: shaped.bubbles,
           },
           model: completion.model,
           usage: completion.usage,
           latencyMs: completion.latencyMs,
           persisted: persist,
           timelineId: timeline.id,
+          turn,
         };
 
         if (idempotencyKey) {
@@ -754,6 +1217,51 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             detail: error instanceof Error ? error.message : 'unknown error',
           });
         }
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/voice/transcript') {
+        if (!voiceConversation) {
+          sendJson(response, 503, { error: 'voice conversation is not enabled' });
+          return;
+        }
+
+        const body = asRecord(await readJson(request));
+        const text = requireString(body, 'text').trim().slice(0, 1000);
+
+        if (!text) {
+          sendJson(response, 400, { error: 'text is required' });
+          return;
+        }
+
+        const turnId = typeof body.turnId === 'string' ? body.turnId : undefined;
+        void voiceConversation.handleTranscript(text, turnId);
+        sendJson(response, 200, { ok: true });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/voice/messages') {
+        const characterId = url.searchParams.get('characterId')
+          ?? repos.characters.list()[0]?.id;
+        const character = characterId ? repos.characters.get(characterId) : null;
+
+        if (!character) {
+          sendJson(response, 404, { error: 'character not found' });
+          return;
+        }
+
+        const timeline = repos.timelines.getVoiceForCharacter(character.id);
+
+        sendJson(response, 200, {
+          timeline,
+          messages: timeline ? repos.messages.listRecent(timeline.id, 100) : [],
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/voice/interrupt') {
+        voiceConversation?.interrupt();
+        sendJson(response, 200, { ok: true });
         return;
       }
 
@@ -863,24 +1371,12 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         const limit = typeof body.limit === 'number' ? body.limit : 10;
 
         try {
-          const plugin = pluginRegistry.get('netease');
-
-          if (plugin?.enabled) {
-            const result = await pluginRegistry.invoke('netease', 'candidates', { query, limit });
-            sendJson(response, 200, result);
-            return;
-          }
-
-          const candidates = await getNeteaseCandidates({
-            query,
-            limit,
-            source: options.neteaseSource,
-          });
-          sendJson(response, 200, { candidates });
+          const result = await pluginRegistry.invoke('netease', 'candidates', { query, limit });
+          sendJson(response, 200, result);
         } catch (error) {
           sendJson(response, 503, {
             error: 'Netease candidates failed',
-            detail: error instanceof Error ? error.message : 'run npm run build:netease',
+            detail: error instanceof Error ? error.message : 'install and enable the netease plugin',
           });
         }
         return;
@@ -890,35 +1386,42 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         const body = asRecord(await readJson(request));
         const limit = typeof body.limit === 'number' ? body.limit : 20;
 
+        const sessionId = randomUUID();
+        const startedAt = new Date().toISOString();
+
+        repos.activitySessions.start({
+          id: sessionId,
+          kind: 'bilibili_feed',
+          status: 'running',
+          startedAt,
+        });
+
         try {
-          const plugin = pluginRegistry.get('bilibili');
+          const result = await pluginRegistry.invoke('bilibili', 'scan', { limit }) as {
+            fetched?: number;
+            emitted?: number;
+          };
+          const fetched = typeof result?.fetched === 'number' ? result.fetched : 0;
+          const emitted = typeof result?.emitted === 'number' ? result.emitted : 0;
 
-          if (plugin?.enabled) {
-            const result = await pluginRegistry.invoke('bilibili', 'scan', { limit });
-            sendJson(response, 200, result);
-            return;
-          }
-
-          let source = options.bilibiliSource;
-
-          if (!source) {
-            const adapter = await import('../../adapters/bilibili/dist/index.js' as string) as {
-              BilibiliClient: new (options?: { minIntervalMs?: number }) => BilibiliFeedSource;
-            };
-            source = new adapter.BilibiliClient({ minIntervalMs: 1200 });
-          }
-
-          const result = await scanBilibiliFeed({
-            repos,
-            source,
-            limit,
-            now: () => new Date(),
+          repos.activitySessions.finish(sessionId, {
+            status: 'completed',
+            endedAt: new Date().toISOString(),
+            stats: { fetched, inserted: emitted },
+            summary: `B站推荐流：${fetched} 条，上报 ${emitted} 条。`,
           });
-          sendJson(response, 200, result);
+          triggerExperienceExtraction();
+          sendJson(response, 200, { ...result, sessionId, inserted: emitted });
         } catch (error) {
+          repos.activitySessions.finish(sessionId, {
+            status: 'failed',
+            endedAt: new Date().toISOString(),
+            stats: { fetched: 0, inserted: 0 },
+            summary: error instanceof Error ? error.message.slice(0, 200) : 'B站推荐流失败',
+          });
           sendJson(response, 503, {
             error: 'Bilibili scan failed',
-            detail: error instanceof Error ? error.message : 'run npm run build:bilibili',
+            detail: error instanceof Error ? error.message : 'install and enable the bilibili plugin',
           });
         }
         return;
@@ -976,7 +1479,6 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         const status = await buildCoreStatus({
           db,
           pluginRegistry,
-          agentRegistry: agentProviderRegistry,
           relay: {
             url: options.relayUrl ?? process.env.HEREIN_RELAY_URL,
             token: options.relayToken
@@ -995,83 +1497,6 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         });
         sendJson(response, 200, status);
         return;
-      }
-
-      if (segments[0] === 'v1' && segments[1] === 'agents') {
-        try {
-          if (request.method === 'GET' && segments.length === 2) {
-            sendJson(response, 200, await agentProviderRegistry.list());
-            return;
-          }
-
-          const providerId = segments[2] ? decodeURIComponent(segments[2]) : '';
-          const capabilityId = segments[3] ? decodeURIComponent(segments[3]) : '';
-
-          if (!providerId) {
-            sendJson(response, 404, { error: 'agent provider not found' });
-            return;
-          }
-
-          if (request.method === 'GET' && capabilityId === 'health' && segments.length === 4) {
-            sendJson(response, 200, { health: await agentProviderRegistry.health(providerId) });
-            return;
-          }
-
-          if (request.method === 'POST' && capabilityId && segments[4]) {
-            const action = segments[4];
-
-            if (action === 'install') {
-              sendJson(response, 200, await agentProviderRegistry.install(providerId, capabilityId));
-              return;
-            }
-
-            if (action === 'enable') {
-              sendJson(response, 200, await agentProviderRegistry.enable(providerId, capabilityId));
-              return;
-            }
-
-            if (action === 'disable') {
-              sendJson(response, 200, await agentProviderRegistry.disable(providerId, capabilityId));
-              return;
-            }
-
-            if (action === 'remove') {
-              sendJson(response, 200, await agentProviderRegistry.remove(providerId, capabilityId));
-              return;
-            }
-
-            if (action === 'rollback') {
-              sendJson(response, 200, await agentProviderRegistry.rollback(providerId, capabilityId));
-              return;
-            }
-
-            if (action === 'invoke') {
-              const body = asRecord(await readJson(request));
-              const invokeAction = requireString(body, 'action');
-              const result = await agentProviderRegistry.invoke(
-                providerId,
-                capabilityId,
-                invokeAction,
-                body.input,
-              );
-              sendJson(response, 200, { result });
-              return;
-            }
-          }
-
-          sendJson(response, 405, { error: 'method not allowed' });
-          return;
-        } catch (error) {
-          if (error instanceof PluginError) {
-            sendJson(response, error.status, {
-              error: error.code,
-              detail: error.message,
-            });
-            return;
-          }
-
-          throw error;
-        }
       }
 
       if (segments[0] === 'v1' && segments[1] === 'plugins') {
@@ -1151,6 +1576,19 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
             return;
           }
 
+          if (request.method === 'POST' && segments[3] === 'health') {
+            await pluginRegistry.checkHealth(pluginId);
+            const plugin = pluginRegistry.get(pluginId);
+
+            if (!plugin) {
+              sendJson(response, 404, { error: 'plugin not found' });
+              return;
+            }
+
+            sendJson(response, 200, { plugin });
+            return;
+          }
+
           sendJson(response, 405, { error: 'method not allowed' });
           return;
         } catch (error) {
@@ -1199,6 +1637,19 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
         const timeline = repos.timelines.getPrimaryForCharacter(characterId)
           ?? repos.timelines.ensurePrimaryForCharacter(characterId, character.name);
+
+        if (request.method === 'DELETE' && segments[3] === 'messages') {
+          const result = repos.messages.sync(timeline.id, [], undefined, { prune: true });
+          repos.summaries.deleteByTimeline(timeline.id);
+          repos.openLoops.clearTimeline(timeline.id);
+          events.publish('timeline.cleared', {
+            characterId,
+            timelineId: timeline.id,
+            deleted: result.deleted,
+          });
+          sendJson(response, 200, { ok: true, deleted: result.deleted, timeline });
+          return;
+        }
 
         if (request.method === 'GET' && segments[3] === 'messages') {
           const limit = numberParam(url, 'limit', 100);
@@ -1278,9 +1729,104 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
         const query = stringParam(url, 'q');
         const limit = numberParam(url, 'limit', 50);
         const memories = query
-          ? repos.memories.search(query, { characterId, timelineId, limit })
-          : repos.memories.listActive({ characterId, timelineId });
+          ? memoryStore.items.search(query, { characterId, limit })
+          : memoryStore.items.listActive({ characterId, limit });
         sendJson(response, 200, { memories });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/memory/runs') {
+        sendJson(response, 200, {
+          runs: memoryStore.runs.listRecent(numberParam(url, 'limit', 20)),
+        });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/v1/memory/events') {
+        sendJson(response, 200, {
+          events: memoryStore.events.listRecent({
+            characterId: stringParam(url, 'characterId'),
+            itemId: stringParam(url, 'itemId'),
+            limit: numberParam(url, 'limit', 50),
+          }),
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/memory/run') {
+        const body = asRecord(await readJson(request));
+        const characterId = requireString(body, 'characterId');
+        const character = repos.characters.get(characterId);
+
+        if (!character) {
+          sendJson(response, 404, { error: `character not found: ${characterId}` });
+          return;
+        }
+
+        const timeline = repos.timelines.getPrimaryForCharacter(characterId)
+          ?? repos.timelines.ensurePrimaryForCharacter(characterId, character.name);
+
+        const result = await memoryRunner.run({ characterId, timelineId: timeline.id });
+        sendJson(response, 200, result);
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/memory/recall') {
+        const body = asRecord(await readJson(request));
+        const characterId = requireString(body, 'characterId');
+        const result = recallMemory({
+          store: memoryStore,
+          brief: {
+            characterId,
+            timelineId: typeof body.timelineId === 'string' ? body.timelineId : null,
+            audience: body.audience === 'group' ? 'group' : body.audience === 'public' ? 'public' : 'private',
+            purpose: 'chat',
+            situation: typeof body.situation === 'string' ? body.situation : '',
+            budget: typeof body.budget === 'number' ? body.budget : undefined,
+          },
+        });
+        sendJson(response, 200, {
+          text: result.text,
+          itemIds: result.itemIds,
+          sections: result.sections,
+          latencyMs: result.latencyMs,
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/experiences/extract') {
+        const body = asRecord(await readJson(request));
+        const requested = typeof body.characterId === 'string' ? body.characterId : null;
+        const characterId = requested ?? repos.settings.get<string>('activeCharacterId')
+          ?? repos.characters.list()[0]?.id;
+
+        if (!characterId) {
+          sendJson(response, 400, { error: 'no character available' });
+          return;
+        }
+
+        let config = options.llmConfig;
+        if (!config) {
+          try {
+            config = await loadLlmConfig(options.llmConfigPath);
+          } catch (error) {
+            sendJson(response, 503, {
+              error: 'LLM is not configured',
+              detail: error instanceof Error ? error.message : 'missing llm config',
+            });
+            return;
+          }
+        }
+
+        const result = await extractExperiences({
+          repos,
+          store: memoryStore,
+          characterId,
+          llmConfig: config,
+          fetchImpl: options.llmFetch,
+          limit: typeof body.limit === 'number' ? body.limit : undefined,
+        });
+        sendJson(response, 200, result);
         return;
       }
 
@@ -1326,7 +1872,10 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 
       if (request.method === 'GET' && url.pathname === '/v1/experiences') {
         sendJson(response, 200, {
-          experiences: repos.experiences.listRecent(numberParam(url, 'limit', 20)),
+          experiences: memoryStore.experiences.listRecent({
+            characterId: stringParam(url, 'characterId'),
+            limit: numberParam(url, 'limit', 20),
+          }),
         });
         return;
       }
@@ -1356,6 +1905,84 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
           sendJson(response, 201, { ok: true });
           return;
         }
+      }
+
+      // The renderer runs under a CSP that only allows the local core
+      // (connect-src 'self' http://127.0.0.1:*). Provider calls are proxied
+      // here so any Base URL keeps working without relaxing the CSP, and
+      // without depending on the provider sending CORS headers.
+      if (request.method === 'POST' && url.pathname === '/v1/llm-proxy') {
+        const body = asRecord(await readJson(request));
+        const rawUrl = typeof body.url === 'string' ? body.url.trim() : '';
+
+        if (!rawUrl) {
+          sendJson(response, 400, { error: 'url is required' });
+          return;
+        }
+
+        let target: URL;
+
+        try {
+          target = new URL(rawUrl);
+        } catch {
+          sendJson(response, 400, { error: `invalid url: ${rawUrl}` });
+          return;
+        }
+
+        if (target.protocol !== 'http:' && target.protocol !== 'https:') {
+          sendJson(response, 400, { error: 'only http and https urls are allowed' });
+          return;
+        }
+
+        const upstreamHeaders = new Headers();
+        const rawHeaders = body.headers;
+
+        if (rawHeaders && typeof rawHeaders === 'object' && !Array.isArray(rawHeaders)) {
+          for (const [key, value] of Object.entries(rawHeaders as Record<string, unknown>)) {
+            if (typeof value === 'string') {
+              upstreamHeaders.set(key, value);
+            }
+          }
+        }
+
+        const upstreamBody = body.body === undefined
+          ? undefined
+          : typeof body.body === 'string'
+            ? body.body
+            : JSON.stringify(body.body);
+
+        if (upstreamBody && !upstreamHeaders.has('content-type')) {
+          upstreamHeaders.set('content-type', 'application/json');
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 180_000);
+
+        try {
+          const upstream = await fetch(target, {
+            method: typeof body.method === 'string' ? body.method : 'GET',
+            headers: upstreamHeaders,
+            body: upstreamBody,
+            signal: controller.signal,
+          });
+          const text = await upstream.text();
+
+          response.writeHead(upstream.status, {
+            'content-type': upstream.headers.get('content-type') ?? 'application/json',
+            'content-length': Buffer.byteLength(text),
+            'cache-control': 'no-store',
+          });
+          response.end(text);
+        } catch (error) {
+          sendJson(response, 502, {
+            error: 'upstream request failed',
+            detail: error instanceof Error ? error.message : 'unknown error',
+          });
+        } finally {
+          clearTimeout(timeout);
+        }
+
+        return;
       }
 
       sendJson(response, 404, { error: 'not found' });
@@ -1401,7 +2028,18 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
       proactiveScheduler = new ProactiveShareScheduler({
         repos,
         llmConfig: config,
-        source: options.neteaseSource,
+        fetchCandidates: async () => {
+          try {
+            const result = await pluginRegistry.invoke('netease', 'candidates', { limit: 3 }) as {
+              candidates?: unknown[];
+            };
+
+            return Array.isArray(result.candidates) ? result.candidates : [];
+          } catch {
+            // The plugin may be disabled; proactive sharing then just skips.
+            return [];
+          }
+        },
         promptPath: options.contentPromptPath,
         fetchImpl: options.llmFetch,
         intervalMs: options.proactiveShare?.intervalMs
@@ -1427,6 +2065,7 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
     close: async () => {
       proactiveScheduler?.stop();
       initiativeScheduler?.stop();
+      materialService.stopAutoRefresh();
       await aInteractionSession?.stop();
       await voiceConversation?.stop();
       await interactionDispatcher.stop();
@@ -1444,7 +2083,21 @@ export async function startCoreServer(options: CoreServerOptions = {}): Promise<
 }
 
 async function main() {
-  const handle = await startCoreServer();
+  const personaRoot = resolvePersonaRoot();
+  const personaPacks = await loadPersonaPacks(personaRoot).catch(error => {
+    console.warn(`persona packs were not loaded: ${error instanceof Error ? error.message : error}`);
+    return new Map();
+  });
+
+  if (personaPacks.size > 0) {
+    console.log(`persona packs: ${[...personaPacks.keys()].join(', ')}`);
+  }
+
+  const handle = await startCoreServer({
+    personaPacks,
+    seedPersonaPacks: process.env.HEREIN_PERSONA_SEED === '1',
+    experienceAuto: process.env.HEREIN_EXPERIENCE_AUTO === '1',
+  });
   console.log(`herein-core listening on http://${handle.host}:${handle.port}`);
   console.log(`data: ${handle.dataDir}`);
 

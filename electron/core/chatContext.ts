@@ -3,6 +3,7 @@ import type {
   TimelineRecord,
   createPhase2Repositories,
 } from '../data/repositories';
+import type { CompiledPersona } from '../persona/compiler';
 
 type Repositories = ReturnType<typeof createPhase2Repositories>;
 
@@ -12,6 +13,10 @@ export interface CoreChatPromptInput {
   timeline: TimelineRecord;
   audience?: 'private' | 'group' | 'public';
   budgetTokens?: number;
+  persona?: CompiledPersona;
+  memoryBlock?: string;
+  materialBlock?: string;
+  pluginBlock?: string;
 }
 
 function estimateTokens(text: string) {
@@ -61,16 +66,22 @@ export function buildCoreChatPrompt(input: CoreChatPromptInput): string {
     }
   }
 
-  const sections: string[] = [
-    `你是${input.character.name}。`,
-    input.character.description,
-    input.character.personalityCore && `人格：${input.character.personalityCore}`,
-    input.character.speakingStyle && `说话方式：${input.character.speakingStyle}`,
-    input.character.valuesText && `价值观：${input.character.valuesText}`,
-    input.character.boundaries && `边界：${input.character.boundaries}`,
-  ].filter((line): line is string => Boolean(line && line.trim()));
+  const sections: string[] = input.persona
+    ? [input.persona.identity]
+    : [
+      `你是${input.character.name}。`,
+      input.character.description,
+      input.character.personalityCore && `人格：${input.character.personalityCore}`,
+      input.character.speakingStyle && `说话方式：${input.character.speakingStyle}`,
+      input.character.valuesText && `价值观：${input.character.valuesText}`,
+      input.character.boundaries && `边界：${input.character.boundaries}`,
+    ].filter((line): line is string => Boolean(line && line.trim()));
 
-  if (relationship) {
+  if (input.persona?.relationship) {
+    sections.push(input.persona.relationship);
+  }
+
+  if (relationship && !input.persona) {
     sections.push([
       '【关系】',
       relationship.tone && `语气：${relationship.tone}`,
@@ -82,18 +93,37 @@ export function buildCoreChatPrompt(input: CoreChatPromptInput): string {
     ].filter(Boolean).join('\n'));
   }
 
-  if (summary?.content) {
-    sections.push(`【最近总结】\n${summary.content}`);
+  if (input.materialBlock) {
+    sections.push(input.materialBlock);
   }
 
-  if (selected.length > 0) {
-    sections.push(`【记忆】\n${selected.map(item => `- ${item}`).join('\n')}`);
+  if (input.pluginBlock) {
+    sections.push(input.pluginBlock);
+  }
+
+  if (input.memoryBlock) {
+    sections.push(input.memoryBlock);
+  } else {
+    if (summary?.content) {
+      sections.push(`【最近总结】\n${summary.content}`);
+    }
+
+    if (selected.length > 0) {
+      sections.push(`【记忆】\n${selected.map(item => `- ${item}`).join('\n')}`);
+    }
+  }
+
+  if (input.persona) {
+    sections.push(input.persona.behavior);
+    return sections.join('\n\n');
   }
 
   sections.push([
     '【回复形态】',
     '- 默认一句，2–15 个汉字；先对眼前这句话做反应，不要先总结情绪。',
     '- 一次只做一件事：反应、追问、安慰、建议，四选一。',
+    '- 允许 0–2 个气泡；两个气泡用 | 或换行分隔，第二行是补一句。',
+    '- 对方说“别说话/让我静静”或明显只需要倾听时，可以只输出 <silent/>。',
     '- 不要心理咨询/客服腔：不要“先别硬撑/我陪着你/我理解你的感受/你已经很棒了”。',
     '- 只有对方明确要分析或长回复时才展开。',
     '- 群聊里不要提私聊内容；不确定就少说。',

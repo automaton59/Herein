@@ -1,4 +1,4 @@
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 14;
 
 export interface SchemaMigration {
   version: number;
@@ -398,6 +398,194 @@ export const SCHEMA_MIGRATIONS: SchemaMigration[] = [
         response_json text not null,
         created_at text not null
       );
+    `,
+  },
+  {
+    version: 12,
+    name: 'memory_system_v2',
+    sql: `
+      alter table memory_items add column subject text not null default 'user';
+      alter table memory_items add column predicate text;
+      alter table memory_items add column attributes_json text not null default '{}';
+      alter table memory_items add column valid_from text;
+      alter table memory_items add column valid_to text;
+      alter table memory_items add column sensitivity text not null default 'normal';
+      alter table memory_items add column manual integer not null default 0;
+
+      update memory_items set subject = 'relationship'
+        where kind in ('event', 'relationship') and scope <> 'global';
+      update memory_items set subject = 'user'
+        where kind in ('profile', 'state', 'preference') or scope = 'global';
+      update memory_items set manual = 1 where origin = 'manual';
+
+      create table if not exists memory_events (
+        id text primary key,
+        character_id text,
+        timeline_id text,
+        item_id text,
+        run_id text,
+        type text not null,
+        actor text not null,
+        subject text,
+        payload_json text not null default '{}',
+        schema_version integer not null default 1,
+        created_at text not null
+      );
+
+      create index if not exists idx_memory_events_character_time
+        on memory_events(character_id, created_at desc);
+      create index if not exists idx_memory_events_item
+        on memory_events(item_id, created_at desc);
+
+      create table if not exists narratives (
+        id text primary key,
+        character_id text not null,
+        timeline_id text not null,
+        version integer not null,
+        content text not null,
+        open_loops_json text not null default '[]',
+        watermark_message_id text,
+        message_count integer not null default 0,
+        source_message_ids_json text not null default '[]',
+        status text not null default 'active',
+        created_at text not null,
+        unique(timeline_id, version)
+      );
+
+      create index if not exists idx_narratives_timeline_version
+        on narratives(timeline_id, version desc);
+
+      create table if not exists recall_logs (
+        id text primary key,
+        character_id text not null,
+        timeline_id text,
+        message_id text,
+        purpose text not null,
+        audience text not null,
+        budget integer not null,
+        item_ids_json text not null default '[]',
+        omitted_json text not null default '[]',
+        scores_json text not null default '{}',
+        pack_version text,
+        policy_version text,
+        latency_ms integer,
+        created_at text not null
+      );
+
+      create index if not exists idx_recall_logs_character_time
+        on recall_logs(character_id, created_at desc);
+
+      alter table memory_runs add column character_id text;
+      alter table memory_runs add column run_key text;
+      alter table memory_runs add column policy_version text;
+      alter table memory_runs add column pack_version text;
+      alter table memory_runs add column model text;
+      alter table memory_runs add column prompt_tokens integer;
+      alter table memory_runs add column completion_tokens integer;
+      alter table memory_runs add column proposals integer;
+      alter table memory_runs add column applied integer;
+      alter table memory_runs add column rejected_json text not null default '[]';
+      alter table memory_runs add column watermark_start integer;
+      alter table memory_runs add column watermark_end integer;
+      alter table memory_runs add column duration_ms integer;
+
+      create unique index if not exists idx_memory_runs_key
+        on memory_runs(run_key) where run_key is not null;
+
+      alter table experiences add column character_id text;
+      alter table experiences add column audience text not null default 'private';
+      alter table experiences add column provenance text not null default 'agent';
+
+      create index if not exists idx_experiences_character_time
+        on experiences(character_id, happened_at desc);
+
+      create virtual table if not exists experiences_fts using fts5(
+        title,
+        summary,
+        reaction,
+        content='experiences',
+        content_rowid='rowid'
+      );
+
+      create trigger if not exists experiences_fts_ai after insert on experiences begin
+        insert into experiences_fts(rowid, title, summary, reaction)
+        values (new.rowid, new.title, new.summary, new.reaction);
+      end;
+
+      create trigger if not exists experiences_fts_ad after delete on experiences begin
+        insert into experiences_fts(experiences_fts, rowid, title, summary, reaction)
+        values ('delete', old.rowid, old.title, old.summary, old.reaction);
+      end;
+
+      create trigger if not exists experiences_fts_au after update on experiences begin
+        insert into experiences_fts(experiences_fts, rowid, title, summary, reaction)
+        values ('delete', old.rowid, old.title, old.summary, old.reaction);
+        insert into experiences_fts(rowid, title, summary, reaction)
+        values (new.rowid, new.title, new.summary, new.reaction);
+      end;
+
+      insert into experiences_fts(experiences_fts) values ('rebuild');
+    `,
+  },
+  {
+    version: 13,
+    name: 'aliveness_p1_state',
+    sql: `
+      create table if not exists affect_state (
+        character_id text primary key,
+        mood real not null default 0,
+        energy real not null default 0.7,
+        busy real not null default 0.2,
+        patience real not null default 0.7,
+        updated_at text not null
+      );
+
+      create table if not exists open_loops (
+        id text primary key,
+        character_id text not null,
+        timeline_id text not null,
+        text text not null,
+        source_message_id text,
+        status text not null default 'open',
+        created_at text not null,
+        expires_at text,
+        closed_at text
+      );
+
+      create index if not exists idx_open_loops_character_status
+        on open_loops(character_id, status, created_at desc);
+
+      create table if not exists initiative_bids (
+        id text primary key,
+        character_id text not null,
+        timeline_id text not null,
+        kind text not null,
+        channel text not null,
+        score real not null default 0,
+        material_id text,
+        status text not null default 'pending',
+        outcome text,
+        created_at text not null,
+        expires_at text,
+        outcome_at text
+      );
+
+      create index if not exists idx_initiative_bids_character_time
+        on initiative_bids(character_id, created_at desc);
+    `,
+  },
+  {
+    version: 14,
+    name: 'chat_sticker',
+    sql: `
+      alter table messages add column sticker text;
+    `,
+  },
+  {
+    version: 15,
+    name: 'chat_material',
+    sql: `
+      alter table messages add column material text;
     `,
   },
 ];

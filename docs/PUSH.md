@@ -23,7 +23,7 @@ $env:HEREIN_NTFY_CLICK = "http://147.224.56.120/herein"
 npm run tunnel
 ```
 
-手机上装 ntfy app，订阅同一个 topic。收到通知的标题是“蓝蓝转了一首歌”，正文是歌名 + 一句转发话。
+手机上装 ntfy app，订阅同一个 topic。收到通知的标题是“角色转了一首歌”，正文是歌名 + 一句转发话。
 
 ## 自建
 

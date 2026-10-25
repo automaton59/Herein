@@ -76,7 +76,7 @@ export function SelectMenu({
         aria-controls={menuId}
         disabled={disabled}
         onClick={() => setIsOpen(open => !open)}
-        className={`flex h-11 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-sky-100 bg-white px-3 text-left text-slate-950 outline-none transition focus:border-sky-300 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10 dark:disabled:text-slate-600 ${buttonClassName}`}
+        className={`flex h-10 w-full min-w-0 items-center justify-between gap-3 rounded-lg border border-[#E6E5F0] bg-white px-3 text-left text-[13px] text-[#1C2333] outline-none transition focus:border-[#9CA3D4] focus:ring-2 focus:ring-[#9CA3D4]/20 disabled:cursor-not-allowed disabled:text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:border-sky-300/60 dark:focus:ring-sky-300/10 dark:disabled:text-slate-600 ${buttonClassName}`}
       >
         <span className="min-w-0">
           <span className="block truncate font-medium">
@@ -98,7 +98,7 @@ export function SelectMenu({
         <div
           id={menuId}
           role="listbox"
-          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-2xl border border-sky-100 bg-white p-1 shadow-xl shadow-sky-100/60 dark:border-white/10 dark:bg-[#0b1b2b] dark:shadow-black/30"
+          className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-[#E6E5F0] bg-white p-1 shadow-xl shadow-[#3B4474]/10 dark:border-white/10 dark:bg-[#0E1424] dark:shadow-black/30"
         >
           {options.length === 0 ? (
             <div className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">

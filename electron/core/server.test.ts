@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { PersonaPack } from '../persona/loader';
 import { startCoreServer, type CoreServerHandle } from './server';
 
 const tempDirs: string[] = [];
@@ -182,6 +183,28 @@ describe('core server', () => {
     expect(after.body.timeline.title).toBe('增量');
   });
 
+  it('clears a timeline, its summary and its open loops on request', async () => {
+    const handle = await start();
+    const before = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    const timeline = before.body.timeline;
+
+    await postJson(handle, '/v1/timeline/herein-default/sync', {
+      messages: [
+        { id: 'clear-1', timelineId: timeline.id, role: 'user', content: '一', timestamp: '2026-10-22T12:00:00.000Z' },
+        { id: 'clear-2', timelineId: timeline.id, role: 'assistant', content: '二', timestamp: '2026-10-22T12:00:01.000Z' },
+      ],
+    });
+
+    const cleared = await fetch(url(handle, '/v1/timeline/herein-default/messages'), {
+      method: 'DELETE',
+    });
+    expect(cleared.status).toBe(200);
+    expect(await cleared.json()).toEqual(expect.objectContaining({ ok: true, deleted: 2 }));
+
+    const after = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(after.body.messages).toEqual([]);
+  });
+
   it('chats through the LLM gateway and persists the turn', async () => {
     const llmFetch = vi.fn(async () => new Response(JSON.stringify({
       model: 'fake-model',
@@ -207,7 +230,11 @@ describe('core server', () => {
     });
 
     expect(chat.status).toBe(200);
-    expect(chat.body.message).toEqual({ role: 'assistant', content: '在。' });
+    expect(chat.body.message).toEqual(expect.objectContaining({
+      role: 'assistant',
+      content: '在',
+      bubbles: [expect.objectContaining({ text: '在' })],
+    }));
     expect(chat.body.model).toBe('fake-model');
     expect(chat.body.persisted).toBe(true);
     expect(llmFetch).toHaveBeenCalledTimes(1);
@@ -215,8 +242,241 @@ describe('core server', () => {
     const messages = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
     expect(messages.body.messages.map((message: { content: string }) => message.content)).toEqual([
       '在吗',
-      '在。',
+      '在',
     ]);
+  });
+
+  it('compiles a persona pack into the core chat prompt', async () => {
+    const prompts: Array<{ messages: Array<{ role: string; content: string }> }> = [];
+    const llmFetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      prompts.push(JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> });
+      return new Response(JSON.stringify({
+        model: 'fake-model',
+        choices: [{ message: { role: 'assistant', content: '在。' } }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    const pack: PersonaPack = {
+      manifest: {
+        schemaVersion: 1,
+        id: 'herein-default',
+        version: '1.0.0',
+        engine: '>=0.1.0',
+        character: 'character.json',
+        templates: [],
+      },
+      character: {
+        schemaVersion: 1,
+        id: 'herein-default',
+        name: '测试角色',
+        nickname: '小测',
+        relationshipFrame: '朋友',
+        personality: { core: ['稳定'] },
+        speakingStyle: { defaultAddress: '你' },
+      },
+      templates: new Map([
+        ['safety_identity', { ref: { id: 'safety_identity', layer: 'L0_safety_identity', file: 'safety.md' }, text: '【身份】{{character_name}}' }],
+        ['character_core', { ref: { id: 'character_core', layer: 'L1_character_core', file: 'core.md' }, text: '【人格】{{nickname}}' }],
+        ['chat_behavior', { ref: { id: 'chat_behavior', layer: 'L5_task', file: 'chat.md' }, text: '【行为】{{character_name}}' }],
+      ]),
+      root: 'test',
+    };
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      personaPacks: new Map([['herein-default', pack]]),
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    const chat = await postJson(handle, '/v1/chat', {
+      characterId: 'herein-default',
+      messages: [{ role: 'user', content: '在吗' }],
+    });
+
+    expect(chat.status).toBe(200);
+    expect(chat.body.message).toEqual(expect.objectContaining({
+      role: 'assistant',
+      content: '在',
+      bubbles: [expect.objectContaining({ text: '在' })],
+    }));
+
+    const system = prompts[0].messages[0].content;
+    expect(system).toContain('【身份】测试角色');
+    expect(system).toContain('【人格】小测');
+    expect(system).toContain('【行为】测试角色');
+    expect(system).not.toContain('【回复形态】');
+  });
+
+  it('stays silent without calling the model when the user asks for quiet', async () => {
+    const llmFetch = vi.fn(async () => new Response('{}')) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    const chat = await postJson(handle, '/v1/chat', {
+      characterId: 'herein-default',
+      messages: [{ role: 'user', content: '别说话了，让我静静。' }],
+    });
+
+    expect(chat.status).toBe(200);
+    expect(chat.body).toEqual(expect.objectContaining({
+      silent: true,
+      presence: expect.objectContaining({ notice: '在听' }),
+      persisted: true,
+    }));
+    expect(llmFetch).not.toHaveBeenCalled();
+
+    const timeline = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(timeline.body.messages).toEqual([
+      expect.objectContaining({ role: 'user', content: '别说话了，让我静静。' }),
+    ]);
+  });
+
+  it('shapes a model reply into two bubbles and filters AI-isms', async () => {
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: '作为一个AI，我希望能帮到你。诶？|今天几点睡的？',
+        },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    const chat = await postJson(handle, '/v1/chat', {
+      characterId: 'herein-default',
+      messages: [{ role: 'user', content: '在吗' }],
+    });
+
+    expect(chat.status).toBe(200);
+    expect(chat.body.message.content).toBe('诶？\n今天几点睡的？');
+    expect(chat.body.message.bubbles).toEqual([
+      expect.objectContaining({ text: '诶？' }),
+      expect.objectContaining({ text: '今天几点睡的？' }),
+    ]);
+    expect(chat.body.message.content).not.toContain('AI');
+  });
+
+  it('honors a model-chosen silent marker', async () => {
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{ message: { role: 'assistant', content: '<silent/>' } }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    const chat = await postJson(handle, '/v1/chat', {
+      characterId: 'herein-default',
+      messages: [{ role: 'user', content: '今天有点累。' }],
+    });
+
+    expect(chat.body).toEqual(expect.objectContaining({ silent: true }));
+    const timeline = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(timeline.body.messages.filter((message: { role: string }) => message.role === 'assistant'))
+      .toHaveLength(0);
+  });
+
+  it('feeds fresh Bilibili material into chat when the user asks', async () => {
+    const prompts: Array<{ messages: Array<{ role: string; content: string }> }> = [];
+    const llmFetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      prompts.push(JSON.parse(String(init?.body)) as { messages: Array<{ role: string; content: string }> });
+      return new Response(JSON.stringify({
+        model: 'fake-model',
+        choices: [{ message: { role: 'assistant', content: '看到一个关羽对线教程。' } }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+    const getRcmd = vi.fn(async () => ({
+      item: [{
+        bvid: 'BV1xx',
+        title: '关羽对线教程',
+        owner: { mid: 1, name: '某UP' },
+        cover: 'https://example.test/cover.jpg',
+      }],
+    }));
+    const bilibiliModule = {
+      BilibiliClient: class {
+        getRcmd = getRcmd;
+      },
+    };
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+      appRoot: '/unused',
+      bundledModules: { 'adapters/bilibili/dist/index.js': bilibiliModule },
+      materialsAuto: { enabled: false },
+      memory: { enabled: false },
+    });
+    handles.push(handle);
+
+    expect((await postJson(handle, '/v1/plugins/install', { id: 'bilibili' })).status).toBe(200);
+    expect((await postJson(handle, '/v1/plugins/bilibili/enable', {})).status).toBe(200);
+
+    const chat = await postJson(handle, '/v1/chat', {
+      characterId: 'herein-default',
+      messages: [{ role: 'user', content: 'b 站有什么好玩的' }],
+    });
+
+    expect(chat.status).toBe(200);
+    expect(getRcmd).toHaveBeenCalled();
+    const system = prompts[0].messages[0].content;
+    expect(system).toContain('【她刚翻到的】');
+    expect(system).toContain('关羽对线教程');
+    // Her reply repeated the title the block fed her, so the card rides along.
+    expect(chat.body.message.material).toEqual(expect.objectContaining({
+      kind: 'video',
+      source: 'bilibili',
+      title: '关羽对线教程',
+      creator: '某UP',
+      url: 'https://www.bilibili.com/video/BV1xx',
+    }));
   });
 
   it('tracks read state per character', async () => {
@@ -344,13 +604,17 @@ describe('core server', () => {
 
   it('runs the memory pipeline in Core after a timeline sync', async () => {
     const memoryJson = JSON.stringify({
-      conversationSummary: '用户最近在忙项目。',
-      memoryItems: [{
+      summary: '用户最近在忙项目。',
+      openLoops: [],
+      ops: [{
+        op: 'assert',
+        subject: 'user',
         kind: 'preference',
-        scope: 'character',
+        predicate: 'reply_style',
         content: '用户喜欢短句回复。',
         confidence: 0.8,
-        sourceMessageIds: ['sync-1'],
+        importance: 6,
+        evidence: ['sync-1'],
       }],
     });
     const llmFetch = vi.fn(async () => new Response(JSON.stringify({
@@ -402,7 +666,7 @@ describe('core server', () => {
     expect(memories).toEqual([
       expect.objectContaining({
         content: '用户喜欢短句回复。',
-        origin: 'summary',
+        origin: 'agent',
       }),
     ]);
   });
@@ -416,7 +680,7 @@ describe('core server', () => {
       conversationId: 'group-1',
       conversationKind: 'group',
       actorId: 'member-1',
-      actorName: '蓝蓝',
+      actorName: '小蓝',
       kind: 'message',
       content: '今天好累。',
       occurredAt: '2026-10-21T12:00:00.000Z',
@@ -434,7 +698,7 @@ describe('core server', () => {
     expect(listed.body.observations).toEqual([
       expect.objectContaining({
         id: 'obs-1',
-        actorName: '蓝蓝',
+        actorName: '小蓝',
         audience: 'group',
         provenance: 'owner',
       }),
@@ -442,20 +706,42 @@ describe('core server', () => {
   });
 
   it('returns NetEase song candidates as content profiles', async () => {
-    const neteaseSource = {
-      search: vi.fn().mockResolvedValue({
-        songs: [{ id: 1, name: '夜曲', ar: [{ name: '周杰伦' }] }],
-      }),
-      toplists: vi.fn().mockResolvedValue([]),
-      playlist: vi.fn().mockResolvedValue(null),
-    };
     const handle = await startCoreServer({
       host: '127.0.0.1',
       port: 0,
       dataDir: createDataDir(),
-      neteaseSource,
+      appRoot: '/unused',
+      bundledModules: {
+        'adapters/netease/dist/index.js': {
+          NeteaseClient: class {
+            async search() {
+              return { songs: [{ id: 1, name: '夜曲', ar: [{ name: '周杰伦' }] }] };
+            }
+
+            async toplists() {
+              return [];
+            }
+
+            async playlist() {
+              return null;
+            }
+          },
+        },
+        'packages/core/dist/index.js': {
+          buildSongProfile: (song: { id: number; name: string; artists?: Array<{ name: string }> }) => ({
+            type: 'song',
+            itemId: String(song.id),
+            title: song.name,
+            creator: song.artists?.[0]?.name,
+          }),
+          uniqueProfiles: (profiles: unknown[]) => profiles,
+        },
+      },
     });
     handles.push(handle);
+
+    expect((await postJson(handle, '/v1/plugins/install', { id: 'netease' })).status).toBe(200);
+    expect((await postJson(handle, '/v1/plugins/netease/enable', {})).status).toBe(200);
 
     const response = await postJson(handle, '/v1/netease/candidates', {
       query: '周杰伦',
@@ -552,10 +838,29 @@ describe('core server', () => {
         },
       }],
     }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
-    const neteaseSource = {
-      search: vi.fn().mockResolvedValue({ songs: [{ id: 1, name: '夜曲', ar: [{ name: '周杰伦' }] }] }),
-      toplists: vi.fn().mockResolvedValue([]),
-      playlist: vi.fn().mockResolvedValue(null),
+    const neteaseModule = {
+      NeteaseClient: class {
+        async search() {
+          return { songs: [{ id: 1, name: '夜曲', ar: [{ name: '周杰伦' }] }] };
+        }
+
+        async toplists() {
+          return [];
+        }
+
+        async playlist() {
+          return null;
+        }
+      },
+    };
+    const coreModule = {
+      buildSongProfile: (song: { id: number; name: string; artists?: Array<{ name: string }> }) => ({
+        type: 'song',
+        itemId: String(song.id),
+        title: song.name,
+        creator: song.artists?.[0]?.name,
+      }),
+      uniqueProfiles: (profiles: unknown[]) => profiles,
     };
     const handle = await startCoreServer({
       host: '127.0.0.1',
@@ -563,11 +868,18 @@ describe('core server', () => {
       dataDir,
       llmConfig: { baseUrl: 'https://example.test/v1', apiKey: 'sk-test', model: 'test-model' },
       llmFetch,
-      neteaseSource,
+      appRoot: '/unused',
+      bundledModules: {
+        'adapters/netease/dist/index.js': neteaseModule,
+        'packages/core/dist/index.js': coreModule,
+      },
       contentPromptPath: promptPath,
       proactiveShare: { enabled: true, intervalMs: 90 * 60 * 1000 },
     });
     handles.push(handle);
+
+    expect((await postJson(handle, '/v1/plugins/install', { id: 'netease' })).status).toBe(200);
+    expect((await postJson(handle, '/v1/plugins/netease/enable', {})).status).toBe(200);
 
     const response = await postJson(handle, '/v1/proactive/share/run', {});
     expect(response.status).toBe(200);
@@ -581,33 +893,99 @@ describe('core server', () => {
   });
 
   it('scans a Bilibili feed into observations and an activity session', async () => {
-    const source = {
-      getRcmd: vi.fn().mockResolvedValue({
-        item: [{ bvid: 'BV1xx411c7mD', title: '测试视频', owner: { mid: 1, name: 'UP' } }],
-      }),
-    };
     const handle = await startCoreServer({
       host: '127.0.0.1',
       port: 0,
       dataDir: createDataDir(),
-      bilibiliSource: source,
+      appRoot: '/unused',
+      bundledModules: {
+        'adapters/bilibili/dist/index.js': {
+          BilibiliClient: class {
+            async getRcmd() {
+              return { item: [{ bvid: 'BV1xx411c7mD', title: '测试视频', owner: { mid: 1, name: 'UP' } }] };
+            }
+          },
+        },
+      },
     });
     handles.push(handle);
 
+    expect((await postJson(handle, '/v1/plugins/install', { id: 'bilibili' })).status).toBe(200);
+    expect((await postJson(handle, '/v1/plugins/bilibili/enable', {})).status).toBe(200);
+
     const scan = await postJson(handle, '/v1/bilibili/scan', { limit: 5 });
     expect(scan.status).toBe(200);
-    expect(scan.body).toEqual(expect.objectContaining({ fetched: 1, inserted: 1 }));
+    expect(scan.body).toEqual(expect.objectContaining({ fetched: 1, emitted: 1 }));
 
     const activity = await getJson(handle, '/v1/activity?limit=5');
     expect(activity.body.sessions[0]).toEqual(expect.objectContaining({
       kind: 'bilibili_feed',
       status: 'completed',
-      stats: { fetched: 1, inserted: 1, skipped: 0 },
+      stats: { fetched: 1, inserted: 1 },
     }));
 
     const observations = await getJson(handle, '/v1/observations?platform=bilibili');
     expect(observations.body.observations).toHaveLength(1);
     expect(observations.body.observations[0].content).toContain('测试视频');
+  });
+
+  it('extracts experiences from observations through HTTP', async () => {
+    const llmFetch = vi.fn(async () => new Response(JSON.stringify({
+      model: 'fake-model',
+      choices: [{
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            experiences: [{
+              kind: 'watched_video',
+              title: '测试视频',
+              summary: '一个关于测试的视频',
+              reaction: '有点意思',
+              importance: 6,
+              sourceObservationIds: ['obs-experience'],
+            }],
+          }),
+        },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch;
+    const handle = await startCoreServer({
+      host: '127.0.0.1',
+      port: 0,
+      dataDir: createDataDir(),
+      llmConfig: {
+        baseUrl: 'https://example.test/v1',
+        apiKey: 'sk-test',
+        model: 'fake-model',
+      },
+      llmFetch,
+    });
+    handles.push(handle);
+
+    await postJson(handle, '/v1/observations', {
+      id: 'obs-experience',
+      platform: 'bilibili',
+      conversationId: 'feed',
+      conversationKind: 'public',
+      kind: 'video_watch',
+      content: '推荐：测试视频',
+      occurredAt: '2026-10-23T12:00:00.000Z',
+      receivedAt: '2026-10-23T12:00:00.000Z',
+      provenance: 'agent',
+      audience: 'private',
+    });
+
+    const extracted = await postJson(handle, '/v1/experiences/extract', {
+      characterId: 'herein-default',
+    });
+    expect(extracted.status).toBe(200);
+    expect(extracted.body).toEqual(expect.objectContaining({ status: 'updated', created: 1 }));
+
+    const experiences = await getJson(handle, '/v1/experiences?limit=5');
+    expect(experiences.body.experiences[0]).toEqual(expect.objectContaining({
+      title: '测试视频',
+      reaction: '有点意思',
+      characterId: 'herein-default',
+    }));
   });
 
   it('serves Live2D assets without an authorization header', async () => {
@@ -780,14 +1158,17 @@ describe('core server', () => {
 
     expect(speechBody).toEqual(expect.objectContaining({
       text: '在。',
-      turnId: 'turn-v',
+      turnId: 'turn-v:0',
     }));
 
-    const messages = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
-    expect(messages.body.messages.slice(-2)).toEqual([
+    const voiceMessages = await getJson(handle, '/v1/voice/messages?characterId=herein-default');
+    expect(voiceMessages.body.messages.slice(-2)).toEqual([
       expect.objectContaining({ role: 'user', content: '你好' }),
       expect.objectContaining({ role: 'assistant', content: '在。' }),
     ]);
+
+    const chatMessages = await getJson(handle, '/v1/timeline/herein-default/messages?limit=10');
+    expect(chatMessages.body.messages).toEqual([]);
   });
 
   it('reports the interaction port health when configured', async () => {
@@ -816,36 +1197,16 @@ describe('core server', () => {
     }));
   });
 
-  it('registers a DSH bridge provider from configuration', async () => {
+  it('ships DSH as an installable agent plugin', async () => {
     const dshFetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
 
       if (url.endsWith('/health')) {
-        return new Response(JSON.stringify({
-          protocol: 1,
-          profileId: 'profile-1',
-          runtimeVersion: '0.2.1-rc.2',
-          host: 'running',
-        }), { status: 200 });
-      }
-
-      if (url.endsWith('/v1/inventory')) {
-        return new Response(JSON.stringify({
-          plugins: [],
-          bundles: [],
-          capabilities: [{
-            name: 'herein_hello',
-            description: 'Return a greeting.',
-            parameters: { name: { type: 'string', required: true } },
-          }],
-        }), { status: 200 });
+        return new Response(JSON.stringify({ host: 'running', runtimeVersion: '0.2.1-rc.2' }), { status: 200 });
       }
 
       if (url.endsWith('/v1/call')) {
-        return new Response(JSON.stringify({
-          content: [{ type: 'text', text: 'hello Herein' }],
-          value: 'hello Herein',
-        }), { status: 200 });
+        return new Response(JSON.stringify({ value: 'hello Herein' }), { status: 200 });
       }
 
       throw new Error(`unexpected DSH fetch: ${url}`);
@@ -854,103 +1215,43 @@ describe('core server', () => {
       host: '127.0.0.1',
       port: 0,
       dataDir: createDataDir(),
-      dsh: {
-        url: 'http://dsh.test',
-        token: 'bridge-token',
-        fetchImpl: dshFetch,
-      },
+      pluginFetch: dshFetch,
     });
     handles.push(handle);
 
-    const listed = await getJson(handle, '/v1/agents');
-    expect(listed.body.providers).toEqual([
-      expect.objectContaining({ id: 'dsh', health: expect.objectContaining({ status: 'ok' }) }),
-    ]);
-    expect(listed.body.capabilities[0]).toEqual(expect.objectContaining({
-      providerId: 'dsh',
-      id: 'herein_hello',
-      lifecycle: 'external',
-    }));
+    const listed = await getJson(handle, '/v1/plugins');
+    expect(listed.body.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        manifest: expect.objectContaining({ id: 'dsh', kind: 'agent' }),
+        installed: false,
+      }),
+    ]));
 
-    const invoked = await postJson(handle, '/v1/agents/dsh/herein_hello/invoke', {
+    const installed = await postJson(handle, '/v1/plugins/install', { id: 'dsh' });
+    expect(installed.body.plugin).toEqual(expect.objectContaining({ installed: true, enabled: false }));
+
+    const enabled = await postJson(handle, '/v1/plugins/dsh/enable', {});
+    expect(enabled.body.plugin).toEqual(expect.objectContaining({ installed: true, enabled: true }));
+
+    const configured = await patchJson(handle, '/v1/plugins/dsh/config', {
+      config: { url: 'http://127.0.0.1:8791', token: 'bridge-token' },
+    });
+    expect(configured.body.plugin.config).toEqual(expect.objectContaining({ token: 'bridge-token' }));
+
+    const invoked = await postJson(handle, '/v1/plugins/dsh/invoke', {
       action: 'call',
-      input: { name: 'Herein' },
+      input: { name: 'herein_hello', arguments: { name: 'Herein' } },
     });
-    expect(invoked.body.result).toEqual(expect.objectContaining({
-      value: 'hello Herein',
-    }));
-
-    const install = await postJson(handle, '/v1/agents/dsh/herein_hello/install', {});
-    expect(install.body).toEqual(expect.objectContaining({
-      status: 'failed',
-      message: expect.stringContaining('signed approval'),
-    }));
-  });
-
-  it('exposes agent providers and delegates lifecycle operations', async () => {
-    const provider = {
-      id: 'dsh',
-      name: 'DSH',
-      async listCapabilities() {
-        return [{
-          providerId: 'dsh',
-          id: 'hello',
-          name: 'Hello',
-          version: '1.0.0',
-          permissions: [],
-          health: { status: 'ok' as const, checkedAt: '2026-10-22T12:00:00.000Z' },
-        }];
-      },
-      async install(capabilityId: string) {
-        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
-      },
-      async enable(capabilityId: string) {
-        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
-      },
-      async disable(capabilityId: string) {
-        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
-      },
-      async remove(capabilityId: string) {
-        return { providerId: 'dsh', capabilityId, status: 'applied' as const };
-      },
-      async health() {
-        return { status: 'ok' as const, checkedAt: '2026-10-22T12:00:00.000Z' };
-      },
-      async invoke(capabilityId: string, action: string, input: unknown) {
-        return { capabilityId, action, input };
-      },
-    };
-    const handle = await startCoreServer({
-      host: '127.0.0.1',
-      port: 0,
-      dataDir: createDataDir(),
-      agentProviders: [provider],
-    });
-    handles.push(handle);
-
-    const listed = await getJson(handle, '/v1/agents');
-    expect(listed.status).toBe(200);
-    expect(listed.body.providers[0]).toEqual(expect.objectContaining({ id: 'dsh' }));
-    expect(listed.body.capabilities[0]).toEqual(expect.objectContaining({ id: 'hello' }));
-
-    const installed = await postJson(handle, '/v1/agents/dsh/hello/install', {});
-    expect(installed.body).toEqual(expect.objectContaining({ status: 'applied', capabilityId: 'hello' }));
-
-    const invoked = await postJson(handle, '/v1/agents/dsh/hello/invoke', {
-      action: 'ping',
-      input: { n: 1 },
-    });
-    expect(invoked.body.result).toEqual({
-      capabilityId: 'hello',
-      action: 'ping',
-      input: { n: 1 },
-    });
+    expect(invoked.body.result).toEqual({ value: 'hello Herein' });
 
     const status = await getJson(handle, '/v1/status');
     expect(status.body.components.agents).toEqual(expect.objectContaining({
       status: 'ok',
-      detail: expect.objectContaining({ providers: 1, capabilities: 1 }),
+      detail: expect.objectContaining({ plugins: 1 }),
     }));
+
+    const removed = await getJson(handle, '/v1/plugins/dsh', { method: 'DELETE' });
+    expect(removed.status).toBe(200);
   });
 
   it('exposes status and manages the weather plugin end to end', async () => {

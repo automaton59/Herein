@@ -4,9 +4,9 @@
 
 ## 1. 项目定位
 
-此间（Herein）是一个本地优先的私人 IM 陪伴应用。
+此间（Herein）是一个本地优先的私人陪伴应用。
 
-它的核心体验不是“配置一个 AI 工具”，而是“打开一个熟悉的聊天对象”。用户应该看到联系人、头像、在线状态、正在输入、聊天气泡、历史会话，以及一个逐渐稳定下来的关系对象。
+它的核心体验不是“配置一个 AI 工具”，也不是“在多个角色之间挑选”。角色由私有 persona 包固定；应用启动后，用户应该先看到桌面上的 Live2D 形象，再打开一段熟悉的私聊：稳定人格、在线状态、正在输入、聊天气泡、历史会话，以及一个逐渐稳定下来的关系对象。
 
 此间不以 SillyTavern 式剧情玩法为目标，也不追求把世界书、设定集、复杂剧情结构搬进来。SillyTavern 可以作为本地持久化、总结、资产和上下文装配的实现参考，但不是此间的产品目标。
 
@@ -38,7 +38,11 @@
 
 此间应尽量兼容 OpenAI-compatible API。用户可以使用 OpenAI、DeepSeek、OpenRouter、AnyRouter、OpenCode 或其他兼容端点。具体 provider 的差异应尽量被 profile 和 adapter 消化，而不是散落在 UI 和业务代码里。
 
-### 2.6 质量每阶段都做
+### 2.6 形象先于聊天，关闭不是退出
+
+桌面形象是应用的一等入口，不藏在聊天或视频通话后面。关闭主窗口只收起聊天，形象和本地服务继续在线；用户显式退出才结束进程。这个行为由托盘和后台托管生命周期保证。
+
+### 2.7 质量每阶段都做
 
 测试、构建、迁移、安全、文档不是最后一个 Phase 才做的“收尾”。每一个阶段结束时都应该跑一轮完整检查，避免功能越堆越难维护。
 
@@ -93,11 +97,11 @@ Phase 2 不再继续把 JSON 作为长期主存储，也不再把浏览器 fallb
 - API key 仍使用 Electron `safeStorage` 加密，密文进入 SQLite。
 - 浏览器模式可以保留有限前端调试能力，但 SQLite-backed 功能不要求在纯浏览器完整运行。
 
-### 4.2 单角色单主时间线
+### 4.2 固定角色单主时间线
 
-角色应该像联系人，不像剧情卡存档。
+Phase 3E 之后，应用只服务 persona 包指定的一个角色，不再提供角色选择或新建/复制/删除入口。角色仍然像一个长期联系人，而不是剧情卡存档。
 
-Phase 2 默认一个角色只有一条连续主聊天时间线：
+该角色只有一条连续主聊天时间线：
 
 - 长聊天通过分页、搜索、时间分段、总结和记忆承接。
 - 不再把“同一角色开多个聊天”作为常规入口。
@@ -203,13 +207,14 @@ Phase 2 已提供基础数据安全能力：
 - 恢复时校验 manifest、schema version 和文件完整性。
 - 迁移 Phase 1 JSON 前保留旧数据备份，迁移失败可重试。
 
-## 5. Phase 3：角色存在感与视频聊天
+## 5. Phase 3：角色存在感与桌面陪伴
 
-Phase 3 进入更强的角色存在感。它不是把此间改成游戏引擎，也不是给角色卡系统继续堆字段，而是让“联系人”在聊天之外有可感知的状态、表情、形象和声音。
+Phase 3 进入更强的角色存在感。它不是把此间改成游戏引擎，也不是给角色卡系统继续堆字段，而是让固定角色在聊天之外有可感知的状态、表情、形象和声音。
 
 详细交接见：
 
 - `docs/PHASE3-HANDOVER.md`
+- `docs/DESKTOP-PRESENCE.md`
 - `docs/superpowers/specs/2026-06-20-phase3-video-call-presence-design.md`
 
 阶段目标：
@@ -220,12 +225,14 @@ Phase 3 进入更强的角色存在感。它不是把此间改成游戏引擎，
 - 让关系状态、最近情绪和未收束上下文能影响表情、状态文案和动作反馈。
 - 语音输入和 TTS 已以本地系统语音第一版进入 Phase 3D；云端 provider 和角色级声音配置仍应作为独立子任务，不要阻塞表情/形象链路。
 
-已确认的第一切片是视频通话式存在感，而不是先改主聊天头像：
+Phase 3A–3D 先验证了视频通话式存在感；Phase 3E 已把形象入口从通话窗口前移到应用启动：
 
-1. 先做应用内视频通话窗口、静态立绘差分、字幕输出、mini 悬浮窗和单 active call session。
-2. 资产配置放在联系人资料里的“形象/形象与表情”，立绘差分通过 `emotion -> expression` 映射驱动。
-3. Phase 3C 已实现视频循环动态形象和 Live2D adapter 占位；Phase 3D 已实现本地系统 TTS 和可用时 ASR-to-draft。
-4. 后续再把 presentation state 深化为可复用管线，让主聊天头像、真实 Live2D renderer、云端语音 provider 和更细动作控制复用同一套状态。
+1. 应用启动即创建透明、置顶的桌面 Live2D 形象窗口。
+2. 聊天页不再提供角色选择；角色由 persona 包固定，聊天、记忆和形象共用同一身份。
+3. 关闭主窗口进入后台托管：主窗口隐藏到托盘，形象和内嵌 Core 保持在线；显式退出才结束进程。
+4. 形象资产优先使用 persona 的 `avatar.entry`，用户显式导入的新资产可以覆盖；旧视频通话时代的资产不会静默抢占。
+5. 视频通话窗口保留为可选的语音/沉浸视图，不再是 Live2D 的唯一入口；后续应把语音接到桌面形象并移除重复渲染。
+6. 后续再把 presentation state 深化为可复用管线，让表情、动作、语音和更细状态复用同一套信号。
 
 Phase 2 已经提供 `emotion` metadata、头像资产链路、assets 表、关系档案、记忆和内部 prompt，这些都应成为 Phase 3 的基础。
 
@@ -278,6 +285,8 @@ Phase 4 之后不固定成某一个单一大主题，而是根据产品实际使
 - `docs/PROJECT-BACKGROUND-AND-ROADMAP.md`
 - `docs/HANDOVER.md`
 - `docs/PHASE3-HANDOVER.md`
+- `docs/DESKTOP-PRESENCE.md`
+- `docs/ARCHITECTURE-SELF-CHECK-2026-10-23.md`
 - `docs/superpowers/specs/2026-06-20-phase3-video-call-presence-design.md`
 - `docs/superpowers/plans/2026-06-20-phase3-video-call-presence-implementation.md`
 - `docs/superpowers/specs/2026-06-19-phase2-personality-relationship-memory-assets-design.md`

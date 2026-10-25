@@ -1,35 +1,95 @@
 # Herein
 
-Herein is a local-first private IM companion app built with React, TypeScript, and Electron. Its Chinese product name is 此间.
+A local-first private companion app for the desktop. Electron + React + TypeScript, with everything stored on your machine.
 
-The project is not a roleplay workbench or a SillyTavern clone. The goal is to make opening the app feel like opening a familiar private chat: contacts, messages, local history, stable personality, relationship continuity, and user-controlled memory.
+It is not a roleplay workbench, and not a lighter SillyTavern. Opening it should feel like opening a familiar presence: one character fixed by a private persona pack, a Live2D figure already on your desktop, and a private conversation that remembers what came before.
 
-## Current Status
+---
 
-Phase 2 is now at basic wrap-up. The core product loop is implemented; the remaining Phase 2 work is release-style verification, Electron smoke testing, and packaging polish. The app currently supports:
+## What it solves
 
-- Electron + Vite development flow.
-- OpenAI-compatible API profiles.
-- Encrypted API keys in Electron through `safeStorage`, stored in SQLite.
-- SQLite-first local data through Electron IPC.
-- Phase 1 JSON migration into `app.db`.
-- Multi-character chat with one primary timeline per character.
-- Message edit, regenerate, retract, and delete-after flows.
-- Hidden reasoning/thinking blocks in the main chat.
-- Emotion tags parsed as metadata instead of visible text.
-- Context assembly from character profile, conversation summary, and active memories.
-- Background conversation summary and structured memory extraction.
-- A chat-side memory panel and global memory settings.
-- Herein character archive export/import.
-- Full backup/restore zip with manifest, `app.db`, and assets.
-- Light, dark, and system themes.
+General-purpose chat resets every turn. Herein makes three things durable state instead:
+
+- **Personality is equipment, not a prompt.** A persona pack defines identity, voice, boundaries and relationship frame, compiled into the system prompt at startup. There is no character picker in the chat.
+- **Memory is a data structure, not concatenated history.** Messages, summaries and structured memory are stored in layers and recalled under a token budget. You can inspect, edit, disable and pin each memory.
+- **Presence is the default, not a toggle.** The desktop figure lives independently of the chat window. Close the main window and it stays; the tray hosts the Core.
+
+## Capabilities
+
+### Conversation
+
+One fixed character, streamed output. Edit-and-resend, regenerate, retract, delete-and-retry. `thinking` blocks are collapsed rather than shown. Emotion tags are parsed as metadata instead of visible text — they drive the avatar's expression and the voice's tone without leaking into the transcript.
+
+### Memory
+
+Three layers:
+
+| Layer | Content |
+|---|---|
+| Messages | Raw turns, editable and regenerable |
+| Summaries | Rolling narrative versions generated in the background |
+| Memory items | Extracted preferences, facts, state changes, shared experiences — with provenance and confidence |
+
+Recall packs sections under a token budget instead of dumping history into context. The memory panel lets you inspect, edit, disable, pin and add items by hand.
+
+### Desktop presence
+
+A transparent Live2D window (Cubism 2 and 4), independent of the main window. Always-on-top optional, draggable, position remembered. Expressions follow conversation emotion; lipsync follows voice amplitude. Hiding the main window to the tray keeps the figure online.
+
+### Voice
+
+Local TTS (Qwen3 family) and ASR run as separate service processes and need your own model weights. A dedicated interaction runtime handles voice conversation and shares the same timeline as text chat.
+
+### Proactive messages
+
+Not scheduled pushes. The initiative layer reads current relationship state, unresolved topics and recent affect, decides whether this is a moment to speak, then says it in the character's own voice — proactive messages and replies share one persona.
+
+### Plugins
+
+Plugins are capability extensions, not script injection. Each declares its `kind`, `permissions` (network hosts, credentials, send, install, filesystem) and a `configSchema`; the settings UI generates the form, validates fields and reports health from that declaration.
+
+| Plugin | Kind | Notes |
+|---|---|---|
+| Weather | tool | Open-Meteo, no key required |
+| Stickers | tool | Picks from local emotion-keyed packs |
+| Bilibili | source | Live/dynamic content as context material |
+| NetEase | source | Read-only: search, lyrics, public playlists |
+| QQ Bot | channel | Direct messages and group @-mentions |
+| DSH | agent | Bridges DeepSeek Harness |
+
+All configured by hand, with no model guessing at settings. Per-plugin fields and verification steps: [docs/PLUGIN-SETUP.md](docs/PLUGIN-SETUP.md).
+
+### Multi-device
+
+Desktop is the primary form. The embedded Core is a standalone HTTP service (`npm run core:serve` runs it alone); the Android client reaches it over LAN with token auth. Android is experimental.
+
+## Architecture
+
+```text
+┌─ Electron main ──────────────────────────────────┐
+│  windows / tray / desktop figure / IPC / singleton│
+│  ┌─ embedded Core (HTTP + SSE) ────────────────┐  │
+│  │  turn orchestration · context assembly      │  │
+│  │  memory read/write · initiative             │  │
+│  │  plugin registry · asset routing · secrets  │  │
+│  └─────────────────────────────────────────────┘  │
+│  adapters (Bilibili / NetEase / QQ / DSH, dynamic) │
+└───────────────────────────────────────────────────┘
+                    ↕ IPC
+┌─ Renderer (React + Zustand + Tailwind) ───────────┐
+│  chat · memory panel · settings · system · figure  │
+└───────────────────────────────────────────────────┘
+```
+
+`src/` cannot import `electron/` internals — only the IPC contract exposed by preload. `npm run check:core` enforces that boundary.
+
+Core is a separate layer because it has to be reusable by the phone, by a second process, and by any future shell, instead of being welded to a BrowserWindow.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- npm
+Node.js 22+. **Electron is pinned at 42.4.0** — do not upgrade. Newer versions ship no prebuilt `better-sqlite3` binary.
 
 ### Install
 
@@ -37,105 +97,79 @@ Phase 2 is now at basic wrap-up. The core product loop is implemented; the remai
 npm install
 ```
 
-### Run The Electron App
+`postinstall` rebuilds `better-sqlite3` against Electron's ABI.
+
+### Prepare the private layer
+
+You need to create this yourself. The repository holds the engine, not the persona: `private/` is git-ignored on purpose, because a persona pack, Live2D assets and credentials are personal content rather than source code.
+
+```bash
+cp -r examples/persona-minimal private/persona/my-companion
+# edit manifest.json and character.json so both `id` fields match
+npm run check:persona
+```
+
+Without a pack the app refuses to start rather than silently falling back to a built-in character — that is deliberate.
+
+API keys, QQ Bot credentials and the sync server config go in `private/credentials/`. Templates live in [`examples/credentials/`](examples/README.md). The persona pack contract is in [docs/PERSONA.md](docs/PERSONA.md).
+
+### Run
 
 ```bash
 npm start
 ```
 
-This is the recommended development and usage path.
+First launch lands on settings; create an OpenAI-compatible API profile before chatting.
 
-### Build Checks
+### Build
 
 ```bash
-npm run build
-npm run electron:compile
+npm run build                # boundary check + contrast check + tsc + vite build
+npm run electron:compile     # compile the main process
+npm run electron:build:dir   # unpacked directory, output to ../Herein-Releases
 ```
-
-`npm run dev` can still start the Vite browser server for limited frontend work, but Phase 2 storage is Electron-first SQLite and browser-only mode is not a full product target.
-
-## Configuration
-
-In the app settings:
-
-1. Create an API profile.
-2. Choose an OpenAI-compatible provider.
-3. Enter the API key, model, and base URL if needed.
-4. Test the connection.
-5. Start chatting.
-
-API profiles are provider-neutral. OpenAI, DeepSeek, OpenRouter, AnyRouter, OpenCode, or other OpenAI-compatible endpoints should be handled through profiles and adapters rather than hard-coded UI logic.
 
 ## Data And Privacy
 
-Electron data lives under:
+Data lives under `%APPDATA%\herein\data\`:
 
 ```text
-%APPDATA%\herein\data\
+app.db          # SQLite: messages, memory, relationships, plugin registry
+assets/         # imported character assets and sticker packs
+backups/        # full backups
+exports/        # character archive exports
 ```
 
-Current long-term data:
+- API keys are encrypted with Electron `safeStorage` before hitting the database — never plaintext on disk.
+- Full backups exclude key ciphertext by default.
+- Every network request goes through the profile you configured; the project reports nothing on its own.
+- Details: [docs/local-data-and-secrets.md](docs/local-data-and-secrets.md).
 
-- `app.db`
-- `assets/`
-- `backups/`
-- `exports/`
+## Docs
 
-Phase 1 JSON files (`config.json`, `chat-history.json`, `api-profiles.json`) are migration inputs and preserved backups. API keys are encrypted with Electron `safeStorage` when available; full backups exclude API key ciphertext by default.
+**Using it**
 
-See [docs/local-data-and-secrets.md](docs/local-data-and-secrets.md) for details.
+- [Persona pack contract](docs/PERSONA.md) — how a character is defined, which variables exist
+- [Plugin setup](docs/PLUGIN-SETUP.md) — per-plugin fields, commands, verification, troubleshooting
+- [Testing](docs/TESTING.md)
+- [Data and secrets](docs/local-data-and-secrets.md)
+- [Example templates](examples/README.md)
 
-## Phase 2 Implementation
+**Design**
 
-Phase 2 is implemented around these decisions:
+- [Background and roadmap](docs/PROJECT-BACKGROUND-AND-ROADMAP.md)
+- [Architecture and core decisions](docs/HANDOVER.md)
+- [Desktop presence](docs/DESKTOP-PRESENCE.md)
+- [Live2D](docs/LIVE2D.md)
+- [Plugin system](docs/PLUGINS.md)
+- [Proactive messages](docs/INITIATIVE.md)
+- [TTS](docs/TTS.md) · [Local voice](docs/LOCAL-VOICE.md) · [Interaction port](docs/INTERACTION-PORT.md)
 
-- SQLite-first, Electron-first data foundation using `better-sqlite3`.
-- One character maps to one primary chat timeline by default.
-- Characters behave like contacts, not branching scenario saves.
-- Conversation summaries handle long dialogue continuity.
-- Structured memories capture important facts, preferences, state changes, and shared events.
-- Memory changes are automatic and visible, not interruptive confirmation popups.
-- Users can view, edit, disable, pin, and manually add memories.
-- A global memory/summarization API profile can be selected, defaulting to the active chat model.
-- Chat, summary, and extraction prompts are internal product logic, not user-editable settings.
-- Herein internal character profile import/export is in scope.
-- Full backup/restore exports a zip with `manifest.json`, `app.db`, and `assets/`.
-- SillyTavern compatibility is not a Phase 2 product goal.
+**Other**
 
-Read the full Phase 2 design:
-
-- [Phase 2 Design](docs/superpowers/specs/2026-06-19-phase2-personality-relationship-memory-assets-design.md)
-- [Project Background And Roadmap](docs/PROJECT-BACKGROUND-AND-ROADMAP.md)
-- [Handover](docs/HANDOVER.md)
-- [Phase 3 Handover](docs/PHASE3-HANDOVER.md)
-
-## Project Structure
-
-```text
-electron/
-  main.ts
-  preload.ts
-src/
-  components/
-    Chat/
-    Memory/
-    Settings/
-  services/
-    phase2/
-    llm/
-    storage/
-    config/
-  stores/
-docs/
-```
-
-## Roadmap
-
-- **Phase 1:** Private IM MVP, complete.
-- **Phase 2:** Personality, relationship, memory, character assets, SQLite data foundation, basic wrap-up.
-- **Phase 3:** Character presence and video-chat direction: presentation state, expression assets, Live2D or equivalent, richer status, optional voice.
-- **Phase 4+:** Packaging, mobile evaluation, controlled proactive chat, tools, sync/backup options, plugins if justified.
+- [Contributing](CONTRIBUTING.md)
+- [Internal notes](docs/internal/README.md) — phase progress and self-checks, will go stale
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).

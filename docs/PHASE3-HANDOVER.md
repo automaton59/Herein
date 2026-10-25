@@ -3,6 +3,8 @@
 最后更新：2026-06-20
 当前前提：Phase 2 基本收尾，Phase 3A/3B/3C/3D 已有可测试实现
 
+> 2026-10-23 更新：Phase 3E 已把 Live2D 从视频通话窗口前移到应用启动即创建的桌面形象窗口，并加入关闭主窗口后的后台托管；聊天页也不再提供角色选择。当前架构以 [`DESKTOP-PRESENCE.md`](./DESKTOP-PRESENCE.md) 和 [`ARCHITECTURE-SELF-CHECK-2026-10-23.md`](./ARCHITECTURE-SELF-CHECK-2026-10-23.md) 为准。本文保留为 Phase 3A–3D 的历史设计和实施记录，其中“视频通话是第一入口”“多角色联系人”等描述已不再代表当前产品。
+
 本阶段已落地的具体设计：
 
 - `docs/superpowers/specs/2026-06-20-phase3-video-call-presence-design.md`

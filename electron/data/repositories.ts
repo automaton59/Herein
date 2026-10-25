@@ -53,12 +53,36 @@ export interface TimelineRecord {
   id: string;
   characterId: string;
   title: string;
-  kind: 'primary' | 'archive';
+  kind: 'primary' | 'archive' | 'voice';
   isPrimary: boolean;
   sourceConversationId?: string | null;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string | null;
+}
+
+export interface MessageSticker {
+  id: string;
+  name: string;
+  /** Core-relative asset URL, e.g. `/assets/stickers/开心/a.webp`. */
+  url: string;
+  pack?: string;
+  emotion?: string;
+}
+
+/**
+ * A material entry a reply actually talked about (a video she "just scrolled
+ * past", a song). `url` is an external share link — the renderer must open it
+ * in the user's browser, never load it as an image/iframe resource.
+ */
+export interface MessageMaterial {
+  id: string;
+  kind: 'video' | 'song';
+  source: 'bilibili' | 'netease';
+  title: string;
+  creator: string | null;
+  url: string | null;
+  coverUrl: string | null;
 }
 
 export interface MessageRecord {
@@ -69,6 +93,8 @@ export interface MessageRecord {
   timestamp: string;
   emotion?: string | null;
   voiceInstruct?: string | null;
+  sticker?: MessageSticker | null;
+  material?: MessageMaterial | null;
   reasoning?: string | null;
   status?: string | null;
   sourceConversationId?: string | null;
@@ -126,6 +152,42 @@ export interface ExperienceRecord {
   importance?: number;
   happenedAt: string;
   sharedAt?: string | null;
+}
+
+export interface AffectStateRecord {
+  characterId: string;
+  mood: number;
+  energy: number;
+  busy: number;
+  patience: number;
+  updatedAt?: string;
+}
+
+export interface OpenLoopRecord {
+  id: string;
+  characterId: string;
+  timelineId: string;
+  text: string;
+  sourceMessageId?: string | null;
+  status: 'open' | 'closed' | 'expired';
+  createdAt: string;
+  expiresAt?: string | null;
+  closedAt?: string | null;
+}
+
+export interface InitiativeBidRecord {
+  id: string;
+  characterId: string;
+  timelineId: string;
+  kind: 'continuation' | 'share' | 'care' | 'invite' | 'idle_thought' | 'follow_up';
+  channel: 'ambient' | 'reaction' | 'text' | 'voice' | 'push';
+  score: number;
+  materialId?: string | null;
+  status: 'pending' | 'sent' | 'skipped';
+  outcome?: string | null;
+  createdAt: string;
+  expiresAt?: string | null;
+  outcomeAt?: string | null;
 }
 
 export interface IdentityLinkRecord {
@@ -239,7 +301,7 @@ type TimelineRow = {
   id: string;
   character_id: string;
   title: string;
-  kind: 'primary' | 'archive';
+  kind: 'primary' | 'archive' | 'voice';
   is_primary: number;
   source_conversation_id: string | null;
   created_at: string;
@@ -255,6 +317,8 @@ type MessageRow = {
   timestamp: string;
   emotion: string | null;
   voice_instruct: string | null;
+  sticker: string | null;
+  material: string | null;
   reasoning: string | null;
   status: string | null;
   source_conversation_id: string | null;
@@ -375,6 +439,70 @@ function mapTimeline(row: TimelineRow): TimelineRecord {
   };
 }
 
+function parseSticker(value: string | null): MessageSticker | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<MessageSticker> | null;
+
+    if (!parsed || typeof parsed.id !== 'string' || typeof parsed.url !== 'string') {
+      return null;
+    }
+
+    return {
+      id: parsed.id,
+      name: typeof parsed.name === 'string' && parsed.name ? parsed.name : parsed.id,
+      url: parsed.url,
+      ...(typeof parsed.pack === 'string' ? { pack: parsed.pack } : {}),
+      ...(typeof parsed.emotion === 'string' ? { emotion: parsed.emotion } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function stringifySticker(value: MessageSticker | null | undefined): string | null {
+  return value ? JSON.stringify(value) : null;
+}
+
+function parseMaterial(value: string | null): MessageMaterial | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<MessageMaterial> | null;
+
+    if (
+      !parsed
+      || typeof parsed.id !== 'string'
+      || typeof parsed.title !== 'string'
+      || (parsed.kind !== 'video' && parsed.kind !== 'song')
+      || (parsed.source !== 'bilibili' && parsed.source !== 'netease')
+    ) {
+      return null;
+    }
+
+    return {
+      id: parsed.id,
+      kind: parsed.kind,
+      source: parsed.source,
+      title: parsed.title,
+      creator: typeof parsed.creator === 'string' ? parsed.creator : null,
+      url: typeof parsed.url === 'string' && parsed.url ? parsed.url : null,
+      coverUrl: typeof parsed.coverUrl === 'string' && parsed.coverUrl ? parsed.coverUrl : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function stringifyMaterial(value: MessageMaterial | null | undefined): string | null {
+  return value ? JSON.stringify(value) : null;
+}
+
 function mapMessage(row: MessageRow): MessageRecord {
   return {
     id: row.id,
@@ -384,6 +512,8 @@ function mapMessage(row: MessageRow): MessageRecord {
     timestamp: row.timestamp,
     emotion: row.emotion,
     voiceInstruct: row.voice_instruct,
+    sticker: parseSticker(row.sticker),
+    material: parseMaterial(row.material),
     reasoning: row.reasoning,
     status: row.status,
     sourceConversationId: row.source_conversation_id,
@@ -721,6 +851,40 @@ export function createPhase2Repositories(db: Phase2Database) {
         return timeline;
       },
 
+      getVoiceForCharacter(characterId: string): TimelineRecord | null {
+        const row = db
+          .prepare("select * from timelines where character_id = ? and kind = 'voice' order by created_at desc limit 1")
+          .get(characterId) as TimelineRow | undefined;
+
+        return row ? mapTimeline(row) : null;
+      },
+
+      ensureVoiceForCharacter(characterId: string, title: string): TimelineRecord {
+        const existing = this.getVoiceForCharacter(characterId);
+        if (existing) {
+          return existing;
+        }
+
+        const timestamp = nowIso();
+        const id = randomUUID();
+        db
+          .prepare(`
+            insert into timelines (
+              id, character_id, title, kind, is_primary, source_conversation_id,
+              created_at, updated_at, archived_at
+            )
+            values (?, ?, ?, 'voice', 0, null, ?, ?, null)
+          `)
+          .run(id, characterId, title, timestamp, timestamp);
+
+        const timeline = this.getVoiceForCharacter(characterId);
+        if (!timeline) {
+          throw new Error(`Failed to create voice timeline for character ${characterId}`);
+        }
+
+        return timeline;
+      },
+
       createArchiveForCharacter(characterId: string, title: string, sourceConversationId?: string): TimelineRecord {
         const timestamp = nowIso();
         const id = randomUUID();
@@ -763,10 +927,10 @@ export function createPhase2Repositories(db: Phase2Database) {
         db
           .prepare(`
             insert into messages (
-              id, timeline_id, role, content, timestamp, emotion, voice_instruct, reasoning, status,
+              id, timeline_id, role, content, timestamp, emotion, voice_instruct, sticker, material, reasoning, status,
               source_conversation_id, created_at, updated_at
             )
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict(id) do update set
               timeline_id = excluded.timeline_id,
               role = excluded.role,
@@ -774,6 +938,8 @@ export function createPhase2Repositories(db: Phase2Database) {
               timestamp = excluded.timestamp,
               emotion = excluded.emotion,
               voice_instruct = excluded.voice_instruct,
+              sticker = excluded.sticker,
+              material = excluded.material,
               reasoning = excluded.reasoning,
               status = excluded.status,
               source_conversation_id = excluded.source_conversation_id,
@@ -787,6 +953,8 @@ export function createPhase2Repositories(db: Phase2Database) {
             message.timestamp,
             message.emotion ?? null,
             message.voiceInstruct ?? null,
+            stringifySticker(message.sticker),
+            stringifyMaterial(message.material),
             message.reasoning ?? null,
             message.status ?? null,
             message.sourceConversationId ?? null,
@@ -804,7 +972,7 @@ export function createPhase2Repositories(db: Phase2Database) {
         const run = db.transaction(() => {
           const existingRows = db
             .prepare(`
-              select id, content, emotion, voice_instruct, reasoning, status, timestamp
+              select id, content, emotion, voice_instruct, sticker, material, reasoning, status, timestamp
               from messages
               where timeline_id = ?
             `)
@@ -813,6 +981,8 @@ export function createPhase2Repositories(db: Phase2Database) {
               content: string;
               emotion: string | null;
               voice_instruct: string | null;
+              sticker: string | null;
+              material: string | null;
               reasoning: string | null;
               status: string | null;
               timestamp: string;
@@ -820,10 +990,10 @@ export function createPhase2Repositories(db: Phase2Database) {
           const existing = new Map(existingRows.map(row => [row.id, row]));
           const insert = db.prepare(`
             insert into messages (
-              id, timeline_id, role, content, timestamp, emotion, voice_instruct, reasoning, status,
+              id, timeline_id, role, content, timestamp, emotion, voice_instruct, sticker, material, reasoning, status,
               source_conversation_id, created_at, updated_at
             )
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict(id) do update set
               timeline_id = excluded.timeline_id,
               role = excluded.role,
@@ -831,6 +1001,8 @@ export function createPhase2Repositories(db: Phase2Database) {
               timestamp = excluded.timestamp,
               emotion = excluded.emotion,
               voice_instruct = excluded.voice_instruct,
+              sticker = excluded.sticker,
+              material = excluded.material,
               reasoning = excluded.reasoning,
               status = excluded.status,
               source_conversation_id = excluded.source_conversation_id,
@@ -841,6 +1013,8 @@ export function createPhase2Repositories(db: Phase2Database) {
               content = ?,
               emotion = ?,
               voice_instruct = ?,
+              sticker = ?,
+              material = ?,
               reasoning = ?,
               status = ?,
               timestamp = ?,
@@ -863,6 +1037,8 @@ export function createPhase2Repositories(db: Phase2Database) {
                 message.timestamp,
                 message.emotion ?? null,
                 message.voiceInstruct ?? null,
+                stringifySticker(message.sticker),
+                stringifyMaterial(message.material),
                 message.reasoning ?? null,
                 message.status ?? null,
                 message.sourceConversationId ?? null,
@@ -877,6 +1053,8 @@ export function createPhase2Repositories(db: Phase2Database) {
               previous.content !== message.content
               || (previous.emotion ?? null) !== (message.emotion ?? null)
               || (previous.voice_instruct ?? null) !== (message.voiceInstruct ?? null)
+              || (previous.sticker ?? null) !== stringifySticker(message.sticker)
+              || (previous.material ?? null) !== stringifyMaterial(message.material)
               || (previous.reasoning ?? null) !== (message.reasoning ?? null)
               || (previous.status ?? null) !== (message.status ?? null)
               || previous.timestamp !== message.timestamp
@@ -885,6 +1063,8 @@ export function createPhase2Repositories(db: Phase2Database) {
                 message.content,
                 message.emotion ?? null,
                 message.voiceInstruct ?? null,
+                stringifySticker(message.sticker),
+                stringifyMaterial(message.material),
                 message.reasoning ?? null,
                 message.status ?? null,
                 message.timestamp,
@@ -1073,6 +1253,10 @@ export function createPhase2Repositories(db: Phase2Database) {
             timestamp,
           );
       },
+
+      deleteByTimeline(timelineId: string) {
+        db.prepare('delete from conversation_summaries where timeline_id = ?').run(timelineId);
+      },
     },
 
     readState: {
@@ -1181,6 +1365,13 @@ export function createPhase2Repositories(db: Phase2Database) {
             memory.createdAt ?? timestamp,
             memory.updatedAt ?? timestamp,
           );
+
+        const subject = memory.kind === 'event' || memory.kind === 'relationship'
+          ? 'relationship'
+          : 'user';
+        db
+          .prepare('update memory_items set subject = ?, manual = ? where id = ?')
+          .run(subject, memory.origin === 'manual' ? 1 : 0, memory.id);
       },
 
       listActive(filter: {
@@ -1193,7 +1384,7 @@ export function createPhase2Repositories(db: Phase2Database) {
         const params: unknown[] = ['active'];
 
         if (filter.characterId) {
-          clauses.push('character_id = ?');
+          clauses.push('(character_id = ? or character_id is null)');
           params.push(filter.characterId);
         }
 
@@ -1240,7 +1431,7 @@ export function createPhase2Repositories(db: Phase2Database) {
         const params: unknown[] = ['active'];
 
         if (filter.characterId) {
-          clauses.push('m.character_id = ?');
+          clauses.push('(m.character_id = ? or m.character_id is null)');
           params.push(filter.characterId);
         }
 
@@ -1957,6 +2148,271 @@ export function createPhase2Repositories(db: Phase2Database) {
           payload: JSON.parse(row.payload_json) as unknown,
           createdAt: row.created_at,
         }));
+      },
+    },
+
+    affectState: {
+      get(characterId: string): AffectStateRecord | null {
+        const row = db
+          .prepare('select * from affect_state where character_id = ?')
+          .get(characterId) as {
+            character_id: string;
+            mood: number;
+            energy: number;
+            busy: number;
+            patience: number;
+            updated_at: string;
+          } | undefined;
+
+        return row ? {
+          characterId: row.character_id,
+          mood: row.mood,
+          energy: row.energy,
+          busy: row.busy,
+          patience: row.patience,
+          updatedAt: row.updated_at,
+        } : null;
+      },
+
+      upsert(state: AffectStateRecord) {
+        db
+          .prepare(`
+            insert into affect_state (
+              character_id, mood, energy, busy, patience, updated_at
+            )
+            values (?, ?, ?, ?, ?, ?)
+            on conflict(character_id) do update set
+              mood = excluded.mood,
+              energy = excluded.energy,
+              busy = excluded.busy,
+              patience = excluded.patience,
+              updated_at = excluded.updated_at
+          `)
+          .run(
+            state.characterId,
+            state.mood,
+            state.energy,
+            state.busy,
+            state.patience,
+            state.updatedAt ?? nowIso(),
+          );
+      },
+    },
+
+    openLoops: {
+      create(loop: OpenLoopRecord) {
+        db
+          .prepare(`
+            insert or replace into open_loops (
+              id, character_id, timeline_id, text, source_message_id, status,
+              created_at, expires_at, closed_at
+            )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .run(
+            loop.id,
+            loop.characterId,
+            loop.timelineId,
+            loop.text,
+            loop.sourceMessageId ?? null,
+            loop.status,
+            loop.createdAt,
+            loop.expiresAt ?? null,
+            loop.closedAt ?? null,
+          );
+      },
+
+      listOpen(characterId: string, limit = 5): OpenLoopRecord[] {
+        const rows = db
+          .prepare(`
+            select * from open_loops
+            where character_id = ? and status = 'open'
+            order by created_at desc
+            limit ?
+          `)
+          .all(characterId, limit) as Array<{
+            id: string;
+            character_id: string;
+            timeline_id: string;
+            text: string;
+            source_message_id: string | null;
+            status: 'open' | 'closed' | 'expired';
+            created_at: string;
+            expires_at: string | null;
+            closed_at: string | null;
+          }>;
+
+        return rows.map(row => ({
+          id: row.id,
+          characterId: row.character_id,
+          timelineId: row.timeline_id,
+          text: row.text,
+          sourceMessageId: row.source_message_id,
+          status: row.status,
+          createdAt: row.created_at,
+          expiresAt: row.expires_at,
+          closedAt: row.closed_at,
+        }));
+      },
+
+      close(id: string) {
+        db
+          .prepare(`
+            update open_loops
+            set status = 'closed', closed_at = ?
+            where id = ? and status = 'open'
+          `)
+          .run(nowIso(), id);
+      },
+
+      clearTimeline(timelineId: string) {
+        db.prepare('delete from open_loops where timeline_id = ?').run(timelineId);
+      },
+    },
+
+    initiativeBids: {
+      create(bid: InitiativeBidRecord) {
+        db
+          .prepare(`
+            insert or replace into initiative_bids (
+              id, character_id, timeline_id, kind, channel, score, material_id,
+              status, outcome, created_at, expires_at, outcome_at
+            )
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .run(
+            bid.id,
+            bid.characterId,
+            bid.timelineId,
+            bid.kind,
+            bid.channel,
+            bid.score,
+            bid.materialId ?? null,
+            bid.status,
+            bid.outcome ?? null,
+            bid.createdAt,
+            bid.expiresAt ?? null,
+            bid.outcomeAt ?? null,
+          );
+      },
+
+      listRecent(characterId: string, limit = 20): InitiativeBidRecord[] {
+        const rows = db
+          .prepare(`
+            select * from initiative_bids
+            where character_id = ?
+            order by created_at desc
+            limit ?
+          `)
+          .all(characterId, limit) as Array<{
+            id: string;
+            character_id: string;
+            timeline_id: string;
+            kind: InitiativeBidRecord['kind'];
+            channel: InitiativeBidRecord['channel'];
+            score: number;
+            material_id: string | null;
+            status: InitiativeBidRecord['status'];
+            outcome: string | null;
+            created_at: string;
+            expires_at: string | null;
+            outcome_at: string | null;
+          }>;
+
+        return rows.map(row => ({
+          id: row.id,
+          characterId: row.character_id,
+          timelineId: row.timeline_id,
+          kind: row.kind,
+          channel: row.channel,
+          score: row.score,
+          materialId: row.material_id,
+          status: row.status,
+          outcome: row.outcome,
+          createdAt: row.created_at,
+          expiresAt: row.expires_at,
+          outcomeAt: row.outcome_at,
+        }));
+      },
+
+      countSince(characterId: string, since: string): number {
+        const row = db
+          .prepare(`
+            select count(*) as count from initiative_bids
+            where character_id = ? and created_at >= ? and status = 'sent'
+          `)
+          .get(characterId, since) as { count: number };
+
+        return row.count;
+      },
+
+      lastSentAt(characterId: string): string | null {
+        const row = db
+          .prepare(`
+            select created_at from initiative_bids
+            where character_id = ? and status = 'sent'
+            order by created_at desc
+            limit 1
+          `)
+          .get(characterId) as { created_at: string } | undefined;
+
+        return row?.created_at ?? null;
+      },
+
+      updateOutcome(id: string, status: InitiativeBidRecord['status'], outcome?: string | null) {
+        db
+          .prepare(`
+            update initiative_bids
+            set status = ?, outcome = ?, outcome_at = ?
+            where id = ?
+          `)
+          .run(status, outcome ?? null, nowIso(), id);
+      },
+
+      markLatestSentAsReplied(characterId: string, withinMs = 2 * 60 * 60 * 1000): boolean {
+        const latest = db
+          .prepare(`
+            select id, created_at from initiative_bids
+            where character_id = ? and status = 'sent' and outcome is null
+            order by created_at desc
+            limit 1
+          `)
+          .get(characterId) as { id: string; created_at: string } | undefined;
+
+        if (!latest) {
+          return false;
+        }
+
+        const created = Date.parse(latest.created_at);
+
+        if (!Number.isFinite(created) || Date.now() - created > withinMs) {
+          return false;
+        }
+
+        db
+          .prepare(`
+            update initiative_bids
+            set outcome = 'replied', outcome_at = ?
+            where id = ?
+          `)
+          .run(nowIso(), latest.id);
+        return true;
+      },
+
+      markStaleIgnored(characterId: string, olderThanMs = 24 * 60 * 60 * 1000): number {
+        const cutoff = new Date(Date.now() - olderThanMs).toISOString();
+        const result = db
+          .prepare(`
+            update initiative_bids
+            set outcome = 'ignored', outcome_at = ?
+            where character_id = ?
+              and status = 'sent'
+              and outcome is null
+              and created_at < ?
+          `)
+          .run(nowIso(), characterId, cutoff);
+
+        return result.changes;
       },
     },
 

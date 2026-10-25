@@ -259,7 +259,7 @@ function ConnectionScreen({ onConnect }: { onConnect: (config: CoreConfig) => vo
     <div className="flex min-h-[100dvh] flex-col justify-center bg-[#04101a] px-6 text-sky-50">
       <div className="mx-auto w-full max-w-sm">
         <p className="text-sm tracking-[0.3em] text-sky-300/70">HEREIN</p>
-        <h1 className="mt-3 text-3xl font-semibold">蓝蓝在等你</h1>
+        <h1 className="mt-3 text-3xl font-semibold">她在等你</h1>
         <p className="mt-2 text-sm leading-6 text-sky-100/60">
           手机和电脑连同一个 Wi-Fi，填电脑的局域网地址。默认端口 8787。
         </p>
@@ -687,7 +687,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
         body: JSON.stringify({
           context: text,
           candidates: candidates.candidates,
-          characterName: '蓝蓝',
+          characterName: '她',
           // Explicit requests bypass the server cooldown; proactive shares do not.
           ...(explicit ? {
             gate: {
@@ -730,7 +730,12 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
       { role: 'user' as const, content: text },
     ].slice(-20);
 
-    return coreRequest<{ message: ChatMessage; latencyMs: number }>(config, '/v1/chat', {
+    return coreRequest<{
+      message?: ChatMessage;
+      latencyMs?: number;
+      silent?: boolean;
+      presence?: { notice?: string };
+    }>(config, '/v1/chat', {
       method: 'POST',
       body: JSON.stringify({
         characterId: CHARACTER_ID,
@@ -828,7 +833,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
 
     try {
       const data = await postChat(text, clientMessageId);
-      setStatus(`已连接 · ${data.latencyMs}ms`);
+      setStatus(data.silent ? `已读 · ${data.presence?.notice ?? '在听'}` : `已连接 · ${data.latencyMs ?? 0}ms`);
       void maybeRecommend(text);
       setMessages(current => current.filter(message => message.clientMessageId !== clientMessageId));
       await refreshMessages();
@@ -854,7 +859,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
     <div className="flex h-[100dvh] flex-col bg-[#04101a] text-sky-50">
       <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
         <div>
-          <div className="text-base font-semibold">海拾香</div>
+          <div className="text-base font-semibold">角色</div>
           <div className="mt-0.5 text-[11px] text-sky-200/50">
             {!isOnline ? '离线，消息会排队' : !isAppVisible ? '后台暂停同步' : status}
           </div>
@@ -896,7 +901,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
           }}
           className="mx-4 mt-3 rounded-2xl border border-sky-400/30 bg-sky-500/15 px-3 py-2 text-left text-xs leading-5 text-sky-100"
         >
-          <span className="font-semibold text-sky-200">蓝蓝</span>
+          <span className="font-semibold text-sky-200">她</span>
           <span className="text-sky-100/80">：{proactiveToast}</span>
         </button>
       )}
@@ -949,7 +954,7 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                 </div>
               ) : (
                 <div>
-                  <div>{message.content}</div>
+                  <div className="whitespace-pre-line">{message.content}</div>
                   {message.status === 'pending' && (
                     <div className="mt-1 text-[10px] text-amber-300/80">待发送</div>
                   )}
@@ -1004,9 +1009,6 @@ function ChatScreen({ config, onDisconnect }: { config: CoreConfig; onDisconnect
                   ['模型', systemStatus.components.llm],
                   ['声音', systemStatus.components.tts],
                   ['插件', systemStatus.components.plugins],
-                  ['Agent', systemStatus.components.agents],
-                  ['隧道', systemStatus.components.relay],
-                  ['交互', systemStatus.components.interaction],
                 ].map(([label, component]) => {
                   const value = component as SystemStatusComponent;
                   return (

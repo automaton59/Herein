@@ -12,6 +12,7 @@ export interface SpeakRequest {
   interruptible?: boolean;
   source?: InteractionSource;
   turnId?: string;
+  filler?: boolean;
 }
 
 export interface SpeakResult {
@@ -242,6 +243,7 @@ export class AInteractionPort implements InteractionPort {
           text: request.text,
           emotion: request.emotion ?? 'neutral',
           instruct: request.voiceInstruct ?? '',
+          ...(request.filler ? { filler: true } : {}),
           ...(request.turnId
             ? { turnId: request.turnId }
             : request.source === 'initiative'

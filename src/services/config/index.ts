@@ -16,12 +16,13 @@ const DEFAULT_CONFIG: AppConfig = {
   characters: [DEFAULT_CHARACTER],
   activeCharacterId: DEFAULT_CHARACTER.id,
   activeProfileId: null,
-  themeMode: 'system',
+  themeMode: 'light',
   voice: DEFAULT_VOICE_CONFIG,
   memoryEnabled: true,
   memoryProfileMode: 'follow-chat',
   memoryProfileId: null,
   summaryTriggerMessageCount: 20,
+  connectionAuto: true,
 };
 
 type StoredAppConfig = Partial<AppConfig> & {
@@ -103,6 +104,7 @@ function normalizeConfig(parsed: StoredAppConfig | null | undefined): AppConfig 
       parsed.summaryTriggerMessageCount,
       DEFAULT_CONFIG.summaryTriggerMessageCount,
     ),
+    connectionAuto: parsed.connectionAuto !== false,
   };
 }
 
@@ -137,6 +139,7 @@ function phase2SettingsToConfig(input: Awaited<ReturnType<ReturnType<typeof crea
     memoryProfileMode: input.settings.memoryProfileMode,
     memoryProfileId: input.settings.memoryProfileId,
     summaryTriggerMessageCount: input.settings.summaryTriggerMessageCount,
+    connectionAuto: input.settings.connectionAuto !== false,
   });
 }
 
@@ -202,6 +205,7 @@ export class ConfigService {
         client.settings.set('memoryProfileMode', sanitized.memoryProfileMode),
         client.settings.set('memoryProfileId', sanitized.memoryProfileId ?? null),
         client.settings.set('summaryTriggerMessageCount', sanitized.summaryTriggerMessageCount),
+        client.settings.set('connectionAuto', sanitized.connectionAuto !== false),
       ]);
       return;
     }

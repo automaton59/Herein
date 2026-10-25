@@ -1,4 +1,60 @@
-import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { contextBridge, ipcRenderer, webUtils, type IpcRendererEvent } from 'electron';
+
+const coreAccess = ipcRenderer.sendSync('core:access') as { url: string; token: string } | null;
+
+if (coreAccess) {
+  contextBridge.exposeInMainWorld('hereinCore', coreAccess);
+}
+
+type IpcListener = (event: IpcRendererEvent, payload: unknown) => void;
+
+function subscribe(channel: string, callback: (payload: unknown) => void) {
+  const listener: IpcListener = (_event, payload) => callback(payload);
+  ipcRenderer.on(channel, listener);
+
+  return () => {
+    ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+contextBridge.exposeInMainWorld('hereinShell', {
+  presence: {
+    getState: () => ipcRenderer.invoke('presence:get-state'),
+    getShellState: () => ipcRenderer.invoke('presence:get-shell-state'),
+    refresh: () => ipcRenderer.invoke('presence:refresh'),
+    openChat: (messageId?: string) => ipcRenderer.invoke('presence:open-chat', messageId),
+    showContextMenu: () => ipcRenderer.invoke('presence:context-menu'),
+    getBounds: () => ipcRenderer.invoke('presence:get-bounds'),
+    moveTo: (x: number, y: number) => ipcRenderer.send('presence:move-to', x, y),
+    hide: () => ipcRenderer.invoke('presence:hide'),
+    onState: (callback: (payload: unknown) => void) => subscribe('presence:state', callback),
+    onShellState: (callback: (payload: unknown) => void) => subscribe('shell:state', callback),
+  },
+  app: {
+    showMain: () => ipcRenderer.invoke('app:show-main'),
+    setPresenceEnabled: (value: boolean) => ipcRenderer.invoke('app:set-presence-enabled', value),
+    setAlwaysOnTop: (value: boolean) => ipcRenderer.invoke('app:set-always-on-top', value),
+    setCloseToHosting: (value: boolean) => ipcRenderer.invoke('app:set-close-to-hosting', value),
+    setLaunchAtLogin: (value: boolean) => ipcRenderer.invoke('app:set-launch-at-login', value),
+    onOpenChat: (callback: (messageId?: string) => void) => subscribe('app:open-chat', payload => callback(typeof payload === 'string' ? payload : undefined)),
+    quit: () => ipcRenderer.invoke('app:quit'),
+  },
+  dialog: {
+    pickFile: (options?: { title?: string; mode?: 'file' | 'directory' }) =>
+      ipcRenderer.invoke('dialog:pick', options ?? {}),
+    openExternal: (target: string) => ipcRenderer.invoke('shell:open-external', target),
+  },
+});
+
+contextBridge.exposeInMainWorld('hereinVoice', {
+  transcribe: (pcm: Uint8Array, turnId?: string) =>
+    ipcRenderer.invoke('voice:transcribe', pcm, turnId),
+  cancel: () => ipcRenderer.invoke('voice:cancel'),
+  status: () => ipcRenderer.invoke('voice:status'),
+  onPcm: (callback: (payload: unknown) => void) => subscribe('voice:pcm', callback),
+  onCancel: (callback: (payload: unknown) => void) => subscribe('voice:cancel-event', callback),
+  onPtt: (callback: () => void) => subscribe('voice:ptt', () => callback()),
+});
 
 contextBridge.exposeInMainWorld('electron', {
   platform: process.platform,

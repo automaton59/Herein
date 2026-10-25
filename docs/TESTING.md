@@ -5,12 +5,12 @@
 Current Phase 2/3 verification commands:
 
 ```bash
-npm run test:run
+npm run test:electron
 npm run build
 npm run electron:compile
 ```
 
-Native module note: `npm run test:run` rebuilds `better-sqlite3` for Node before Vitest, while `npm start` rebuilds it for Electron before launching the app. If a command reports `NODE_MODULE_VERSION` mismatch, run the command that matches the target runtime again instead of treating it as an application bug.
+Native module note: `npm run test:electron` runs Vitest through Electron's Node runtime, matching the `better-sqlite3` ABI used by the desktop app. `npm run test:run` still rebuilds `better-sqlite3` for plain Node before Vitest; avoid it while the desktop app is the primary runtime unless you intend to switch the ABI back afterwards. If a command reports `NODE_MODULE_VERSION` mismatch, run the command that matches the target runtime again instead of treating it as an application bug.
 
 Current automated coverage includes:
 
@@ -27,6 +27,7 @@ Current automated coverage includes:
 - Phase 3B presentation profiles, editable expression asset metadata, profile-aware call art selection, and character archive profile remapping.
 - Phase 3C dynamic avatar support: video/live2d import APIs, dynamic source selection, call-window video rendering, Live2D adapter fallback, appearance controls, ChatWindow data loading, and archive remapping for dynamic profile references.
 - Phase 3D local voice support: system TTS capability detection, subtitle speech playback, optional ASR transcript-to-draft, and call-window voice controls.
+- Phase 3E desktop presence: persona-first Live2D resolution, explicit user asset override, missing-model fallback notice, fixed-persona chat without a contact list, and the desktop-presence entry in the chat header.
 
 ## Manual Regression
 

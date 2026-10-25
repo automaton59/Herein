@@ -19,7 +19,7 @@ function setup() {
 
   repos.characters.upsert({
     id: 'char-1',
-    name: '海拾香',
+    name: '测试角色',
     description: '一个嘴硬心软的陪伴者。',
     personalityCore: '聪明、嘴硬',
     speakingStyle: '短句',
@@ -32,7 +32,7 @@ function setup() {
     tone: '松弛',
     closeness: 6,
     sharedHabits: '睡前说晚安',
-    privateLanguage: '叫我蓝蓝',
+    privateLanguage: '叫我小蓝',
     importantExperiences: '一起看过海',
     unresolvedContext: '下周搬家',
   });
@@ -81,7 +81,7 @@ describe('core chat context', () => {
     const character = repos.characters.get('char-1')!;
     const prompt = buildCoreChatPrompt({ repos, character, timeline });
 
-    expect(prompt).toContain('你是海拾香');
+    expect(prompt).toContain('你是测试角色');
     expect(prompt).toContain('睡前说晚安');
     expect(prompt).toContain('最近在聊搬家');
     expect(prompt).toContain('用户下周搬去上海');
@@ -95,5 +95,71 @@ describe('core chat context', () => {
 
     expect(prompt).not.toContain('用户下周搬去上海');
     expect(prompt).toContain('群里才知道的事');
+  });
+
+  it('uses a compiled persona and recalled memory block when provided', () => {
+    const { repos, timeline } = setup();
+    const character = repos.characters.get('char-1')!;
+    const prompt = buildCoreChatPrompt({
+      repos,
+      character,
+      timeline,
+      persona: {
+        packId: 'test-persona',
+        packVersion: '1.0.0',
+        identity: '【身份】测试身份',
+        relationship: '【关系】测试关系',
+        behavior: '【行为】测试行为',
+        layers: [],
+      },
+      memoryBlock: '【当前状态】\n- 测试记忆',
+    });
+
+    expect(prompt).toContain('【身份】测试身份');
+    expect(prompt).toContain('【关系】测试关系');
+    expect(prompt).toContain('【当前状态】\n- 测试记忆');
+    expect(prompt).toContain('【行为】测试行为');
+    expect(prompt).not.toContain('【回复形态】');
+    expect(prompt).not.toContain('你是测试角色。');
+  });
+
+  it('includes plugin material in both persona and fallback prompts', () => {
+    const { repos, timeline } = setup();
+    const character = repos.characters.get('char-1')!;
+    const materialBlock = '【她刚翻到的】\n- 视频：关羽对线教程（UP：某UP）';
+
+    const fallback = buildCoreChatPrompt({ repos, character, timeline, materialBlock });
+    expect(fallback).toContain('关羽对线教程');
+
+    const persona = buildCoreChatPrompt({
+      repos,
+      character,
+      timeline,
+      materialBlock,
+      persona: {
+        packId: 'test-persona',
+        packVersion: '1.0.0',
+        identity: '【身份】测试身份',
+        relationship: '',
+        behavior: '【行为】测试行为',
+        layers: [],
+      },
+    });
+    expect(persona).toContain('关羽对线教程');
+    expect(persona).toContain('【行为】测试行为');
+  });
+
+  it('tells the persona which plugins she can look at herself', () => {
+    const { repos, timeline } = setup();
+    const character = repos.characters.get('char-1')!;
+    const prompt = buildCoreChatPrompt({
+      repos,
+      character,
+      timeline,
+      pluginBlock: '【你这边开着的插件】\n- B 站（bilibili）\n- 天气（weather）',
+    });
+
+    expect(prompt).toContain('【你这边开着的插件】');
+    expect(prompt).toContain('B 站（bilibili）');
   });
 });

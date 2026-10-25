@@ -57,7 +57,7 @@ describe('coreClient', () => {
 
     const client = new CoreClient({ baseUrl: 'http://127.0.0.1:8787', fetchImpl });
     const result = await client.chat('char-1', [{ role: 'user', content: '在吗' }]);
-    expect(result.message.content).toBe('在。');
+    expect(result.message?.content).toBe('在。');
   });
 
   it('throws a typed error on non-2xx', async () => {
@@ -68,5 +68,25 @@ describe('coreClient', () => {
       name: 'CoreHttpError',
       status: 503,
     } satisfies Partial<CoreHttpError>);
+  });
+
+  it('calls the platform fetch with the global receiver', async () => {
+    const platformFetch = function (this: unknown, input: RequestInfo | URL) {
+      if (this !== globalThis) {
+        throw new TypeError("Failed to execute 'fetch' on 'Window': Illegal invocation");
+      }
+
+      expect(String(input)).toBe('http://127.0.0.1:8787/health');
+      return Promise.resolve(jsonResponse({ ok: true, version: '1.0.0' }));
+    } as typeof fetch;
+
+    vi.stubGlobal('fetch', platformFetch);
+
+    try {
+      const client = new CoreClient({ baseUrl: 'http://127.0.0.1:8787' });
+      await expect(client.health()).resolves.toEqual({ ok: true, version: '1.0.0' });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

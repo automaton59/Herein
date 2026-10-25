@@ -59,7 +59,7 @@ function isSupportedVideoFile(file: File) {
 }
 
 function isSupportedLive2DFile(file: File) {
-  return /\.model3\.json$/i.test(file.name);
+  return /\.model(3)?\.json$/i.test(file.name);
 }
 
 interface AssetDraft {
@@ -246,7 +246,7 @@ export function CharacterAppearanceSettings({
     }
 
     if (!isSupportedLive2DFile(file)) {
-      setDynamicError('Live2D 入口请选择 model3.json 文件。');
+      setDynamicError('Live2D 入口请选择 model3.json 或 model.json 文件。');
       event.target.value = '';
       return;
     }
@@ -374,7 +374,7 @@ export function CharacterAppearanceSettings({
             <input
               aria-label="导入 Live2D 模型文件"
               type="file"
-              accept=".model3.json,application/json"
+              accept=".model3.json,.model.json,application/json"
               onChange={handleLive2DChange}
               className="sr-only"
             />

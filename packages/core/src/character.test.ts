@@ -3,9 +3,9 @@ import { validateCharacterPack } from './character';
 
 const valid = {
   schemaVersion: 1,
-  id: 'haishixiang',
-  name: '海拾香',
-  nickname: '蓝蓝',
+  id: 'test-character',
+  name: '测试角色',
+  nickname: '小蓝',
   relationshipFrame: '女友',
   personality: {
     core: ['聪明', '嘴硬', '贪吃但克制', '有自尊', '体贴', '松弛'],
@@ -26,7 +26,7 @@ describe('character pack validation', () => {
     const result = validateCharacterPack(valid);
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.name).toBe('海拾香');
+      expect(result.value.name).toBe('测试角色');
       expect(result.value.speakingStyle.occasionalAddress).toBe('哥哥');
     }
   });

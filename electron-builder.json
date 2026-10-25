@@ -6,13 +6,53 @@
   },
   "files": [
     "dist/**/*",
-    "dist-electron/**/*"
+    "dist-electron/**/*",
+    "adapters/qq/package.json",
+    "adapters/qq/dist/**/*",
+    "adapters/bilibili/package.json",
+    "adapters/bilibili/dist/**/*",
+    "adapters/netease/package.json",
+    "adapters/netease/dist/**/*",
+    "packages/core/package.json",
+    "packages/core/dist/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "private/persona",
+      "to": "persona"
+    },
+    {
+      "from": "private/local-content.json",
+      "to": "local-content.json"
+    },
+    {
+      "from": "private/assets",
+      "to": "private-assets"
+    },
+    {
+      "from": "plugins",
+      "to": "plugins"
+    }
   ],
   "mac": {
     "target": ["dmg"]
   },
   "win": {
-    "target": ["nsis"]
+    "target": ["nsis"],
+    "icon": "public/herein.ico",
+    "artifactName": "Herein-Setup-${version}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "Herein",
+    "deleteAppDataOnUninstall": false
+  },
+  "portable": {
+    "artifactName": "Herein-${version}-portable.${ext}"
   },
   "linux": {
     "target": ["AppImage"]
