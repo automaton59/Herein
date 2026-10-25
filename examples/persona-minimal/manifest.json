@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "example-companion",
+  "version": "0.1.0",
+  "engine": ">=0.1.0 <1.0.0",
+  "character": "character.json",
+  "templates": [
+    {
+      "id": "safety_identity",
+      "layer": "L0_safety_identity",
+      "file": "prompts/safety_identity.md",
+      "required": true
+    },
+    {
+      "id": "character_core",
+      "layer": "L1_character_core",
+      "file": "prompts/character_core.md",
+      "required": true
+    },
+    {
+      "id": "relationship",
+      "layer": "L2_relationship",
+      "file": "prompts/relationship.md"
+    },
+    {
+      "id": "chat_behavior",
+      "layer": "L5_task",
+      "file": "prompts/chat_behavior.md",
+      "required": true
+    }
+  ]
+}
