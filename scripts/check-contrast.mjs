@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 const pairs = [
-  { name: 'slate-950 on white', fg: '#020617', bg: '#ffffff', min: 12 },
-  { name: 'slate-700 on white', fg: '#334155', bg: '#ffffff', min: 7 },
-  { name: 'slate-500 on canvas', fg: '#64748b', bg: '#f6fbff', min: 4.5 },
-  { name: 'sky-700 on canvas', fg: '#0369a1', bg: '#f6fbff', min: 4.5 },
-  { name: 'white on sky-700', fg: '#ffffff', bg: '#0369a1', min: 4.5 },
-  { name: 'white on sky-800', fg: '#ffffff', bg: '#075985', min: 4.5 },
-  { name: 'sky-200 on night', fg: '#bae6fd', bg: '#04101a', min: 7 },
-  { name: 'slate-400 on night', fg: '#94a3b8', bg: '#04101a', min: 4.5 },
+  { name: 'ink on canvas', fg: '#1c2333', bg: '#f7f6fb', min: 12 },
+  { name: 'slate-700 on white', fg: '#41495c', bg: '#ffffff', min: 7 },
+  { name: 'muted on white', fg: '#69718a', bg: '#ffffff', min: 4.5 },
+  { name: 'deep blue on white', fg: '#3b4474', bg: '#ffffff', min: 4.5 },
+  { name: 'white on deep blue', fg: '#ffffff', bg: '#3b4474', min: 4.5 },
+  { name: 'white on deeper navy', fg: '#ffffff', bg: '#323962', min: 7 },
+  { name: 'sky-200 on night', fg: '#d8dcf0', bg: '#0b1020', min: 7 },
+  { name: 'slate-400 on night', fg: '#9ba3b7', bg: '#0b1020', min: 4.5 },
 ];
 
 function channel(value) {
