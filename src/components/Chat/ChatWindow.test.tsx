@@ -1,29 +1,21 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useChatStore } from '../../stores/chat';
-import { useCallStore } from '../../stores/call';
 import { useSettingsStore } from '../../stores/settings';
 import type { CharacterConfig, Conversation } from '../../services/interfaces';
 import type { AssetRecord, CharacterPresentationProfile, Phase2PreloadAPI } from '../../services/phase2/types';
+import type { DesktopShellApi } from '../../services/desktopPresence';
 import { ChatWindow } from './ChatWindow';
 
 const characters: CharacterConfig[] = [
   {
     id: 'char-1',
-    name: 'AL-1S',
+    name: '海拾香',
     description: '',
     scenario: '',
-    firstMessage: '你好。',
+    firstMessage: '',
     systemPrompt: '',
     avatarAssetId: 'asset-1',
-  },
-  {
-    id: 'char-2',
-    name: 'AL-2S',
-    description: '',
-    scenario: '',
-    firstMessage: '晚上好。',
-    systemPrompt: '',
   },
 ];
 
@@ -31,7 +23,7 @@ const conversations: Conversation[] = [
   {
     id: 'conversation-1',
     characterId: 'char-1',
-    title: '晚上好',
+    title: '在',
     messages: [
       {
         id: 'msg-1',
@@ -43,21 +35,13 @@ const conversations: Conversation[] = [
       {
         id: 'msg-2',
         role: 'assistant',
-        content: '晚上好呀。',
+        content: '在。',
         timestamp: new Date('2026-06-19T10:51:00Z'),
         status: 'sent',
       },
     ],
     createdAt: new Date('2026-06-19T10:45:00Z'),
     updatedAt: new Date('2026-06-19T12:50:00Z'),
-  },
-  {
-    id: 'conversation-2',
-    characterId: 'char-2',
-    title: '晚安',
-    messages: [],
-    createdAt: new Date('2026-06-19T10:00:00Z'),
-    updatedAt: new Date('2026-06-19T11:00:00Z'),
   },
 ];
 
@@ -149,12 +133,82 @@ function installElectronPhase2(api: Phase2PreloadAPI) {
   });
 }
 
+function installDesktopShell(overrides: Partial<DesktopShellApi['app']> = {}) {
+  const shell = {
+    presence: {
+      getState: vi.fn().mockResolvedValue(null),
+      getShellState: vi.fn().mockResolvedValue({
+        presenceEnabled: true,
+        presenceVisible: true,
+        alwaysOnTop: true,
+        closeToHosting: true,
+        launchAtLogin: false,
+        hosting: false,
+        mainWindowVisible: true,
+      }),
+      refresh: vi.fn().mockResolvedValue(true),
+      openChat: vi.fn().mockResolvedValue(true),
+      showContextMenu: vi.fn().mockResolvedValue(true),
+      getBounds: vi.fn().mockResolvedValue({ x: 0, y: 0 }),
+      moveTo: vi.fn(),
+      hide: vi.fn().mockResolvedValue(true),
+      onState: vi.fn(() => () => undefined),
+      onShellState: vi.fn(() => () => undefined),
+    },
+    app: {
+      showMain: vi.fn().mockResolvedValue(true),
+      setPresenceEnabled: vi.fn().mockResolvedValue({
+        presenceEnabled: true,
+        presenceVisible: true,
+        alwaysOnTop: true,
+        closeToHosting: true,
+        launchAtLogin: false,
+        hosting: false,
+        mainWindowVisible: true,
+      }),
+      setAlwaysOnTop: vi.fn(),
+      setCloseToHosting: vi.fn(),
+      setLaunchAtLogin: vi.fn(),
+      quit: vi.fn(),
+      ...overrides,
+    },
+  } as unknown as DesktopShellApi;
+
+  Object.defineProperty(window, 'hereinShell', {
+    configurable: true,
+    value: shell,
+  });
+
+  return shell;
+}
+
+function setSinglePersonaState() {
+  useSettingsStore.setState({
+    isConfigured: false,
+    characters,
+    activeCharacterId: 'char-1',
+    characterConfig: characters[0],
+    connectionStatus: 'online',
+  });
+  useChatStore.setState({
+    conversations,
+    activeConversationId: 'conversation-1',
+    messages: conversations[0].messages,
+    isLoading: false,
+    error: null,
+    pendingRequest: null,
+  });
+}
+
 afterEach(() => {
   Object.defineProperty(window, 'electron', {
     configurable: true,
     value: undefined,
   });
-  useCallStore.getState().endCall();
+  Object.defineProperty(window, 'hereinShell', {
+    configurable: true,
+    value: undefined,
+  });
   useChatStore.setState({
     conversations: [],
     activeConversationId: null,
@@ -166,236 +220,63 @@ afterEach(() => {
 });
 
 describe('ChatWindow', () => {
-  it('shows characters as contacts instead of a role selector plus chat titles', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-2',
-      characterConfig: characters[1],
-      connectionStatus: 'unconfigured',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-2',
-      messages: [],
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
+  it('renders a single fixed companion without a contact list or role selector', () => {
+    setSinglePersonaState();
 
     render(<ChatWindow />);
 
-    expect(screen.getByText('联系人')).toBeInTheDocument();
-    expect(screen.queryByText('一位角色，一条主聊天')).not.toBeInTheDocument();
-    expect(screen.queryByText('角色')).not.toBeInTheDocument();
-    expect(screen.queryByText('聊天记录')).not.toBeInTheDocument();
-
-    const contact = screen.getByRole('button', { name: /AL-1S/ });
-    expect(within(contact).getByText('AL-1S')).toBeInTheDocument();
-    expect(within(contact).queryByText('2 条消息')).not.toBeInTheDocument();
-    expect(within(contact).queryByText('备注')).not.toBeInTheDocument();
-    expect(within(contact).queryByText('清空')).not.toBeInTheDocument();
+    expect(screen.queryByText('联系人')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /选择联系人/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '新聊天' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '打开角色资料' })).toBeInTheDocument();
+    expect(screen.getByText('海拾香')).toBeInTheDocument();
   });
 
-  it('lets the user edit a local contact remark from the contact profile drawer', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'unconfigured',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-1',
-      messages: conversations[0].messages,
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
+  it('keeps the local contact remark editable from the role profile drawer', () => {
+    setSinglePersonaState();
 
     render(<ChatWindow />);
 
-    fireEvent.click(screen.getByRole('button', { name: /打开联系人资料/ }));
+    fireEvent.click(screen.getByRole('button', { name: '打开角色资料' }));
     fireEvent.change(screen.getAllByLabelText('备注')[0], {
       target: { value: '搬家准备' },
     });
     fireEvent.click(screen.getAllByRole('button', { name: '保存备注' })[0]);
 
-    expect(screen.getAllByText('搬家准备').length).toBeGreaterThan(0);
     expect(useChatStore.getState().conversations[0].contactRemark).toBe('搬家准备');
-    expect(useSettingsStore.getState().characters[0].name).toBe('AL-1S');
   });
 
-  it('does not expose a create-chat button because each character has one chat', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'unconfigured',
-    });
-    useChatStore.setState({
-      conversations: [],
-      activeConversationId: null,
-      messages: [],
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
+  it('can bring the desktop presence back from the chat header', async () => {
+    const shell = installDesktopShell();
+    setSinglePersonaState();
 
     render(<ChatWindow />);
 
-    expect(screen.queryByRole('button', { name: '新聊天' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '主聊天' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '打开桌面形象' }));
+
+    await waitFor(() => {
+      expect(shell.app.setPresenceEnabled).toHaveBeenCalledWith(true);
+      expect(shell.presence.refresh).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('keeps contact cards clean and shows status as a standalone indicator', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-2',
-      characterConfig: characters[1],
-      connectionStatus: 'online',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-2',
-      messages: [],
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
+  it('clears chat history only after the confirmation', async () => {
+    setSinglePersonaState();
 
     render(<ChatWindow />);
 
-    const activeContact = screen.getByRole('button', { name: /选择联系人：AL-2S/ });
-    expect(within(activeContact).getAllByText('AL-2S')).toHaveLength(1);
-    expect(screen.getByLabelText('在线状态：在线')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '清空聊天记录' }));
+    expect(screen.getByRole('dialog', { name: '清空聊天记录' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认清空' }));
+
+    await waitFor(() => {
+      expect(useChatStore.getState().messages).toEqual([]);
+    });
+    expect(screen.queryByRole('dialog', { name: '清空聊天记录' })).not.toBeInTheDocument();
   });
 
-  it('selects a contact by selecting its one primary conversation', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'unconfigured',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-1',
-      messages: conversations[0].messages,
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
-
-    render(<ChatWindow />);
-
-    fireEvent.click(screen.getByRole('button', { name: /AL-2S/ }));
-
-    expect(useSettingsStore.getState().activeCharacterId).toBe('char-2');
-    expect(useChatStore.getState().activeConversationId).toBe('conversation-2');
-  });
-
-  it('starts a video call for the current contact from the chat top bar', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'online',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-1',
-      messages: conversations[0].messages,
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
-
-    render(<ChatWindow />);
-
-    fireEvent.click(screen.getByRole('button', { name: '发起视频通话' }));
-
-    expect(useCallStore.getState().session).toEqual(expect.objectContaining({
-      characterId: 'char-1',
-      timelineId: 'conversation-1',
-      mode: 'windowed',
-    }));
-    expect(screen.getByRole('dialog', { name: 'AL-1S 视频通话' })).toBeInTheDocument();
-  });
-
-  it('minimizes an active call when switching contacts and restores it from mini', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'online',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-1',
-      messages: conversations[0].messages,
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
-
-    render(<ChatWindow />);
-
-    fireEvent.click(screen.getByRole('button', { name: '发起视频通话' }));
-    fireEvent.click(screen.getByRole('button', { name: /选择联系人：AL-2S/ }));
-
-    expect(useCallStore.getState().session?.mode).toBe('mini');
-    expect(screen.getByRole('button', { name: '恢复 AL-1S 通话' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: '恢复 AL-1S 通话' }));
-
-    expect(useSettingsStore.getState().activeCharacterId).toBe('char-1');
-    expect(useChatStore.getState().activeConversationId).toBe('conversation-1');
-    expect(useCallStore.getState().session?.mode).toBe('windowed');
-  });
-
-  it('requires confirmation before starting a second contact call', () => {
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'online',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-1',
-      messages: conversations[0].messages,
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
-
-    render(<ChatWindow />);
-
-    fireEvent.click(screen.getByRole('button', { name: '发起视频通话' }));
-    fireEvent.click(screen.getByRole('button', { name: /选择联系人：AL-2S/ }));
-    fireEvent.click(screen.getByRole('button', { name: '发起视频通话' }));
-
-    expect(screen.getByText('当前正在和 AL-1S 通话。')).toBeInTheDocument();
-    expect(useCallStore.getState().session?.characterId).toBe('char-1');
-
-    fireEvent.click(screen.getByRole('button', { name: '结束当前通话并拨给 AL-2S' }));
-
-    expect(useCallStore.getState().session).toEqual(expect.objectContaining({
-      characterId: 'char-2',
-      timelineId: 'conversation-2',
-      mode: 'windowed',
-    }));
-  });
-
-  it('loads dynamic avatar assets and renders the selected video source in calls', async () => {
+  it('loads dynamic avatar assets and previews the video source in the profile drawer', async () => {
     const videoAsset: AssetRecord = {
       id: 'video-idle',
       characterId: 'char-1',
@@ -435,21 +316,8 @@ describe('ChatWindow', () => {
       },
     });
     installElectronPhase2(api);
-    useSettingsStore.setState({
-      isConfigured: false,
-      characters,
-      activeCharacterId: 'char-1',
-      characterConfig: characters[0],
-      connectionStatus: 'online',
-    });
-    useChatStore.setState({
-      conversations,
-      activeConversationId: 'conversation-1',
-      messages: conversations[0].messages,
-      isLoading: false,
-      error: null,
-      pendingRequest: null,
-    });
+    installDesktopShell();
+    setSinglePersonaState();
 
     render(<ChatWindow />);
 
@@ -458,8 +326,8 @@ describe('ChatWindow', () => {
       expect(api.assets.getDataUrl).toHaveBeenCalledWith('video-idle');
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '发起视频通话' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开角色资料' }));
 
-    expect(screen.getByLabelText('AL-1S 动态形象')).toHaveAttribute('src', 'data:video/mp4;base64,loop');
+    expect(screen.getAllByLabelText('待机循环预览')[0]).toHaveAttribute('src', 'data:video/mp4;base64,loop');
   });
 });

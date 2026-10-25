@@ -3,10 +3,10 @@ import { SendHorizontal } from 'lucide-react';
 
 interface InputBarProps {
   onSend: (message: string) => void;
-  disabled: boolean;
+  disabled?: boolean;
 }
 
-export function InputBar({ onSend, disabled }: InputBarProps) {
+export function InputBar({ onSend, disabled = false }: InputBarProps) {
   const [input, setInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -25,8 +25,8 @@ export function InputBar({ onSend, disabled }: InputBarProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="shrink-0 border-t border-white/70 bg-white/65 p-3 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/65 sm:p-4">
-      <div className="flex items-end gap-2 rounded-3xl border border-white/80 bg-white/90 p-2 shadow-sm shadow-sky-100 dark:border-white/10 dark:bg-white/10 dark:shadow-none">
+    <form onSubmit={handleSubmit} className="shrink-0 border-t border-[#E6E5F0] bg-[#FFFFFF]/90 p-3 dark:border-white/10 dark:bg-[#0E1424]/90 sm:p-4">
+      <div className="flex items-end gap-2 rounded-3xl border border-[#E6E5F0] bg-[#FFFFFF] p-2 shadow-[0_10px_30px_-24px_rgba(59,68,116,0.45)] dark:border-white/10 dark:bg-white/[0.04] dark:shadow-none">
         <textarea
           rows={1}
           value={input}

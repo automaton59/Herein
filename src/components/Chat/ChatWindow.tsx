@@ -1,33 +1,18 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { Brain, Camera, Check, Settings, Trash2, Video, X } from 'lucide-react';
+import { useEffect, useState, type ChangeEvent } from 'react';
+import { Brain, Camera, Check, Monitor, Settings, Trash2, X } from 'lucide-react';
 import { useChatStore } from '../../stores/chat';
-import { useCallStore } from '../../stores/call';
 import { useSettingsStore } from '../../stores/settings';
 import { createPhase2Client } from '../../services/phase2/client';
-import { CORE_TOKEN_KEY, CORE_URL_KEY, getConfiguredCoreClient } from '../../services/chatHistory';
+import { CORE_TOKEN_KEY, CORE_URL_KEY } from '../../services/chatHistory';
 import { MessageList } from './MessageList';
 import { InputBar } from './InputBar';
 import { MemoryPanel } from '../Memory/MemoryPanel';
 import { CharacterAppearanceSettings } from '../Settings/CharacterAppearanceSettings';
-import { CallLayer } from '../Call/CallLayer';
 import type { CharacterConfig, Conversation } from '../../services/interfaces';
 import type { AssetRecord, CharacterPresentationProfile, PresentationEmotion } from '../../services/phase2/types';
 
 interface ChatWindowProps {
   onEditCharacter?: () => void;
-}
-
-function formatConversationTime(conversation: Conversation | undefined) {
-  if (!conversation) {
-    return '';
-  }
-
-  return conversation.updatedAt.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 function getCharacter(characters: CharacterConfig[], characterId: string | undefined, fallback: CharacterConfig) {
@@ -70,7 +55,7 @@ function getStatusLabel(status: string) {
 
 function getStatusDot(status: string) {
   if (status === 'typing' || status === 'online') {
-    return 'bg-emerald-400';
+    return 'bg-aqua-400 shadow-[0_0_0_3px_rgba(124,200,234,0.18)]';
   }
 
   if (status === 'checking') {
@@ -84,19 +69,28 @@ function ContactAvatar({
   character,
   src,
   size = 'md',
+  reaction = null,
 }: {
   character: CharacterConfig;
   src?: string;
   size?: 'sm' | 'md' | 'lg';
+  reaction?: string | null;
 }) {
   const sizeClass = size === 'lg' ? 'h-14 w-14 rounded-2xl text-xl' : size === 'sm' ? 'h-10 w-10 rounded-xl text-base' : 'h-12 w-12 rounded-2xl text-lg';
 
   return (
-    <div className={`grid shrink-0 place-items-center overflow-hidden bg-gradient-to-br from-sky-400 to-cyan-400 font-semibold text-white shadow-sm shadow-sky-200 dark:from-sky-300 dark:to-fuchsia-300 dark:text-[#04101a] dark:shadow-none ${sizeClass}`}>
-      {src ? (
-        <img src={src} alt="" className="h-full w-full object-cover" />
-      ) : (
-        character.name.slice(0, 1).toUpperCase()
+    <div className={`relative shrink-0 ${sizeClass}`}>
+      <div className={`grid h-full w-full place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-sky-400 to-cyan-400 font-semibold text-white shadow-sm shadow-sky-200 dark:from-sky-300 dark:to-fuchsia-300 dark:text-[#04101a] dark:shadow-none ${size === 'sm' ? 'rounded-xl' : 'rounded-2xl'}`}>
+        {src ? (
+          <img src={src} alt="" className="h-full w-full object-cover" />
+        ) : (
+          character.name.slice(0, 1).toUpperCase()
+        )}
+      </div>
+      {reaction && (
+        <span className="absolute -bottom-1 -right-1 grid h-5 min-w-5 place-items-center rounded-full border border-white bg-white px-1 text-[10px] text-slate-500 shadow-sm dark:border-[#0E1424] dark:bg-[#1A2136] dark:text-sky-200">
+          {reaction}
+        </span>
       )}
     </div>
   );
@@ -176,10 +170,10 @@ function ContactProfilePanel({
   };
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-l border-white/70 bg-white/80 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/85">
+    <aside className="flex h-full min-h-0 flex-col border-l border-[#E6E5F0] bg-[#FFFFFF] dark:border-white/10 dark:bg-[#0E1424]">
       <div className="flex shrink-0 items-center justify-between border-b border-white/70 px-4 py-3 dark:border-white/10">
         <div>
-          <p className="text-xs font-medium text-sky-400 dark:text-sky-300">联系人资料</p>
+          <p className="text-xs font-medium text-sky-400 dark:text-sky-300">角色资料</p>
           <h2 className="truncate text-lg font-semibold text-slate-950 dark:text-sky-50">{displayName}</h2>
         </div>
         <button
@@ -283,14 +277,14 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
   const [dynamicAssets, setDynamicAssets] = useState<AssetRecord[]>([]);
   const [dynamicAssetDataUrls, setDynamicAssetDataUrls] = useState<Record<string, string>>({});
   const [presentationProfiles, setPresentationProfiles] = useState<Record<string, CharacterPresentationProfile>>({});
-  const [readStates, setReadStates] = useState<Record<string, string | null>>({});
-  const [pendingCallCharacterId, setPendingCallCharacterId] = useState<string | null>(null);
+  const [isOpeningDesktopPresence, setIsOpeningDesktopPresence] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const {
     conversations,
     activeConversationId,
-    messages,
-    isLoading,
     error,
+    silentNotice,
     sendMessage,
     retractMessage,
     updateMessage,
@@ -308,35 +302,32 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
     activeProfileId,
     characters,
     characterConfig,
-    voiceConfig,
     connectionStatus,
-    setActiveCharacter,
+    connectionAuto,
     updateCharacterConfig,
     checkConnection,
   } = useSettingsStore();
-  const callSession = useCallStore(state => state.session);
-  const startCall = useCallStore(state => state.startCall);
-  const minimizeCall = useCallStore(state => state.minimizeCall);
-  const endCall = useCallStore(state => state.endCall);
-  const canStartCall = useCallStore(state => state.canStartCall);
-  const activeConversation = conversations.find(conversation => conversation.id === activeConversationId);
-  const currentCharacter = getCharacter(characters, activeConversation?.characterId, characterConfig);
+  // There is exactly one companion. The persona is defined by the private
+  // persona pack and is not selectable from the chat UI, so identity must not
+  // be inferred from whichever conversation happened to be active last.
+  const currentCharacter = getCharacter(characters, characterConfig.id, characterConfig);
+  const activeConversation = conversations.find(conversation => conversation.characterId === currentCharacter.id);
   const currentDisplayName = getContactDisplayName(currentCharacter, activeConversation);
   const currentAvatarSrc = currentCharacter.avatarAssetId ? avatarDataUrls[currentCharacter.avatarAssetId] : undefined;
   const currentExpressionAssets = expressionAssets.filter(asset => asset.characterId === currentCharacter.id);
   const currentDynamicAssets = dynamicAssets.filter(asset => asset.characterId === currentCharacter.id);
   const currentPresentationProfile = presentationProfiles[currentCharacter.id] ?? createDefaultPresentationProfile(currentCharacter.id);
-  const activeCallCharacter = characters.find(character => character.id === callSession?.characterId);
-  const pendingCallCharacter = characters.find(character => character.id === pendingCallCharacterId);
 
   useEffect(() => {
-    const base = localStorage.getItem(CORE_URL_KEY)?.trim().replace(/\/+$/, '');
+    const base = (window.hereinCore?.url || localStorage.getItem(CORE_URL_KEY) || '')
+      .trim()
+      .replace(/\/+$/, '');
 
     if (!base) {
       return;
     }
 
-    const token = localStorage.getItem(CORE_TOKEN_KEY)?.trim() ?? '';
+    const token = window.hereinCore?.token || localStorage.getItem(CORE_TOKEN_KEY)?.trim() || '';
     const source = new EventSource(`${base}/v1/events${token ? `?token=${encodeURIComponent(token)}` : ''}`);
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -379,74 +370,75 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
     };
   }, []);
 
-  const contactRows = useMemo(() => {
-    return characters
-      .map(character => {
-        const conversation = conversations.find(item => item.characterId === character.id);
-        return {
-          character,
-          conversation,
-          displayName: getContactDisplayName(character, conversation),
-          avatarSrc: character.avatarAssetId ? avatarDataUrls[character.avatarAssetId] : undefined,
-        };
-      })
-      .sort((a, b) => {
-        const aTime = a.conversation?.updatedAt.getTime() ?? 0;
-        const bTime = b.conversation?.updatedAt.getTime() ?? 0;
-        return bTime - aTime;
-      });
-  }, [avatarDataUrls, characters, conversations]);
-
   useEffect(() => {
-    const core = getConfiguredCoreClient();
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    if (!core) {
-      return;
-    }
+    const focusMessage = (event: Event) => {
+      const messageId = (event as CustomEvent<string>).detail;
 
-    let cancelled = false;
-
-    const load = async () => {
-      const entries = await Promise.all(characters.map(async character => {
-        try {
-          const result = await core.getReadState(character.id);
-          return [character.id, result.readState.lastReadMessageId] as const;
-        } catch {
-          return [character.id, null] as const;
-        }
-      }));
-
-      if (!cancelled) {
-        setReadStates(Object.fromEntries(entries));
+      if (!messageId) {
+        return;
       }
+
+      const tryFind = () => {
+        const node = document.querySelector<HTMLElement>(
+          `[data-message-id="${CSS.escape(messageId)}"]`,
+        );
+
+        if (!node) {
+          attempts += 1;
+
+          if (attempts < 15) {
+            timer = setTimeout(tryFind, 200);
+          }
+
+          return;
+        }
+
+        node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        node.classList.add('ring-2', 'ring-sky-400/70', 'rounded-2xl');
+        window.setTimeout(() => {
+          node.classList.remove('ring-2', 'ring-sky-400/70', 'rounded-2xl');
+        }, 1800);
+      };
+
+      tryFind();
     };
 
-    void load();
-    const timer = setInterval(() => {
-      void load();
-    }, 30000);
+    window.addEventListener('herein:focus-message', focusMessage);
 
     return () => {
-      cancelled = true;
-      clearInterval(timer);
+      if (timer) {
+        clearTimeout(timer);
+      }
+
+      window.removeEventListener('herein:focus-message', focusMessage);
     };
-  }, [characters]);
+  }, []);
 
   useEffect(() => {
-    const core = getConfiguredCoreClient();
-    const lastMessage = activeConversation?.messages[activeConversation.messages.length - 1];
-
-    if (!core || !activeConversation || !lastMessage) {
+    if (!currentCharacter.id) {
       return;
     }
 
-    void core.markRead(activeConversation.characterId, lastMessage.id)
-      .then(() => setReadStates(current => ({
-        ...current,
-        [activeConversation.characterId]: lastMessage.id,
-      })))
-      .catch(() => undefined);
-  }, [activeConversation, activeConversationId]);
+    const conversation = conversations.find(item => item.characterId === currentCharacter.id);
+
+    if (!conversation) {
+      createConversation(currentCharacter.id);
+      return;
+    }
+
+    if (activeConversationId !== conversation.id) {
+      selectConversation(conversation.id);
+    }
+  }, [
+    activeConversationId,
+    conversations,
+    createConversation,
+    currentCharacter.id,
+    selectConversation,
+  ]);
 
   useEffect(() => {
     if (isConfigured) {
@@ -455,10 +447,16 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
   }, [isConfigured, llmConfig, initializeLLMService]);
 
   useEffect(() => {
-    if (isConfigured) {
+    // Respect a manual 「断开」 in the API settings: no background probing then.
+    // Skip when a probe is already in flight (connecting from the settings page).
+    if (
+      isConfigured
+      && connectionAuto
+      && useSettingsStore.getState().connectionStatus !== 'checking'
+    ) {
       void checkConnection();
     }
-  }, [activeProfileId, checkConnection, isConfigured]);
+  }, [activeProfileId, checkConnection, connectionAuto, isConfigured]);
 
   useEffect(() => {
     const assetIds = characters
@@ -671,23 +669,20 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
     };
   }, [dynamicAssetDataUrls, dynamicAssets]);
 
-  const selectContact = (characterId: string) => {
-    if (callSession?.mode === 'windowed' && callSession.characterId !== characterId) {
-      minimizeCall();
-    }
-
-    setActiveCharacter(characterId);
-
-    const existingConversation = conversations.find(conversation => conversation.characterId === characterId);
+  const ensureConversation = () => {
+    const existingConversation = conversations.find(
+      conversation => conversation.characterId === currentCharacter.id,
+    );
 
     if (existingConversation) {
-      selectConversation(existingConversation.id);
-    } else {
-      createConversation(characterId);
+      if (activeConversationId !== existingConversation.id) {
+        selectConversation(existingConversation.id);
+      }
+
+      return existingConversation.id;
     }
 
-    setIsContactPanelOpen(false);
-    setIsMemoryOpen(false);
+    return createConversation(currentCharacter.id);
   };
 
   const saveContactRemark = (value: string) => {
@@ -708,6 +703,8 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
         [result.assetId]: dataUrl,
       }));
     }
+
+    void window.hereinShell?.presence.refresh();
   };
 
   const refreshCharacterExpressionAssets = async (characterId: string) => {
@@ -815,6 +812,8 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
       const client = createPhase2Client();
       await client.presentation.upsertProfile(profile);
     }
+
+    void window.hereinShell?.presence.refresh();
   };
 
   const updateExpression = async (assetId: string, patch: Partial<AssetRecord>) => {
@@ -871,41 +870,24 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
       delete next[assetId];
       return next;
     });
+    void window.hereinShell?.presence.refresh();
   };
 
-  const getConversationForCharacter = (characterId: string) => {
-    return conversations.find(conversation => conversation.characterId === characterId);
-  };
+  const showDesktopPresence = async () => {
+    const shell = window.hereinShell;
 
-  const startCallForCharacter = (characterId: string) => {
-    const guard = canStartCall(characterId);
-
-    if (!guard.ok) {
-      setPendingCallCharacterId(characterId);
+    if (!shell) {
       return;
     }
 
-    setActiveCharacter(characterId);
-    const conversationId = getConversationForCharacter(characterId)?.id || createConversation(characterId);
-    selectConversation(conversationId);
-    setIsContactPanelOpen(false);
-    setIsMemoryOpen(false);
-    setPendingCallCharacterId(null);
-    startCall({ characterId, timelineId: conversationId });
-  };
+    setIsOpeningDesktopPresence(true);
 
-  const confirmSecondCall = () => {
-    if (!pendingCallCharacterId) {
-      return;
+    try {
+      await shell.app.setPresenceEnabled(true);
+      await shell.presence.refresh();
+    } finally {
+      setIsOpeningDesktopPresence(false);
     }
-
-    const nextCharacterId = pendingCallCharacterId;
-    endCall();
-    setPendingCallCharacterId(null);
-    setActiveCharacter(nextCharacterId);
-    const conversationId = getConversationForCharacter(nextCharacterId)?.id || createConversation(nextCharacterId);
-    selectConversation(conversationId);
-    startCall({ characterId: nextCharacterId, timelineId: conversationId });
   };
 
   const openContactPanel = () => {
@@ -918,57 +900,34 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
     setIsContactPanelOpen(false);
   };
 
+  const confirmClearMessages = async () => {
+    setIsClearing(true);
+
+    try {
+      await clearMessages();
+      setIsClearConfirmOpen(false);
+      setIsContactPanelOpen(false);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <div className="flex h-full min-h-0 bg-[radial-gradient(circle_at_top_left,#e6f7ff_0,#f6fbff_34%,#f8fafc_82%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,#082036_0,#04101a_34%,#02070c_82%)] dark:text-sky-50">
-      <aside className="hidden w-80 shrink-0 flex-col border-r border-white/70 bg-white/55 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/70 md:flex">
-        <div className="shrink-0 border-b border-white/70 p-4 dark:border-white/10">
-          <div className="text-sm font-semibold text-slate-700 dark:text-sky-100">联系人</div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <div className="grid gap-2">
-            {contactRows.map(({ character, conversation, displayName, avatarSrc }) => {
-              const isActive = character.id === currentCharacter.id;
-              const latestMessage = conversation?.messages[conversation.messages.length - 1];
-              const hasUnread = !isActive
-                && latestMessage?.role === 'assistant'
-                && readStates[character.id] !== latestMessage.id;
-
-              return (
-                <button
-                  key={character.id}
-                  type="button"
-                  aria-label={`选择联系人：${displayName}`}
-                  onClick={() => selectContact(character.id)}
-                  className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border bg-white/80 px-3 py-3 text-left shadow-sm transition dark:bg-white/5 dark:shadow-none ${isActive ? 'border-sky-200 ring-2 ring-sky-100 dark:border-sky-300/40 dark:ring-sky-300/10' : 'border-white/80 hover:border-sky-100 dark:border-white/10 dark:hover:border-sky-300/30'}`}
-                >
-                  <ContactAvatar character={character} src={avatarSrc} size="sm" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-semibold text-slate-950 dark:text-sky-50">{displayName}</span>
-                  </span>
-                  <span className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                    {hasUnread && (
-                      <span aria-label="有未读消息" className="h-2 w-2 rounded-full bg-sky-500" />
-                    )}
-                    {formatConversationTime(conversation)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </aside>
-
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="shrink-0 border-b border-white/70 bg-white/60 px-4 py-3 backdrop-blur dark:border-white/10 dark:bg-[#07131f]/65">
+        <div className="shrink-0 border-b border-[#E6E5F0] bg-[#FFFFFF]/85 px-4 py-3 dark:border-white/10 dark:bg-[#0E1424]/85">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
-              aria-label="打开联系人资料"
+              aria-label="打开角色资料"
               onClick={openContactPanel}
               className="flex min-w-0 items-center gap-3 rounded-2xl px-1 py-1 text-left hover:bg-white/50 dark:hover:bg-white/5"
             >
-              <ContactAvatar character={currentCharacter} src={currentAvatarSrc} />
+              <ContactAvatar
+                character={currentCharacter}
+                src={currentAvatarSrc}
+                reaction={silentNotice ? '…' : null}
+              />
               <span className="min-w-0">
                 <span className="block truncate text-xl font-semibold text-slate-950 dark:text-sky-50">{currentDisplayName}</span>
                 <span className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -983,12 +942,24 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                aria-label="发起视频通话"
-                title="发起视频通话"
-                onClick={() => startCallForCharacter(currentCharacter.id)}
-                className="grid h-9 w-9 place-items-center rounded-full border border-sky-100 bg-white text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
+                aria-label="打开桌面形象"
+                title="打开桌面形象"
+                onClick={() => void showDesktopPresence()}
+                disabled={isOpeningDesktopPresence}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-sky-100 bg-white px-3 text-sm font-medium text-slate-600 hover:bg-sky-50 disabled:cursor-wait disabled:text-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
               >
-                <Video size={16} />
+                <Monitor size={15} />
+                <span className="hidden sm:inline">桌面形象</span>
+              </button>
+              <button
+                type="button"
+                aria-label="清空聊天记录"
+                title="清空聊天记录"
+                onClick={() => setIsClearConfirmOpen(true)}
+                disabled={!activeConversation || activeConversation.messages.length === 0}
+                className="grid h-9 w-9 place-items-center rounded-full border border-sky-100 bg-white text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:border-slate-100 disabled:text-slate-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-red-500/10 dark:hover:text-red-300 dark:disabled:border-white/10 dark:disabled:text-slate-600"
+              >
+                <Trash2 size={16} />
               </button>
               <button
                 type="button"
@@ -1000,21 +971,6 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
               </button>
             </div>
           </div>
-
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 md:hidden" aria-hidden="true">
-            {contactRows.map(({ character, displayName, avatarSrc }) => (
-              <button
-                key={character.id}
-                type="button"
-                tabIndex={-1}
-                onClick={() => selectContact(character.id)}
-                className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${character.id === currentCharacter.id ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-300/40 dark:bg-sky-300/10 dark:text-sky-100' : 'border-white/80 bg-white/70 text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'}`}
-              >
-                <ContactAvatar character={character} src={avatarSrc} size="sm" />
-                {displayName}
-              </button>
-            ))}
-          </div>
         </div>
 
         {error && (
@@ -1024,7 +980,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
         )}
 
         <MessageList
-          messages={messages}
+          messages={activeConversation?.messages ?? []}
           firstMessage={currentCharacter.firstMessage}
           onEditMessage={updateMessage}
           onRetractMessage={retractMessage}
@@ -1032,11 +988,22 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
           onDeleteAfterMessage={deleteAfterMessage}
         />
 
-        <InputBar onSend={sendMessage} disabled={isLoading} />
+        {silentNotice && (
+          <div className="shrink-0 pb-1 text-center text-[11px] text-slate-400 dark:text-slate-500">
+            {silentNotice}
+          </div>
+        )}
+
+        <InputBar
+          onSend={(content) => {
+            ensureConversation();
+            void sendMessage(content);
+          }}
+        />
       </div>
 
       {isContactPanelOpen && (
-        <div className="fixed inset-0 z-40 bg-slate-950/20 backdrop-blur-sm lg:hidden">
+        <div className="fixed inset-0 z-40 bg-[#0B1020]/25 lg:hidden">
           <div className="ml-auto h-full w-full max-w-sm">
             <ContactProfilePanel
               character={currentCharacter}
@@ -1059,7 +1026,7 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
               presentationProfile={currentPresentationProfile}
               onUpdatePresentationProfile={updatePresentationProfile}
               onEditCharacter={onEditCharacter}
-              onClearMessages={clearMessages}
+              onClearMessages={() => setIsClearConfirmOpen(true)}
             />
           </div>
         </div>
@@ -1088,13 +1055,13 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
             presentationProfile={currentPresentationProfile}
             onUpdatePresentationProfile={updatePresentationProfile}
             onEditCharacter={onEditCharacter}
-            onClearMessages={clearMessages}
+            onClearMessages={() => setIsClearConfirmOpen(true)}
           />
         </div>
       )}
 
       {isMemoryOpen && (
-        <div className="fixed inset-0 z-40 bg-slate-950/20 backdrop-blur-sm lg:hidden">
+        <div className="fixed inset-0 z-40 bg-[#0B1020]/25 lg:hidden">
           <div className="ml-auto h-full w-full max-w-sm">
             <MemoryPanel
               characterId={currentCharacter.id}
@@ -1115,45 +1082,38 @@ export function ChatWindow({ onEditCharacter }: ChatWindowProps) {
         </div>
       )}
 
-      <CallLayer
-        characters={characters}
-        conversations={conversations}
-        avatarDataUrls={avatarDataUrls}
-        expressionAssets={expressionAssets}
-        expressionAssetDataUrls={expressionAssetDataUrls}
-        dynamicAssets={dynamicAssets}
-        dynamicAssetDataUrls={dynamicAssetDataUrls}
-        presentationProfiles={presentationProfiles}
-        voiceConfig={voiceConfig}
-        isLoading={isLoading}
-        onSend={(content) => void sendMessage(content)}
-        onRestoreCharacter={selectContact}
-      />
-
-      {pendingCallCharacterId && activeCallCharacter && pendingCallCharacter && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/30 px-4 backdrop-blur-sm">
-          <section className="w-full max-w-sm rounded-2xl border border-white/70 bg-white p-5 shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-[#07131f] dark:shadow-black/40">
-            <h2 className="text-base font-semibold text-slate-950 dark:text-sky-50">切换通话对象</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              当前正在和 {activeCallCharacter.name} 通话。
+      {isClearConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-[#0B1020]/35 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="清空聊天记录"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-sky-100 bg-white p-5 shadow-[0_24px_60px_rgba(15,35,70,0.18)] dark:border-white/10 dark:bg-[#0E1424]">
+            <h2 className="text-base font-semibold text-slate-950 dark:text-sky-50">
+              清空和{currentDisplayName}的聊天记录？
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              {activeConversation?.messages.length ?? 0} 条消息会从聊天记录里删掉，基于这段对话的总结也会一起清掉。记忆面板里的条目不受影响。
             </p>
-            <div className="mt-5 grid gap-2">
+            <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={confirmSecondCall}
-                className="h-10 rounded-xl bg-sky-700 px-3 text-sm font-medium text-white hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:hover:bg-sky-300"
-              >
-                结束当前通话并拨给 {pendingCallCharacter.name}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPendingCallCharacterId(null)}
-                className="h-10 rounded-xl border border-sky-100 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
+                onClick={() => setIsClearConfirmOpen(false)}
+                className="inline-flex h-9 items-center rounded-full border border-sky-100 bg-white px-4 text-sm font-medium text-slate-600 hover:bg-sky-50 dark:border-white/10 dark:bg-white/5 dark:text-sky-100 dark:hover:bg-white/10"
               >
                 取消
               </button>
+              <button
+                type="button"
+                onClick={() => void confirmClearMessages()}
+                disabled={isClearing}
+                className="inline-flex h-9 items-center rounded-full bg-red-500 px-4 text-sm font-medium text-white hover:bg-red-600 disabled:cursor-wait disabled:bg-red-300"
+              >
+                {isClearing ? '清空中…' : '确认清空'}
+              </button>
             </div>
-          </section>
+          </div>
         </div>
       )}
     </div>

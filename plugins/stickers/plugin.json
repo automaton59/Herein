@@ -1,0 +1,57 @@
+{
+  "id": "stickers",
+  "name": "表情包",
+  "version": "0.2.0",
+  "kind": "tool",
+  "description": "本地表情包索引：按情绪和回复内容挑一张图，由运行时决定什么时候随回复发出去。",
+  "entry": "index.mjs",
+  "setup": "把 gif 放进 data/assets/stickers/<套组>/<情绪>/ 即可，目录结构见 docs/PLUGIN-SETUP.md。目录空着也能用，只是不会配图。",
+  "helpUrl": "docs/PLUGIN-SETUP.md#stickers",
+  "permissions": [
+    {
+      "kind": "filesystem",
+      "value": "assets/stickers",
+      "reason": "读取本地表情包目录"
+    }
+  ],
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "dir": {
+        "type": "string",
+        "title": "表情目录",
+        "description": "留空使用默认目录（用户数据目录下的 assets/stickers，首次启动自动创建）。也可以填绝对路径，但要放在 Core 的素材根目录里，图片才能通过 /assets/* 提供。",
+        "placeholder": "留空 = <userData>/assets/stickers",
+        "format": "directory"
+      },
+      "pack": {
+        "type": "string",
+        "title": "套组",
+        "description": "只启用某一个子目录；留空表示全部。",
+        "placeholder": "例如：自己"
+      },
+      "frequency": {
+        "type": "string",
+        "title": "频率",
+        "enum": ["rare", "normal", "often"],
+        "default": "normal",
+        "description": "rare 约 1/8 条回复配图，normal 约 1/4，often 约 1/2。"
+      },
+      "minGap": {
+        "type": "number",
+        "title": "最少间隔条数",
+        "default": 3,
+        "minimum": 0,
+        "maximum": 20,
+        "description": "最近多少条消息内发过表情就不再发。"
+      },
+      "emotions": {
+        "type": "boolean",
+        "title": "按情绪匹配",
+        "default": true,
+        "description": "用中文情绪目录名（开心/难过/搞怪…）对齐模型返回的情绪。"
+      }
+    },
+    "additionalProperties": false
+  }
+}
