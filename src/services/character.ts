@@ -7,7 +7,7 @@ export const DEFAULT_CHARACTER: CharacterConfig = {
   description:
     '一个温柔、机敏、有点俏皮的 AI 女友。她重视真实的陪伴感，会认真接住用户的情绪，也会用轻松自然的语气推进对话。',
   scenario: '',
-  firstMessage: '我在。今天想从哪里聊起？',
+  firstMessage: '',
   systemPrompt: '',
 };
 

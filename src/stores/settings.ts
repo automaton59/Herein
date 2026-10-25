@@ -14,22 +14,8 @@ import { LLMServiceFactory } from '../services/llm';
 import { applyThemeMode } from '../services/theme';
 import type { AppConfig } from '../services/interfaces';
 
-let characterCounter = 0;
-
-function generateCharacterId() {
-  return `character_${Date.now()}_${characterCounter++}`;
-}
-
 function getCharacterById(characters: CharacterConfig[], id: string) {
   return characters.find(character => character.id === id) || characters[0] || DEFAULT_CHARACTER;
-}
-
-function makeNewCharacter(index: number): CharacterConfig {
-  return {
-    ...DEFAULT_CHARACTER,
-    id: generateCharacterId(),
-    name: `新角色 ${index}`,
-  };
 }
 
 function isLLMConfigured(llmConfig: LLMConfig) {
@@ -67,6 +53,8 @@ interface SettingsState {
   isConfigured: boolean;
   isHydrated: boolean;
   connectionStatus: ConnectionStatus;
+  /** When false the UI stops probing on its own (user pressed 断开). */
+  connectionAuto: boolean;
   lastConnectionError: string | null;
   hydrate: () => Promise<void>;
   updateLLMConfig: (config: Partial<LLMConfig>, profileName?: string) => Promise<void>;
@@ -74,13 +62,11 @@ interface SettingsState {
   selectAPIProfile: (profileId: string) => Promise<void>;
   deleteAPIProfile: (profileId: string) => Promise<void>;
   checkConnection: () => Promise<boolean>;
+  connectConnection: () => Promise<boolean>;
+  disconnectConnection: () => void;
   setConnectionStatus: (status: ConnectionStatus, error?: string | null) => void;
   markConnectionOnline: () => Promise<void>;
-  setActiveCharacter: (characterId: string) => void;
   updateCharacterConfig: (config: Partial<CharacterConfig>) => void;
-  createCharacter: () => string;
-  duplicateCharacter: (characterId?: string) => string;
-  deleteCharacter: (characterId: string) => void;
   setThemeMode: (themeMode: ThemeMode) => void;
   updateVoiceConfig: (config: Partial<Omit<VoiceConfig, 'gptSovits' | 'qwen3Tts' | 'qwen3VoiceClone'>> & {
     gptSovits?: Partial<VoiceConfig['gptSovits']>;
@@ -111,6 +97,7 @@ async function persistAppConfig(state: SettingsState) {
     memoryProfileMode: state.memoryProfileMode,
     memoryProfileId: state.memoryProfileId,
     summaryTriggerMessageCount: state.summaryTriggerMessageCount,
+    connectionAuto: state.connectionAuto,
   });
 }
 
@@ -155,7 +142,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   summaryTriggerMessageCount: initialConfig.summaryTriggerMessageCount,
   isConfigured: false,
   isHydrated: false,
-  connectionStatus: isLLMConfigured(initialConfig.llm) ? 'checking' : 'unconfigured',
+  connectionStatus: isLLMConfigured(initialConfig.llm)
+    ? (initialConfig.connectionAuto === false ? 'offline' : 'checking')
+    : 'unconfigured',
+  connectionAuto: initialConfig.connectionAuto !== false,
   lastConnectionError: null,
 
   hydrate: async () => {
@@ -170,6 +160,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       : config.llm;
     const characterConfig = getCharacterById(config.characters, config.activeCharacterId);
     const configured = isLLMConfigured(llmConfig);
+    const connectionAuto = config.connectionAuto !== false;
 
     applyThemeMode(config.themeMode);
 
@@ -188,13 +179,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       summaryTriggerMessageCount: config.summaryTriggerMessageCount,
       isConfigured: configured,
       isHydrated: true,
-      connectionStatus: configured ? 'checking' : 'unconfigured',
+      connectionStatus: configured ? (connectionAuto ? 'checking' : 'offline') : 'unconfigured',
+      connectionAuto,
       lastConnectionError: null,
     });
 
     await persistAppConfig(get());
 
-    if (configured) {
+    if (configured && connectionAuto) {
       void get().checkConnection();
     }
   },
@@ -249,7 +241,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     });
     await persistAppConfig(get());
 
-    if (configured) {
+    if (configured && get().connectionAuto) {
       void get().checkConnection();
     }
   },
@@ -276,6 +268,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       lastConnectionError: null,
     });
     await persistAppConfig(get());
+  },
+
+  connectConnection: async () => {
+    set({ connectionAuto: true });
+    await persistAppConfig(get());
+    return get().checkConnection();
+  },
+
+  disconnectConnection: () => {
+    set({
+      connectionAuto: false,
+      connectionStatus: 'offline',
+      lastConnectionError: null,
+    });
+    void persistAppConfig(get());
   },
 
   checkConnection: async () => {
@@ -339,17 +346,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     });
   },
 
-  setActiveCharacter: (characterId) => {
-    const { characters } = get();
-    const characterConfig = getCharacterById(characters, characterId);
-
-    set({
-      activeCharacterId: characterConfig.id,
-      characterConfig,
-    });
-    void persistAppConfig(get());
-  },
-
   updateCharacterConfig: (config) => {
     const { characters, activeCharacterId } = get();
     const updatedCharacters = characters.map(character =>
@@ -361,60 +357,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
     set({
       characters: updatedCharacters,
-      characterConfig,
-    });
-    void persistAppConfig(get());
-  },
-
-  createCharacter: () => {
-    const { characters } = get();
-    const character = makeNewCharacter(characters.length + 1);
-    const updatedCharacters = [...characters, character];
-
-    set({
-      characters: updatedCharacters,
-      activeCharacterId: character.id,
-      characterConfig: character,
-    });
-    void persistAppConfig(get());
-    return character.id;
-  },
-
-  duplicateCharacter: (characterId) => {
-    const { characters, activeCharacterId } = get();
-    const source = getCharacterById(characters, characterId || activeCharacterId);
-    const character: CharacterConfig = {
-      ...source,
-      id: generateCharacterId(),
-      name: `${source.name} 副本`,
-    };
-    const updatedCharacters = [...characters, character];
-
-    set({
-      characters: updatedCharacters,
-      activeCharacterId: character.id,
-      characterConfig: character,
-    });
-    void persistAppConfig(get());
-    return character.id;
-  },
-
-  deleteCharacter: (characterId) => {
-    const { characters, activeCharacterId } = get();
-
-    if (characters.length <= 1) {
-      return;
-    }
-
-    const updatedCharacters = characters.filter(character => character.id !== characterId);
-    const nextActiveCharacterId = activeCharacterId === characterId
-      ? updatedCharacters[0].id
-      : activeCharacterId;
-    const characterConfig = getCharacterById(updatedCharacters, nextActiveCharacterId);
-
-    set({
-      characters: updatedCharacters,
-      activeCharacterId: characterConfig.id,
       characterConfig,
     });
     void persistAppConfig(get());
