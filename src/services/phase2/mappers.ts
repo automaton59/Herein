@@ -50,6 +50,8 @@ export function timelineMessageToMessage(message: TimelineMessage): Message {
     timestamp: parseDate(message.timestamp),
     emotion: optionalString(message.emotion),
     voiceInstruct: optionalString(message.voiceInstruct),
+    ...(message.sticker ? { sticker: message.sticker } : {}),
+    ...(message.material ? { material: message.material } : {}),
     reasoning: optionalString(message.reasoning),
     status: messageStatus(message.status),
   };
@@ -64,6 +66,8 @@ export function messageToTimelineMessage(message: Message, timelineId: string): 
     timestamp: message.timestamp.toISOString(),
     emotion: message.emotion,
     voiceInstruct: message.voiceInstruct,
+    ...(message.sticker ? { sticker: message.sticker } : {}),
+    ...(message.material ? { material: message.material } : {}),
     reasoning: message.reasoning,
     status: message.status,
   };

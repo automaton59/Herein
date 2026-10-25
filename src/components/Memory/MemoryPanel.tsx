@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Ban, Check, Eye, EyeOff, Pencil, Pin, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import type { ConversationSummary, MemoryItem, MemoryKind, MemoryScope } from '../../services/phase2/types';
 import { createPhase2Client } from '../../services/phase2/client';
+import { SelectMenu } from '../UI/SelectMenu';
 
 const KIND_LABELS: Record<MemoryKind, string> = {
   state: '状态',
@@ -363,7 +364,7 @@ export function MemoryPanel({
   };
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-l border-white/70 bg-white/80 text-slate-900 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/85 dark:text-sky-50">
+    <aside className="flex h-full min-h-0 flex-col border-l border-[#E6E5F0] bg-[#FFFFFF] text-slate-900 shadow-sm dark:border-white/10 dark:bg-[#0E1424] dark:text-sky-50">
       <div className="shrink-0 border-b border-sky-100 px-4 py-3 dark:border-white/10">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -509,6 +510,9 @@ export function MemoryPanel({
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
                       <span className="font-medium text-sky-700 dark:text-sky-200">{KIND_LABELS[memory.kind]}</span>
                       <span className="text-slate-500 dark:text-slate-400">{SCOPE_LABELS[memory.scope]}</span>
+                      <span className="rounded-full border border-[#E6E5F0] px-1.5 py-0.5 text-[10px] text-[#7A819A] dark:border-white/10 dark:text-slate-400">
+                        {memory.origin === 'manual' ? '手动' : memory.origin === 'imported' ? '导入' : '自动'}
+                      </span>
                       <span className={`rounded-full border px-2 py-0.5 ${badgeClass(memory)}`}>
                         {memory.status === 'disabled' ? '已禁用' : inContext ? '进入上下文' : '不进上下文'}
                       </span>
@@ -573,27 +577,19 @@ export function MemoryPanel({
                         <div className="grid grid-cols-2 gap-2">
                           <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                             类型
-                            <select
+                            <SelectMenu
                               value={editDraft.kind}
-                              onChange={(event) => setEditDraft(current => ({ ...current, kind: event.target.value as MemoryKind }))}
-                              className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
-                            >
-                              {KIND_OPTIONS.map(option => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                              ))}
-                            </select>
+                              onChange={value => setEditDraft(current => ({ ...current, kind: value as MemoryKind }))}
+                              options={KIND_OPTIONS}
+                            />
                           </label>
                           <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                             范围
-                            <select
+                            <SelectMenu
                               value={editDraft.scope}
-                              onChange={(event) => setEditDraft(current => ({ ...current, scope: event.target.value as MemoryScope }))}
-                              className="h-9 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
-                            >
-                              {SCOPE_OPTIONS.map(option => (
-                                <option key={option.value} value={option.value}>{option.label}</option>
-                              ))}
-                            </select>
+                              onChange={value => setEditDraft(current => ({ ...current, scope: value as MemoryScope }))}
+                              options={SCOPE_OPTIONS}
+                            />
                           </label>
                         </div>
                         <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -652,27 +648,19 @@ export function MemoryPanel({
             <div className="grid grid-cols-2 gap-2">
               <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                 类型
-                <select
+                <SelectMenu
                   value={newDraft.kind}
-                  onChange={(event) => setNewDraft(current => ({ ...current, kind: event.target.value as MemoryKind }))}
-                  className="h-10 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
-                >
-                  {KIND_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+                  onChange={value => setNewDraft(current => ({ ...current, kind: value as MemoryKind }))}
+                  options={KIND_OPTIONS}
+                />
               </label>
               <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">
                 范围
-                <select
+                <SelectMenu
                   value={newDraft.scope}
-                  onChange={(event) => setNewDraft(current => ({ ...current, scope: event.target.value as MemoryScope }))}
-                  className="h-10 rounded-lg border border-sky-100 bg-white px-2 text-sm text-slate-900 outline-none focus:border-sky-300 focus:ring-2 focus:ring-sky-100 dark:border-white/10 dark:bg-white/5 dark:text-sky-50 dark:focus:ring-sky-300/10"
-                >
-                  {SCOPE_OPTIONS.map(option => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
+                  onChange={value => setNewDraft(current => ({ ...current, scope: value as MemoryScope }))}
+                  options={SCOPE_OPTIONS}
+                />
               </label>
             </div>
             <label className="grid gap-1 text-xs font-medium text-slate-500 dark:text-slate-400">

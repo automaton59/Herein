@@ -56,6 +56,8 @@ export interface Phase2AppSettings {
   memoryProfileMode: 'follow-chat' | 'custom';
   memoryProfileId?: string | null;
   summaryTriggerMessageCount: number;
+  /** False after the user presses 「断开」 in the API settings. */
+  connectionAuto?: boolean;
 }
 
 export interface CharacterProfile {
@@ -120,6 +122,16 @@ export interface TimelineMessage {
   timestamp: string;
   emotion?: string | null;
   voiceInstruct?: string | null;
+  sticker?: { id: string; name: string; url: string; pack?: string; emotion?: string } | null;
+  material?: {
+    id: string;
+    kind: 'video' | 'song';
+    source: 'bilibili' | 'netease';
+    title: string;
+    creator: string | null;
+    url: string | null;
+    coverUrl: string | null;
+  } | null;
   reasoning?: string | null;
   status?: string | null;
   sourceConversationId?: string | null;
@@ -180,8 +192,22 @@ export interface ContextAssembly {
   recentMessages: TimelineMessage[];
 }
 
+export interface PersonaBootstrapInfo {
+  id: string;
+  name: string;
+  nickname?: string | null;
+  relationshipFrame: string;
+  avatar?: {
+    type: string;
+    entry: string;
+    lipsync?: string;
+    expressions?: Record<string, string | null>;
+  } | null;
+}
+
 export interface Phase2Bootstrap {
   settings: Partial<Phase2AppSettings>;
+  persona?: PersonaBootstrapInfo | null;
   profiles: APIProfile[];
   characters: CharacterProfile[];
 }

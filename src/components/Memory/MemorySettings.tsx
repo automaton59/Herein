@@ -47,11 +47,11 @@ export function MemorySettings({ value, apiProfiles, onChange }: MemorySettingsP
   };
 
   return (
-    <section className="space-y-5 rounded-2xl border border-sky-100 bg-white/85 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-[#07131f]/80 dark:shadow-none">
+    <section className="settings-card space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-950 dark:text-sky-50">记忆设置</h2>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">调整总结、抽取和上下文记忆的全局行为。</p>
+          <h2 className="settings-title">记忆设置</h2>
+          <p className="settings-sub">总结、抽取与上下文预算。</p>
         </div>
         <button
           type="button"
