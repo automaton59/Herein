@@ -22,7 +22,7 @@
 | P1a | 离线发送 | schema v11 `chat_idempotency`；Core `/v1/chat` 支持 `clientMessageId` 去重；Android localStorage outbox + “待发送” + online/重开自动补发；详见 `docs/OFFLINE.md` |
 | P1a | 桌面增量同步 | Core `/v1/timeline/:id/apply`：`upserts` + 显式 `deletes`，不 prune 其他消息；桌面用 localStorage 指纹差量，只发变化和删除 |
 | P0-10 | 连接页 UX | “换地址”不再清 Token；保留地址/Token；粘贴 Token、显示/隐藏、清除记录（显式确认）；关闭自动大写/纠错 |
-| P1b | 移动聊天基础版 | 手机填 `http://192.168.1.3:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
+| P1b | 移动聊天基础版 | 手机填 `http://<电脑局域网 IP>:8787` + token，拉历史、发消息、走 Core `/v1/chat`；浏览器可用 `?mobile=1` 预览 |
 | P1a | 桌面 Core 路径 | `coreClient.ts` + 设置页 Core 地址/Token；聊天走 Core `/v1/chat`（含关系/记忆上下文），记录同步走 Core HTTP，失败回退本地 API；`parseAssistantMetadata` 提取 emotion/voice |
 | P3 | B 站只读适配器 | `adapters/bilibili`：WBI、nav（兼容 -101）、view/rcmd/conclusion/player、搜索、分P、字幕原文、限速、错误类型；7 个测试；真实 rcmd 5 条通过，view 当前 IP 412 |
 | P3 | 字幕优先 | `searchVideos` + `getSubtitleText`：优先 ai-zh/zh-CN/zh，抓 `subtitle_url` 正文，过滤“字幕by”署名；空/只有署名标记 empty，调用方可跳过 |
@@ -39,7 +39,7 @@
 | P4 | 后台低频分享 | `ProactiveShareScheduler`：90 分钟一次、服务端冷却/7 天去重、落库、`song.shared` SSE；Core `POST /v1/proactive/share/run`；移动端 EventSource 收到后插卡；`HEREIN_PROACTIVE_SHARE=1` 开启 |
 | P4 | 离线推送 | `electron/services/ntfy.ts`：分享时 POST ntfy；`HEREIN_NTFY_URL/TOPIC/TOKEN/CLICK`；APP 关闭时靠 ntfy app 收通知；`docs/PUSH.md` |
 | P4 | 候选/反馈打磨 | 移动端默认走中文榜单，不再用“夜晚”关键词搜出俄语歌；`likedItemIds/skippedItemIds` 进入 taste，prompt 明确不推 skipped |
-| P3 | 参考 dsh-bili-scroll | 采纳字幕优先/空字幕判空/素材非指令/只读工具面；不采纳 Python MCP、扫码登录、发评论；笔记在 `docs/research/dsh-bili-scroll-notes.md` |
+| P3 | 参考 dsh-bili-scroll | 采纳字幕优先/空字幕判空/素材非指令/只读工具面；不采纳 Python MCP、扫码登录、发评论；笔记在 `private/docs/research/dsh-bili-scroll-notes.md` |
 | P1c | 远程访问 | Caddy 80 `/herein` + SSH `-R` 到本机 Core；token 保护；实测无 token 401、带 token 200；酒馆 8000 仍 401；`npm run tunnel` + `docs/REMOTE.md` |
 | P0-11/P5 | QQ 适配器骨架 | `adapters/qq`：token 缓存、gateway、群/私聊被动文本、事件归一化、identify payload、WS 心跳/READY/事件分发/可选重连；5 个测试；凭证后置 |
 | P0-11/P5 | QQ listener 落库 | `electron/services/qqListener.ts`：配置加载、fake/真实 gateway、归一化→observations、停止清理；Core `HEREIN_QQ_ENABLED=1` 启动；2 个测试 |
@@ -50,10 +50,10 @@
 | P0-05 | 记忆预算/受众 | `contextAssembly` 增加 audience 过滤、importance/pinned 排序、`memoryBudgetTokens`（默认 1200）；群聊排除 private；pinned 可超预算 |
 | P0-06 | Prompt 引擎 | `packages/core/src/prompts.ts`：L0–L6、`PromptRegistry`、`compilePrompt`、变量校验；3 个测试 |
 | P0-06 | Prompt 内容 | `private/prompts/v0/` 10 个文件齐：safety/character/relationship/chat/group/memory_extract/summary/experience/content_recommend/moderation |
-| P0-07 | 角色包 | `packages/core/src/character.ts`：`CharacterPackManifest` + `validateCharacterPack`；3 个测试；私有 `private/characters/haishixiang/character.json` |
+| P0-07 | 角色包 | `packages/core/src/character.ts`：`CharacterPackManifest` + `validateCharacterPack`；3 个测试；私有 `private/characters/<id>/character.json` |
 | P0-09 | Avatar 契约 | `packages/core/src/avatar.ts`：`AvatarRenderer` / `AvatarLoadOptions` / 工厂类型 |
 | P0-09 | Live2D 渲染 | Pixi 7 + Cubism 2 `Live2DStage`；Core `/assets`；`?live2d=1` 演示页；实际加载 Shizuku 成功（canvas 1，模型 624×672）；`docs/LIVE2D.md` |
-| P2 | Live2D 接入 | `CallWindow` 已接 `Live2DStage`（Core assets + presentation entry）；APP 右上角“形象”打开全屏 Live2D；手机朗读 RMS 驱动口型已接，桌面口型/正式蓝蓝模型/通话实机未验证 |
+| P2 | Live2D 接入 | `CallWindow` 已接 `Live2DStage`（Core assets + presentation entry）；APP 右上角“形象”打开全屏 Live2D；手机朗读 RMS 驱动口型已接，桌面口型/正式角色模型/通话实机未验证 |
 | P0-08 | TTS 横评脚本 | `scripts/benchmark_tts.mjs` + `npm run bench:tts`：延迟/音频时长/RTF，支持自定义 endpoint/text |
 | P0-08 | TTS 实测 | `D:\AI\tools\qwen_tts\venv`（torch 2.11+cu128/CUDA）+ CustomVoice 1.7B：平均 **4.8s/句，RTF 3.70**；0.6B：**4.87s/句，RTF 3.28**；能出声，未实时。详见 `docs/TTS.md` |
 | P0-08/P2 | 手机朗读 | Core `POST /v1/tts` 代理；移动端助手消息“▶ 朗读”；本地 38KB/5.1s，远端 `/herein/v1/tts` 30KB/3.9s |
