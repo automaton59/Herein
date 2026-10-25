@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Activity, KeyRound, MessageCircle, Settings2 } from 'lucide-react';
 import { ChatWindow } from './components/Chat/ChatWindow';
 import { SettingsPage, type SettingsSection } from './components/Settings/SettingsPage';
 import { SystemPage } from './components/System/SystemPage';
@@ -7,17 +8,31 @@ import { applyThemeMode, watchSystemTheme } from './services/theme';
 
 type Tab = 'system' | 'chat' | 'settings';
 
+const TABS: Array<{ id: Tab; label: string; Icon: typeof Activity }> = [
+  { id: 'system', label: '系统', Icon: Activity },
+  { id: 'chat', label: '聊天', Icon: MessageCircle },
+  { id: 'settings', label: '设置', Icon: Settings2 },
+];
+
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('system');
+  const [activeTab, setActiveTab] = useState<Tab>('chat');
   const [settingsSection, setSettingsSection] = useState<SettingsSection>('app');
   const { isConfigured, isHydrated, themeMode } = useSettingsStore();
+  const [hasLocalCore] = useState(() => {
+    try {
+      return Boolean(window.hereinCore?.url || localStorage.getItem('herein-core-url'));
+    } catch {
+      return Boolean(window.hereinCore?.url);
+    }
+  });
+  const canChat = isConfigured || hasLocalCore;
 
   React.useEffect(() => {
-    if (!isConfigured) {
+    if (isHydrated && !canChat) {
       setActiveTab('settings');
       setSettingsSection('api');
     }
-  }, [isConfigured]);
+  }, [canChat, isHydrated]);
 
   React.useEffect(() => {
     const applyTheme = () => {
@@ -28,77 +43,123 @@ function App() {
     return watchSystemTheme(themeMode, applyTheme);
   }, [themeMode]);
 
+  React.useEffect(() => {
+    return window.hereinShell?.app.onOpenChat(messageId => {
+      setActiveTab('chat');
+
+      if (messageId) {
+        window.dispatchEvent(new CustomEvent('herein:focus-message', { detail: messageId }));
+      }
+    });
+  }, []);
+
   const openSettingsSection = (section: SettingsSection) => {
     setSettingsSection(section);
     setActiveTab('settings');
   };
 
   return (
-    <div className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#f6fbff] text-slate-950 transition-colors dark:bg-[#04101a] dark:text-sky-50">
-      <div className="shrink-0 border-b border-sky-100 bg-white/80 backdrop-blur dark:border-sky-900/40 dark:bg-[#07131f]/90">
-        <div className="flex items-center justify-between px-3">
-          <div className="flex">
-            <button
-              onClick={() => setActiveTab('system')}
-              className={`px-5 py-3 font-medium border-b-2 transition-colors ${
-                activeTab === 'system'
-                  ? 'border-sky-500 text-sky-700 dark:border-sky-300 dark:text-sky-200'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-sky-100'
-              }`}
-            >
-              系统
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-5 py-3 font-medium border-b-2 transition-colors ${
-                activeTab === 'chat'
-                  ? 'border-sky-500 text-sky-700 dark:border-sky-300 dark:text-sky-200'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-sky-100'
-              }`}
-            >
-              聊天
-              {!isConfigured && (
-                <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
-                  未配置
+    <div className="app-canvas flex h-[100dvh] min-h-0 flex-col overflow-hidden text-slate-950 transition-colors dark:text-sky-50">
+      <header className="relative z-20 shrink-0 px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className="mx-auto flex w-full max-w-[1560px] items-center gap-2 rounded-[18px] border border-[#E6E5F0] bg-[#FFFFFF]/92 px-3 py-2.5 shadow-[0_18px_50px_-42px_rgba(59,68,116,0.45)] dark:border-white/10 dark:bg-[#0E1424]/88 sm:gap-4 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+            <img
+              src="./herein-mark.png"
+              alt=""
+              aria-hidden="true"
+              className="h-10 w-10 shrink-0"
+            />
+            <div className="min-w-0 leading-tight">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[15px] font-semibold tracking-[0.18em] text-[#1C2333] dark:text-sky-50">此间</span>
+                <span className="hidden text-[9px] font-semibold uppercase tracking-[0.3em] text-[#3B4474]/45 sm:inline dark:text-sky-300/60">
+                  Herein
                 </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`px-5 py-3 font-medium border-b-2 transition-colors ${
-                activeTab === 'settings'
-                  ? 'border-sky-500 text-sky-700 dark:border-sky-300 dark:text-sky-200'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-sky-100'
-              }`}
-            >
-              设置
-            </button>
+              </div>
+            </div>
           </div>
-          {!isHydrated && (
-            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/20 dark:text-amber-200">
-              正在读取本地数据
-            </span>
-          )}
-        </div>
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab === 'system' ? (
+          <nav
+            aria-label="主导航"
+            className="ml-0 flex items-center gap-1 rounded-full border border-[#E6E5F0] bg-[#F1F2F9] p-1 dark:border-white/10 dark:bg-white/5 sm:ml-2"
+          >
+            {TABS.map(({ id, label, Icon }) => {
+              const isActive = activeTab === id;
+
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-label={label}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => setActiveTab(id)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-2 text-[13px] transition-colors sm:px-3.5 ${
+                    isActive
+                      ? 'bg-[#3B4474] text-[#FFFFFF] shadow-[0_6px_16px_-10px_rgba(59,68,116,0.8)] dark:bg-[#7C8FD0] dark:text-[#0B1020]'
+                      : 'text-[#5F6780] hover:bg-[#FFFFFF] hover:text-[#3B4474] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-sky-100'
+                  }`}
+                >
+                  <Icon
+                    size={15}
+                    className={isActive ? 'text-[#A5E1F5] dark:text-[#0B1020]' : 'text-[#8C93A8] dark:text-slate-500'}
+                  />
+                  <span className={`hidden sm:inline ${isActive ? 'font-semibold' : 'font-medium'}`}>{label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2">
+            {!isHydrated ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#E6E5F0] bg-[#FFFFFF] px-2.5 py-1.5 text-[11px] font-medium text-[#69718A] dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#9CA3D4]" />
+                <span className="hidden sm:inline">读取中</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openSettingsSection('api')}
+                className="inline-flex items-center gap-2 rounded-full border border-[#E6E5F0] bg-[#FFFFFF] px-2.5 py-1.5 text-[11px] font-medium text-[#5F6780] transition hover:border-[#D8DCF0] hover:text-[#3B4474] dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-sky-100"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${canChat ? 'bg-aqua-400 shadow-[0_0_0_3px_rgba(124,200,234,0.18)]' : 'bg-amber-500'}`} />
+                <span className="hidden sm:inline">{canChat ? '已连接' : '未配置'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="relative z-10 min-h-0 flex-1 overflow-hidden">
+        {!isHydrated ? (
+          <div className="flex h-full items-center justify-center px-6">
+            <div className="flex items-center gap-2 rounded-full border border-[#E6E5F0] bg-[#FFFFFF] px-4 py-2 text-[12px] font-medium text-[#69718A] dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#9CA3D4]" />
+              正在读取角色与本地数据
+            </div>
+          </div>
+        ) : activeTab === 'system' ? (
           <SystemPage onOpenSettings={() => openSettingsSection('app')} />
         ) : activeTab === 'chat' ? (
-          isConfigured ? (
+          canChat ? (
             <ChatWindow onEditCharacter={() => openSettingsSection('characters')} />
           ) : (
-            <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_top_left,#e6f7ff_0,#f8fcff_42%,#ffffff_90%)] px-5 dark:bg-[radial-gradient(circle_at_top_left,#082036_0,#06111d_42%,#02070c_90%)]">
-              <div className="text-center">
-                <p className="mb-4 text-slate-600 dark:text-slate-300">
-                  请先完成 API 设置
+            <div className="flex h-full items-center justify-center px-6">
+              <div className="w-full max-w-sm rounded-[24px] border border-[#E6E5F0] bg-[#FFFFFF] p-7 text-center shadow-[0_28px_70px_-50px_rgba(59,68,116,0.45)] dark:border-white/10 dark:bg-[#0E1424]">
+                <div className="mx-auto w-fit">
+                  <img src="./herein-mark.png" alt="" aria-hidden="true" className="h-16 w-16" />
+                </div>
+                <h2 className="mt-5 text-lg font-semibold tracking-tight text-[#1C2333] dark:text-sky-50">
+                  先完成一次配置
+                </h2>
+                <p className="mt-2 text-[13px] leading-5 text-[#69718A] dark:text-slate-400">
+                  填入 API Key 后即可开始。
                 </p>
                 <button
                   onClick={() => openSettingsSection('api')}
-                  className="rounded-full bg-sky-500 px-5 py-2 text-white shadow-sm shadow-sky-200 hover:bg-sky-800 dark:bg-sky-400 dark:text-[#04101a] dark:shadow-none dark:hover:bg-sky-300"
+                  className="mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#3B4474] px-5 text-[13px] font-semibold text-[#FFFFFF] transition hover:bg-[#323962] dark:bg-[#7C8FD0] dark:text-[#0B1020] dark:hover:bg-[#9CA3D4]"
                 >
-                  打开设置
+                  <KeyRound size={15} />
+                  去配置
                 </button>
               </div>
             </div>
@@ -106,7 +167,7 @@ function App() {
         ) : (
           <SettingsPage activeSection={settingsSection} onSectionChange={setSettingsSection} />
         )}
-      </div>
+      </main>
     </div>
   );
 }
