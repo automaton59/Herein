@@ -24,7 +24,10 @@ def main():
             request = json.loads(line)
             audio = np.frombuffer(base64.b64decode(request['pcm']), dtype='<i2').astype(np.float32)/32768
             started = time.perf_counter()
-            segments, _info = model.transcribe(audio, language='zh', beam_size=1, vad_filter=True,
+            # A already segments speech with its own VAD. Faster-whisper's
+            # internal Silero VAD drops short/quiet Chinese utterances and
+            # returns an empty string, which made A look deaf.
+            segments, _info = model.transcribe(audio, language='zh', beam_size=1, vad_filter=False,
                                                condition_on_previous_text=False, temperature=0)
             text = ''.join(segment.text for segment in segments).strip()
             print(json.dumps({'id': request['id'], 'text': text, 'elapsedMs': (time.perf_counter()-started)*1000}, ensure_ascii=False), flush=True)

@@ -77,4 +77,6 @@ test("speech contract accepts bounded commands and never coerces arbitrary objec
   );
   assert.throws(() => speechCommand({ text: "x".repeat(501) }));
   assert.throws(() => speechCommand({ text: { toString: () => "hello" } }));
+  assert.equal(speechCommand({ text: "嗯", filler: true }).filler, true);
+  assert.equal(speechCommand({ text: "嗯" }).filler, false);
 });

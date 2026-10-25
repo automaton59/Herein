@@ -66,5 +66,6 @@ export function speechCommand(value) {
       typeof value.instruct === "string" ? value.instruct.slice(0, 200) : "",
     turnId:
       typeof value.turnId === "string" ? value.turnId.slice(0, 80) : undefined,
+    filler: value.filler === true,
   };
 }

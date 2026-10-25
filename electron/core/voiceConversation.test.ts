@@ -3,16 +3,15 @@ import { describe, expect, it, vi } from 'vitest';
 import type { createPhase2Repositories } from '../data/repositories';
 import type { CoreEventBus } from './eventBus';
 import type { InteractionDispatcher } from './interaction';
-import type { CoreMemoryRunner } from './memory';
-import { VoiceConversation } from './voiceConversation';
+import { VoiceConversation, type VoiceConversationOptions } from './voiceConversation';
 
 type Repositories = ReturnType<typeof createPhase2Repositories>;
 
-function createHarness(fetchImpl: typeof fetch) {
+function createHarness(fetchImpl: typeof fetch, options: Partial<VoiceConversationOptions> = {}) {
   const appended: Array<{ role: string; content: string }> = [];
   const character = {
     id: 'char-1',
-    name: '蓝蓝',
+    name: '小蓝',
     description: '一条蓝鱼。',
     personalityCore: '安静',
     speakingStyle: '短句',
@@ -22,7 +21,7 @@ function createHarness(fetchImpl: typeof fetch) {
   const timeline = {
     id: 'timeline-1',
     characterId: 'char-1',
-    title: '蓝蓝',
+    title: '小蓝',
   };
   const repos = {
     characters: {
@@ -44,7 +43,7 @@ function createHarness(fetchImpl: typeof fetch) {
     memories: { listActive: vi.fn(() => []) },
   } as unknown as Repositories;
   const events = { publish: vi.fn() } as unknown as CoreEventBus;
-  const memoryRunner = { run: vi.fn(async () => undefined) } as unknown as CoreMemoryRunner;
+  const memoryRunner = { run: vi.fn(async () => undefined) };
   const dispatcher = { speak: vi.fn(async () => ({ ok: true })) } as unknown as InteractionDispatcher;
 
   return {
@@ -64,6 +63,8 @@ function createHarness(fetchImpl: typeof fetch) {
         model: 'fake-model',
       },
       fetchImpl,
+      waitForSpeechCompletion: false,
+      ...options,
     }),
   };
 }
@@ -92,8 +93,102 @@ describe('VoiceConversation', () => {
     expect(harness.dispatcher.speak).toHaveBeenCalledWith(expect.objectContaining({
       text: '在的。',
       source: 'chat',
-      turnId: 'turn-1',
+      turnId: 'turn-1:0',
     }));
+  });
+
+  it('splits a longer spoken reply into short parts', async () => {
+    const harness = createHarness(completion('在的。你先说。'));
+    harness.voice.handleTranscript('你好', 'turn-3');
+    await harness.voice.whenIdle();
+    await harness.voice.stop();
+
+    expect(harness.dispatcher.speak).toHaveBeenCalledTimes(2);
+    expect(harness.dispatcher.speak).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      text: '在的。',
+      turnId: 'turn-3:0',
+    }));
+    expect(harness.dispatcher.speak).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      text: '你先说。',
+      turnId: 'turn-3:1',
+    }));
+  });
+
+  it('sends a light backchannel while the user keeps talking', async () => {
+    vi.useFakeTimers();
+    const harness = createHarness(completion('在。'));
+
+    try {
+      harness.voice.handleVad('start');
+      await vi.advanceTimersByTimeAsync(8_000);
+
+      expect(harness.dispatcher.speak).toHaveBeenCalledWith(expect.objectContaining({
+        text: '嗯',
+        priority: 'ambient',
+      }));
+    } finally {
+      harness.voice.handleVad('end');
+      vi.useRealTimers();
+    }
+  });
+
+  it('interjects after a long uninterrupted user turn', async () => {
+    vi.useFakeTimers();
+    const harness = createHarness(completion('在。'));
+
+    try {
+      harness.voice.handleVad('start');
+      await vi.advanceTimersByTimeAsync(25_000);
+
+      expect(harness.dispatcher.speak).toHaveBeenCalledWith(expect.objectContaining({
+        text: '等等',
+        priority: 'urgent',
+      }));
+    } finally {
+      harness.voice.handleVad('end');
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not interject after the user stops speaking', async () => {
+    vi.useFakeTimers();
+    const harness = createHarness(completion('在。'));
+
+    try {
+      harness.voice.handleVad('start');
+      harness.voice.handleVad('end');
+      await vi.advanceTimersByTimeAsync(25_000);
+
+      expect(harness.dispatcher.speak).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('carries the interrupted part into the next voice turn', async () => {
+    const bodies: Array<{ messages: Array<{ content: string }> }> = [];
+    const fetchImpl = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> });
+      return new Response(JSON.stringify({
+        model: 'fake-model',
+        choices: [{ message: { role: 'assistant', content: '在的。' } }],
+      }), { status: 200 });
+    }) as typeof fetch;
+    const harness = createHarness(fetchImpl, {
+      waitForSpeechCompletion: true,
+      speechTimeoutMs: 10,
+    });
+
+    harness.voice.handleTranscript('你好', 'turn-4');
+    await vi.waitFor(() => expect(harness.dispatcher.speak).toHaveBeenCalled());
+    harness.voice.interrupt();
+    harness.voice.handleTranscript('继续', 'turn-5');
+    await harness.voice.whenIdle();
+    await harness.voice.stop();
+
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1].messages[0].content).toContain('【刚才】');
+    expect(bodies[1].messages[0].content).toContain('打断');
   });
 
   it('does not speak a reply that was interrupted while the LLM was running', async () => {

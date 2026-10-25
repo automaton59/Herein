@@ -202,7 +202,7 @@ class VoiceWorkers extends EventEmitter {
         first = false;
       }
     };
-    if (this.config.tts.provider.startsWith("qwen")) {
+    if (this.config.tts.provider.startsWith("qwen") && !command.filler) {
       if (this.qwenTask) await this.qwenTask.catch(() => {});
       if (sequence !== this.sequence) return { cancelled: true };
       if (!this.qwen?.ready || this.qwenBusy)

@@ -24,7 +24,8 @@ let generation = 0,
   mouth = 0,
   turnEnd = 0,
   firstRequest = 0,
-  interruptAt = 0;
+  interruptAt = 0,
+  levelShownAt = 0;
 let cancelledSpeech = false,
   resumeListening = false,
   streamTurn = null,
@@ -215,8 +216,12 @@ async function transcript(utterance) {
   const total = frames.reduce((n, f) => n + f.length, 0);
   const pcm = new Int16Array(Math.min(total, 240000));
   let offset = 0;
+  let sumSquares = 0;
+  let sampleCount = 0;
   for (const frame of frames) {
     for (const v of frame) {
+      sumSquares += v * v;
+      sampleCount += 1;
       if (offset >= pcm.length) break;
       pcm[offset++] = Math.max(-32768, Math.min(32767, v * 32767));
     }
@@ -227,6 +232,7 @@ async function transcript(utterance) {
       type: "voice.turn",
       asrMs: result.elapsedMs,
       vadToAsrMs: performance.now() - endedAt,
+      rms: Math.sqrt(sumSquares / Math.max(1, sampleCount)),
     });
     if (result.stale || epoch !== micEpoch || !desiredMic) return;
     // C may respond to the SSE transcript before this IPC promise resolves.
@@ -238,7 +244,7 @@ async function transcript(utterance) {
         await speak({ text: boot.config.demoReply, turnId });
       else setState(desiredMic ? "listening" : "idle");
     } else {
-      notice("这次没有识别到文字。");
+      notice("没听清：检查输入设备和麦克风音量。", true);
       setState(desiredMic ? "listening" : "idle");
     }
   } catch (error) {
@@ -284,12 +290,26 @@ async function startMic() {
     inputSource.connect(inputNode);
     inputNode.port.onmessage = ({ data }) => {
       if (!desiredMic) return;
+      const samples = data.samples || [];
+      let energy = 0;
+
+      for (let index = 0; index < samples.length; index += 1)
+        energy += samples[index] * samples[index];
+
+      const now = performance.now();
+
+      if (now - levelShownAt > 100) {
+        levelShownAt = now;
+        el("level").value = Math.min(1, Math.sqrt(energy / Math.max(1, samples.length)) * 6);
+      }
+
       const outputSpeaking = speechActive || bufferMs > 0;
       const result = vad.consume(data.samples, 20, outputSpeaking);
       for (const event of result.events) {
         if (event.type === "start") {
           if (outputSpeaking || state === "thinking") void interrupt("voice");
           setState("listening");
+          api.event({ type: "vad", state: "start", at: Date.now() });
         }
         if (event.type === "end") {
           const endedAt = performance.now(),
@@ -297,6 +317,7 @@ async function startMic() {
           utteranceTimes.set(turnId, endedAt - vad.options.endMs);
           if (utteranceTimes.size > 16)
             utteranceTimes.delete(utteranceTimes.keys().next().value);
+          api.event({ type: "vad", state: "end", at: Date.now() });
           void transcript({ frames: event.frames, endedAt, turnId });
         }
       }
@@ -363,6 +384,22 @@ async function devices() {
       );
     if ([...el(id).options].some((o) => o.value === selected))
       el(id).value = selected;
+
+    if (id === "input" && !el(id).value) {
+      const saved = localStorage.getItem("herein.inputDevice");
+
+      if (saved && [...el(id).options].some((o) => o.value === saved))
+        el(id).value = saved;
+      else {
+        const physical = [...el(id).options].find(
+          (option) =>
+            option.value &&
+            /麦克风|microphone|mic/i.test(option.text) &&
+            !/virtual|stereo|nvidia|line/i.test(option.text),
+        );
+        if (physical) el(id).value = physical.value;
+      }
+    }
   }
 }
 async function recoverDevices() {
@@ -558,6 +595,7 @@ el("say").onclick = () => {
   );
 };
 el("input").onchange = () => {
+  localStorage.setItem("herein.inputDevice", el("input").value);
   if (desiredMic) void startMic();
 };
 el("output").onchange = async () => {

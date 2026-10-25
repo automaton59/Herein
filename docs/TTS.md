@@ -1,5 +1,8 @@
 # 本地 TTS（Qwen3-TTS）
 
+> 当前桌面默认是纯文本模式，不启动 TTS。本文保留本地语音栈的配置，供
+> `HEREIN_VOICE_MODE=legacy` 或后续开源版本使用。
+
 ## 现成环境
 
 - venv：`D:\AI\tools\qwen_tts\venv`
@@ -7,11 +10,23 @@
 - torch：`2.11.0+cu128`，CUDA 可用，RTX 4060 Laptop
 - 包：`qwen_tts` / `soundfile` / `fastapi` / `uvicorn` / `transformers`
 - 模型：
-  - `D:\Herein\tmp\models\qwen3-tts-customvoice`（1.7B CustomVoice，当前用）
-  - `D:\AI\models\qwen_tts\Qwen3-TTS-12Hz-1.7B-Base`
-  - `D:\AI\models\qwen_tts\Qwen3-TTS-12Hz-1.7B-VoiceDesign`
+  - `D:\Herein\tmp\models\qwen3-tts-0.6b-customvoice`（当前语音用，官方 PyTorch bf16）
+  - `D:\Herein\tmp\models\qwen3-tts-customvoice`（1.7B，音质更好但显存/延迟更高，备选）
 
-## 启动
+## 应用启动时的 TTS
+
+桌面端默认启动 **一份** 9881 的 `qwen3_tts_service.py`，使用官方 PyTorch bf16 的 0.6B CustomVoice。C 的 `VoiceService` 通过 HTTP 调 `/tts`，拿到 WAV 后切成 PCM 交给 presence 播放和口型。
+
+- 这样不会同时加载 9881 和 `qwen-worker` 两份 0.6B；
+- speaker 由 `HEREIN_VOICE_SPEAKER` 控制，默认 `vivian`；
+- 第一声要等整句合成完（0.6B 当前约数秒），不是逐 token 流式；qwen-worker 的流式路径仍保留，但不是桌面默认。
+
+- 模型：`tmp\models\qwen3-tts-0.6b-customvoice`
+- Python：`D:\AI\tools\qwen_tts\venv\Scripts\python.exe`
+- 关闭 9881：`HEREIN_TTS_SERVICE=0`（此时语音 TTS 不可用）
+- 覆盖：`HEREIN_VOICE_SPEAKER`、`HEREIN_TTS_MODEL`、`HEREIN_TTS_PORT`
+
+## 启动 9881 服务（移动端/调试）
 
 ```powershell
 D:\AI\tools\qwen_tts\venv\Scripts\python.exe scripts/qwen3_tts_service.py `

@@ -93,10 +93,13 @@ function metric(event) {
     "interruptMs",
     "vadToAsrMs",
     "asrMs",
+    "rms",
+    "bytes",
     "endToSoundMs",
     "renderErrors",
     "tracks",
     "audioContexts",
+    "characters",
     "state",
     "reason",
     "count",
@@ -139,7 +142,8 @@ function cancel(reason = "command") {
   }
   acks.clear();
   push({ type: "cancel", generation, reason });
-  publish({ type: "interrupted", generation, reason });
+  if (reason !== "replace" && reason !== "tts-failure")
+    publish({ type: "interrupted", generation, reason });
   metric({ type: "cancel", generation, reason });
   return generation;
 }
@@ -429,6 +433,7 @@ async function main() {
             uptimeSeconds: process.uptime(),
             generation,
             micActive,
+            clients: clients.size,
             rendererAgeMs: lastRendererAt ? Date.now() - lastRendererAt : null,
             window: {
               visible: win?.isVisible(),
@@ -743,6 +748,31 @@ async function main() {
       turnId.length > 80
     )
       throw new Error("Invalid audio");
+    if (process.env.HEREIN_INTERACTION_DEBUG_AUDIO === "1") {
+      try {
+        const data = Buffer.from(pcm);
+        const header = Buffer.alloc(44);
+        header.write("RIFF", 0);
+        header.writeUInt32LE(36 + data.length, 4);
+        header.write("WAVE", 8);
+        header.write("fmt ", 12);
+        header.writeUInt32LE(16, 16);
+        header.writeUInt16LE(1, 20);
+        header.writeUInt16LE(1, 22);
+        header.writeUInt32LE(16000, 24);
+        header.writeUInt32LE(32000, 28);
+        header.writeUInt16LE(2, 32);
+        header.writeUInt16LE(16, 34);
+        header.write("data", 36);
+        header.writeUInt32LE(data.length, 40);
+        await fs.writeFile(
+          path.join(dataDir, "last-utterance.wav"),
+          Buffer.concat([header, data]),
+        );
+      } catch {
+        // Debug capture is best-effort.
+      }
+    }
     const current = generation;
     const result = await workers.transcribe(pcm);
     if (current !== generation) return { stale: true };
@@ -753,7 +783,12 @@ async function main() {
       generation: current,
       turnId,
     });
-    metric({ type: "asr.complete", asrMs: result.elapsedMs });
+    metric({
+      type: "asr.complete",
+      asrMs: result.elapsedMs,
+      characters: result.text?.length ?? 0,
+      bytes: pcm.byteLength,
+    });
     return result;
   });
   ipcMain.handle("interaction:speak", (event, command) => {
@@ -797,6 +832,13 @@ async function main() {
         path.join(dataDir, "preferences.local.json"),
         JSON.stringify({ listen: micPreference }),
       );
+    }
+    if (value.type === "vad") {
+      publish({
+        type: "vad",
+        state: value.state === "start" ? "start" : "end",
+        at: Date.now(),
+      });
     }
     metric(value);
   });
@@ -861,7 +903,8 @@ async function main() {
     }
   }, 5000).unref();
   await win.loadURL(`http://127.0.0.1:${port}/`);
-  win.show();
+  if (config.headless === true) win.hide();
+  else win.show();
   console.log(
     `Interaction runtime listening on loopback port ${port}; discovery: ${path.join(dataDir, "endpoint.local.json")}`,
   );
